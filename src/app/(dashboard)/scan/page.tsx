@@ -267,10 +267,10 @@ export default function ScanPapersPage() {
   const selectedChapter = chapters.find((c) => c.id === selectedChapterId);
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto p-6">
+    <div className="space-y-6 max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Scan Papers (OCR AI)</h1>
-        <p className="text-muted-foreground mt-1 text-sm">
+        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">Scan Papers (OCR AI)</h1>
+        <p className="text-muted-foreground mt-1 text-xs sm:text-sm">
           Upload photos of question papers or textbook pages and let Google Gemini Vision extract structured questions.
         </p>
       </div>

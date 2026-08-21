@@ -348,7 +348,7 @@ export default function AcademicStructurePage() {
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-900 pb-16">
       {/* Top Banner & Header with Summary Badges */}
-      <div className="bg-white border-b border-slate-200/80 px-8 py-6 mb-8">
+      <div className="bg-white border-b border-slate-200/80 px-4 sm:px-6 lg:px-8 py-5 sm:py-6 mb-6 sm:mb-8">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="text-xs font-semibold text-slate-500 flex items-center gap-1.5 mb-1.5">
@@ -368,8 +368,8 @@ export default function AcademicStructurePage() {
           </div>
 
           {/* Quick Stats Badges */}
-          <div className="flex items-center gap-3 self-start md:self-auto font-mono">
-            <div className="bg-indigo-50 border border-indigo-100 px-3.5 py-1.5 rounded-xl flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 self-start md:self-auto font-mono">
+            <div className="bg-indigo-50 border border-indigo-100 px-3 py-1.5 rounded-xl flex items-center gap-2">
               <Layers className="w-4 h-4 text-indigo-600" />
               <div>
                 <div className="text-[10px] text-slate-500 uppercase">Classes</div>
@@ -377,7 +377,7 @@ export default function AcademicStructurePage() {
               </div>
             </div>
 
-            <div className="bg-blue-50 border border-blue-100 px-3.5 py-1.5 rounded-xl flex items-center gap-2">
+            <div className="bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-xl flex items-center gap-2">
               <BookOpen className="w-4 h-4 text-blue-600" />
               <div>
                 <div className="text-[10px] text-slate-500 uppercase">Subjects</div>
@@ -385,7 +385,7 @@ export default function AcademicStructurePage() {
               </div>
             </div>
 
-            <div className="bg-emerald-50 border border-emerald-100 px-3.5 py-1.5 rounded-xl flex items-center gap-2">
+            <div className="bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-xl flex items-center gap-2">
               <Bookmark className="w-4 h-4 text-emerald-600" />
               <div>
                 <div className="text-[10px] text-slate-500 uppercase">Chapters</div>
@@ -396,7 +396,7 @@ export default function AcademicStructurePage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-8 space-y-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 sm:space-y-8">
         {/* Step Progress Line */}
         <div className="relative flex items-center justify-between px-16 max-w-4xl mx-auto">
           <div className="absolute left-16 right-16 top-1/2 -translate-y-1/2 h-0.5 bg-slate-200" />
@@ -418,18 +418,20 @@ export default function AcademicStructurePage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* LEFT: Academic Structure Explorer (Tree-Grid Table) */}
           <div className="lg:col-span-8 bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+            <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-1">
               <h2 className="text-base font-bold text-slate-900">Academic Structure Explorer</h2>
               <span className="text-xs text-slate-400 font-mono">Click rows to expand / collapse</span>
             </div>
 
-            {/* Table Header */}
-            <div className="grid grid-cols-12 px-6 py-3 bg-slate-50/70 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
-              <div className="col-span-4">Class (Levels)</div>
-              <div className="col-span-4">Subject (per Class)</div>
-              <div className="col-span-3">Chapter (per Subject)</div>
-              <div className="col-span-1 text-right">Actions</div>
-            </div>
+            <div className="overflow-x-auto w-full">
+              <div className="min-w-[620px]">
+                {/* Table Header */}
+                <div className="grid grid-cols-12 px-6 py-3 bg-slate-50/70 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono">
+                  <div className="col-span-4">Class (Levels)</div>
+                  <div className="col-span-4">Subject (per Class)</div>
+                  <div className="col-span-3">Chapter (per Subject)</div>
+                  <div className="col-span-1 text-right">Actions</div>
+                </div>
 
             {/* Table Rows & Expandable Hierarchy */}
             <div className="divide-y divide-slate-100">
@@ -671,6 +673,8 @@ export default function AcademicStructurePage() {
                   );
                 })
               )}
+            </div>
+            </div>
             </div>
           </div>
 

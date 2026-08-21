@@ -242,11 +242,11 @@ export default function SchoolSettingsPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto p-6">
+    <div className="space-y-6 max-w-5xl mx-auto p-4 sm:p-6 lg:p-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">School Settings</h1>
-        <p className="text-muted-foreground mt-2">
-          Manage your school profile and invite teachers.
+        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">School Settings</h1>
+        <p className="text-muted-foreground mt-1 text-xs sm:text-sm">
+          Manage your school profile, branding assets, and invite staff members.
         </p>
       </div>
 
