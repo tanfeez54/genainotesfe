@@ -111,8 +111,8 @@ function EditableSection({ section, noteId, onUpdate }: {
     <div className={cn('border-l-4 rounded-r-xl p-5 mb-4 group transition-all', colorClass)}>
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex items-center gap-2">
-          <Icon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-          <h3 className="font-semibold text-foreground text-sm">{section.title}</h3>
+          <Icon className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+          <h3 className="font-semibold text-foreground text-lg">{section.title}</h3>
           {section.section_type && (
             <Badge variant="secondary" className="text-xs capitalize hidden sm:block">
               {section.section_type.replace('_', ' ')}
@@ -144,11 +144,11 @@ function EditableSection({ section, noteId, onUpdate }: {
         <Textarea
           value={editContent}
           onChange={(e) => setEditContent(e.target.value)}
-          className="min-h-[120px] text-sm resize-y bg-background/80"
+          className="min-h-[120px] text-base resize-y bg-background/80"
           autoFocus
         />
       ) : (
-        <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap">
+        <p className="text-base text-foreground/90 leading-relaxed whitespace-pre-wrap">
           {section.content ?? 'No content'}
         </p>
       )}

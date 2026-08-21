@@ -21,55 +21,33 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/notes/new', label: 'New Note', icon: Sparkles },
-  { href: '/subjects', label: 'Subjects', icon: FolderOpen },
-  { href: '/settings', label: 'Settings', icon: Settings },
+  { href: '/classes', label: 'Classes & Subjects', icon: FolderOpen },
+  { href: '/scan', label: 'Scan Papers', icon: Sparkles },
+  { href: '/question-bank', label: 'Question Bank', icon: FileText },
+  { href: '/settings/school', label: 'School Settings', icon: Settings },
+  { href: '/dashboard', label: 'Legacy AI Notes', icon: LayoutDashboard },
 ];
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [userEmail, setUserEmail] = useState('');
-  const pathname = usePathname();
-  const router = useRouter();
-
-  useEffect(() => {
-    const token = document.cookie.match(new RegExp('(^| )notegen_session=([^;]+)'))?.[2];
-    if (token) {
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        if (payload.email) setUserEmail(payload.email);
-      } catch (e) {
-        console.error('Failed to parse session token', e);
-      }
-    }
-  }, []);
-
-  const handleLogout = async () => {
-    document.cookie = 'notegen_session=; path=/; max-age=0; samesite=lax';
-    toast.success('Signed out');
-    router.push('/login');
-  };
-
-  const Sidebar = () => (
+function Sidebar({ pathname, userEmail, handleLogout }: { pathname: string, userEmail: string, handleLogout: () => void }) {
+  return (
     <aside className="flex flex-col h-full bg-sidebar border-r border-sidebar-border w-64">
       {/* Logo */}
       <div className="flex items-center gap-2.5 px-5 py-5 border-b border-sidebar-border">
         <div className="w-8 h-8 rounded-lg gradient-brand flex items-center justify-center shadow-sm">
           <BookOpen className="w-4 h-4 text-white" />
         </div>
-        <span className="text-base font-bold gradient-brand-text">NoteGen AI</span>
+        <span className="text-base font-bold gradient-brand-text">SchoolPapers AI</span>
       </div>
 
-      {/* New Note CTA */}
+      {/* Generate Paper CTA */}
       <div className="px-4 pt-5 pb-3">
-        <Link href="/notes/new">
+        <Link href="/generate-paper">
           <Button
             className="w-full gradient-brand text-white hover:opacity-90 transition-opacity shadow-sm font-medium h-9"
             size="sm"
           >
             <Sparkles className="w-3.5 h-3.5 mr-2" />
-            New Note
+            Generate Paper
           </Button>
         </Link>
       </div>
@@ -125,20 +103,125 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
     </aside>
   );
+}
+
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [userEmail, setUserEmail] = useState('');
+  const [isVerifyingSchool, setIsVerifyingSchool] = useState(true);
+  const [isImpersonating, setIsImpersonating] = useState(false);
+  const pathname = usePathname();
+  const router = useRouter();
+
+  useEffect(() => {
+    async function checkAuthAndSchool() {
+      // Check if arriving via Impersonation support token in URL
+      if (typeof window !== 'undefined') {
+        const urlParams = new URLSearchParams(window.location.search);
+        const supportToken = urlParams.get('support_token');
+        if (supportToken) {
+          document.cookie = `notegen_session=${supportToken}; path=/; max-age=900; samesite=lax`; // 15 mins
+          setIsImpersonating(true);
+          // Remove param from URL cleanly
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+      }
+
+      const tokenMatch = document.cookie.match(new RegExp('(^| )notegen_session=([^;]+)'));
+      const token = tokenMatch ? tokenMatch[2] : null;
+      
+      if (!token) {
+        router.push('/login');
+        return;
+      }
+
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        if (payload.email) setUserEmail(payload.email);
+        if (payload.is_support_session) setIsImpersonating(true);
+      } catch (e) {
+        console.error('Failed to parse session token', e);
+      }
+
+      // Check if user has a school
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/schools/my-school`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        if (res.status === 404) {
+          // No school found! Redirect to onboarding
+          router.push('/onboarding');
+          return; // Keep isVerifyingSchool = true so children do not mount
+        }
+
+        if (res.ok) {
+          setIsVerifyingSchool(false);
+        } else {
+          // If other error, still allow viewing or handle gracefully
+          setIsVerifyingSchool(false);
+        }
+      } catch (error) {
+        console.error('Failed to verify school status', error);
+        setIsVerifyingSchool(false);
+      }
+    }
+
+    checkAuthAndSchool();
+  }, [router]);
+
+  const handleLogout = async () => {
+    document.cookie = 'notegen_session=; path=/; max-age=0; samesite=lax';
+    toast.success('Signed out');
+    router.push('/login');
+  };
+
+  if (isVerifyingSchool) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center">
+          <div className="w-12 h-12 rounded-xl gradient-brand flex items-center justify-center shadow-lg mb-4 animate-pulse">
+            <BookOpen className="w-6 h-6 text-white" />
+          </div>
+          <p className="text-slate-500 font-medium">Loading workspace...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
-      {/* Desktop Sidebar */}
-      <div className="hidden md:flex flex-col flex-shrink-0">
-        <Sidebar />
-      </div>
+    <div className="flex h-screen bg-background overflow-hidden flex-col">
+      {/* Top Impersonation Banner */}
+      {isImpersonating && (
+        <div className="bg-amber-500 text-slate-950 px-4 py-1.5 text-xs font-semibold flex items-center justify-between shadow-md z-50">
+          <div className="flex items-center gap-2">
+            <span>🛡️</span>
+            <span>Support Session Active — Viewing as School Tenant (Session auto-expires in 15 mins)</span>
+          </div>
+          <button
+            onClick={() => {
+              document.cookie = 'notegen_session=; path=/; max-age=0; samesite=lax';
+              window.location.href = 'http://localhost:3002/schools';
+            }}
+            className="px-2.5 py-0.5 rounded bg-slate-950 text-white text-[11px] font-bold hover:bg-slate-800 transition-colors cursor-pointer"
+          >
+            Exit Support Session
+          </button>
+        </div>
+      )}
+
+      <div className="flex flex-1 overflow-hidden">
+        {/* Desktop Sidebar */}
+        <div className="hidden md:flex flex-col flex-shrink-0">
+          <Sidebar pathname={pathname} userEmail={userEmail} handleLogout={handleLogout} />
+        </div>
 
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
         <div className="md:hidden fixed inset-0 z-50 flex">
           <div className="absolute inset-0 bg-black/50" onClick={() => setSidebarOpen(false)} />
           <div className="relative flex flex-col">
-            <Sidebar />
+            <Sidebar pathname={pathname} userEmail={userEmail} handleLogout={handleLogout} />
           </div>
         </div>
       )}
@@ -159,7 +242,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="w-6 h-6 rounded-md gradient-brand flex items-center justify-center">
               <BookOpen className="w-3 h-3 text-white" />
             </div>
-            <span className="font-bold text-sm gradient-brand-text">NoteGen AI</span>
+            <span className="font-bold text-sm gradient-brand-text">SchoolPapers AI</span>
           </div>
         </div>
 
@@ -167,6 +250,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <main className="flex-1 overflow-y-auto">
           {children}
         </main>
+      </div>
       </div>
     </div>
   );

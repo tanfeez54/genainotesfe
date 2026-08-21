@@ -6,19 +6,20 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { BookOpen, Mail, Lock, Loader2, LogIn } from 'lucide-react';
+import { BookOpen, Mail, User, Phone, Loader2, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 
 const schema = z.object({
+  full_name: z.string().min(2, 'Name is required'),
   email: z.string().email('Please enter a valid email address'),
-  password: z.string().min(1, 'Password is required'),
+  mobile: z.string().optional(),
 });
 type FormData = z.infer<typeof schema>;
 
-export default function LoginPage() {
+export default function SignupPage() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
@@ -31,25 +32,26 @@ export default function LoginPage() {
   const onSubmit = async (data: FormData) => {
     setIsLoading(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: data.email, password: data.password }),
+        body: JSON.stringify(data),
       });
 
       const result = await res.json();
-      if (!res.ok) throw new Error(result.error || 'Failed to login');
+      if (!res.ok) throw new Error(result.error || 'Failed to sign up');
 
-      // Set the HTTP-only cookie equivalent (since we are doing it client-side for now)
-      // Expires in 24 hours
-      document.cookie = `notegen_session=${result.session.access_token}; path=/; max-age=${60 * 60 * 24}; samesite=lax`;
+      // Store email in sessionStorage for verify page
+      sessionStorage.setItem('otpEmail', data.email);
 
-      toast.success('Welcome back!');
-      router.push('/dashboard');
-      router.refresh(); // Force refresh to update layouts
+      toast.success('Check your inbox!', {
+        description: `We sent a 6-digit code to ${data.email}`,
+      });
+
+      router.push('/verify');
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Invalid credentials';
-      toast.error('Login Failed', { description: message });
+      const message = err instanceof Error ? err.message : 'Signup Failed';
+      toast.error('Something went wrong', { description: message });
     } finally {
       setIsLoading(false);
     }
@@ -68,12 +70,32 @@ export default function LoginPage() {
             <span className="text-xl font-bold gradient-brand-text">NoteGen AI</span>
           </Link>
 
-          <h1 className="text-3xl font-bold text-foreground mb-2">Welcome back</h1>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Create an account</h1>
           <p className="text-muted-foreground mb-8">
-            Log in to your account to continue studying smarter.
+            Join us to start generating smart AI notes instantly.
           </p>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="full_name" className="text-sm font-medium">
+                Full Name
+              </Label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  id="full_name"
+                  type="text"
+                  placeholder="John Doe"
+                  className="pl-10 h-11"
+                  autoComplete="name"
+                  {...register('full_name')}
+                />
+              </div>
+              {errors.full_name && (
+                <p className="text-sm text-destructive">{errors.full_name.message}</p>
+              )}
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="email" className="text-sm font-medium">
                 Email address
@@ -95,48 +117,45 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-sm font-medium">
-                Password
+              <Label htmlFor="mobile" className="text-sm font-medium">
+                Mobile Number <span className="text-muted-foreground font-normal">(Optional)</span>
               </Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
+                  id="mobile"
+                  type="tel"
+                  placeholder="+1 (555) 000-0000"
                   className="pl-10 h-11"
-                  autoComplete="current-password"
-                  {...register('password')}
+                  autoComplete="tel"
+                  {...register('mobile')}
                 />
               </div>
-              {errors.password && (
-                <p className="text-sm text-destructive">{errors.password.message}</p>
-              )}
             </div>
 
             <Button
               type="submit"
-              className="w-full h-11 gradient-brand text-white hover:opacity-90 transition-opacity font-semibold shadow-md"
+              className="w-full h-11 gradient-brand text-white hover:opacity-90 transition-opacity font-semibold shadow-md mt-2"
               disabled={isLoading}
             >
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 w-4 h-4 animate-spin" />
-                  Logging in...
+                  Creating account...
                 </>
               ) : (
                 <>
-                  Log In
-                  <LogIn className="ml-2 w-4 h-4" />
+                  Continue
+                  <ArrowRight className="ml-2 w-4 h-4" />
                 </>
               )}
             </Button>
           </form>
 
           <p className="mt-8 text-sm text-center text-muted-foreground">
-            Don&apos;t have an account?{' '}
-            <Link href="/signup" className="text-primary font-semibold hover:underline">
-              Sign up
+            Already have an account?{' '}
+            <Link href="/login" className="text-primary font-semibold hover:underline">
+              Log in
             </Link>
           </p>
         </div>
