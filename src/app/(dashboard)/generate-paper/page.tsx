@@ -22,7 +22,8 @@ import {
   Image as ImageIcon,
   Upload,
   X,
-  Scale
+  Scale,
+  Columns
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -99,6 +100,7 @@ export default function GeneratePaperPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showAnswerKey, setShowAnswerKey] = useState(false);
+  const [isTwoColumn, setIsTwoColumn] = useState(false);
 
   // Image Upload state for questions
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -700,6 +702,18 @@ export default function GeneratePaperPage() {
               <Button
                 variant="outline"
                 size="sm"
+                onClick={() => setIsTwoColumn(!isTwoColumn)}
+                className={`h-8 text-xs font-semibold rounded-lg ${
+                  isTwoColumn ? 'bg-indigo-50 border-indigo-300 text-indigo-900 font-bold' : 'text-slate-700'
+                }`}
+                title="Toggle between 1-column and 2-column examination layout"
+              >
+                <Columns className="w-3.5 h-3.5 mr-1 text-indigo-600" />
+                {isTwoColumn ? '2 Columns (Active)' : '2-Column Layout'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => setShowAnswerKey(!showAnswerKey)}
                 className={`h-8 text-xs font-semibold rounded-lg ${
                   showAnswerKey ? 'bg-amber-50 border-amber-300 text-amber-900' : 'text-slate-700'
@@ -779,10 +793,10 @@ export default function GeneratePaperPage() {
                 )}
 
                 {/* Question Sections */}
-                <div className="space-y-6 pt-2">
+                <div className={`space-y-6 pt-2 ${isTwoColumn ? 'columns-1 sm:columns-2 gap-8 [column-rule:1px_solid_#cbd5e1] print:columns-2 print:gap-6' : ''}`}>
                   {/* Section A: MCQs */}
                   {mcqs.length > 0 && (
-                    <div className="space-y-3">
+                    <div className={`space-y-3 ${isTwoColumn ? 'break-inside-avoid print:break-inside-avoid mb-6' : ''}`}>
                       <div className="flex items-center justify-between border-b border-slate-300 pb-1">
                         <h4 className="font-bold text-sm uppercase tracking-wider">
                           Section A: Multiple Choice Questions ({mcqs.length * mcqMarks} Marks)
@@ -870,7 +884,7 @@ export default function GeneratePaperPage() {
 
                   {/* Section B: Short Questions */}
                   {shorts.length > 0 && (
-                    <div className="space-y-3 pt-2">
+                    <div className={`space-y-3 pt-2 ${isTwoColumn ? 'break-inside-avoid print:break-inside-avoid mb-6' : ''}`}>
                       <div className="flex items-center justify-between border-b border-slate-300 pb-1">
                         <h4 className="font-bold text-sm uppercase tracking-wider">
                           Section B: Short Answer Questions ({shorts.length * shortMarks} Marks)
@@ -880,7 +894,7 @@ export default function GeneratePaperPage() {
                         {shorts.map((q, idx) => {
                           const globalIdx = paperQuestions.findIndex((item) => item.id === q.id);
                           return (
-                            <div key={q.id || idx} className="text-xs space-y-1.5 group relative">
+                            <div key={q.id || idx} className={`text-xs space-y-1.5 group relative ${isTwoColumn ? 'break-inside-avoid print:break-inside-avoid mb-4' : ''}`}>
                               <div className="flex items-start justify-between font-medium">
                                 <div className="flex-1">
                                   <span>
@@ -942,7 +956,7 @@ export default function GeneratePaperPage() {
 
                   {/* Section C: Long Questions */}
                   {longs.length > 0 && (
-                    <div className="space-y-3 pt-2">
+                    <div className={`space-y-3 pt-2 ${isTwoColumn ? 'break-inside-avoid print:break-inside-avoid mb-6' : ''}`}>
                       <div className="flex items-center justify-between border-b border-slate-300 pb-1">
                         <h4 className="font-bold text-sm uppercase tracking-wider">
                           Section C: Long / Essay Questions ({longs.length * longMarks} Marks)
@@ -952,7 +966,7 @@ export default function GeneratePaperPage() {
                         {longs.map((q, idx) => {
                           const globalIdx = paperQuestions.findIndex((item) => item.id === q.id);
                           return (
-                            <div key={q.id || idx} className="text-xs space-y-1.5 group relative">
+                            <div key={q.id || idx} className={`text-xs space-y-1.5 group relative ${isTwoColumn ? 'break-inside-avoid print:break-inside-avoid mb-4' : ''}`}>
                               <div className="flex items-start justify-between font-medium">
                                 <div className="flex-1">
                                   <span>
