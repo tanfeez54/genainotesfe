@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import {
   Sparkles,
@@ -13,14 +13,16 @@ import {
   Eye,
   BookOpen,
   School,
-  Calendar,
   Clock,
   Layers,
   GraduationCap,
   Save,
   Key,
   Download,
-  AlertCircle
+  Image as ImageIcon,
+  Upload,
+  X,
+  Scale
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -58,6 +60,7 @@ interface QuestionItem {
   correct_option?: string;
   correct_answer?: string;
   answer_text?: string;
+  image_url?: string | null;
   marks?: number;
   difficulty?: string;
 }
@@ -96,6 +99,10 @@ export default function GeneratePaperPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showAnswerKey, setShowAnswerKey] = useState(false);
+
+  // Image Upload state for questions
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [activeQuestionIdxForImage, setActiveQuestionIdxForImage] = useState<number | null>(null);
 
   useEffect(() => {
     const tokenMatch = document.cookie.match(new RegExp('(^| )notegen_session=([^;]+)'));
@@ -190,10 +197,53 @@ export default function GeneratePaperPage() {
     }
   };
 
+  // Image attachment handler
+  const handleOpenImagePicker = (qIdx: number) => {
+    setActiveQuestionIdxForImage(qIdx);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleImageSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0] && activeQuestionIdxForImage !== null) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64Data = reader.result as string;
+        const updated = [...paperQuestions];
+        updated[activeQuestionIdxForImage] = {
+          ...updated[activeQuestionIdxForImage],
+          image_url: base64Data,
+        };
+        setPaperQuestions(updated);
+        toast.success(`Diagram attached to Question ${activeQuestionIdxForImage + 1}!`);
+        setActiveQuestionIdxForImage(null);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveImage = (qIdx: number) => {
+    const updated = [...paperQuestions];
+    updated[qIdx] = {
+      ...updated[qIdx],
+      image_url: null,
+    };
+    setPaperQuestions(updated);
+    toast.info(`Diagram removed from Question ${qIdx + 1}`);
+  };
+
   // Generate Paper using Gemini AI & Scanned Document / Chapter Content
   const handleGeneratePaper = async () => {
     if (!selectedClassId || !selectedSubjectId) {
       toast.error('Please select both a class and a subject');
+      return;
+    }
+
+    if (selectedChapterIds.length === 0) {
+      toast.error('Please select at least one chapter');
       return;
     }
 
@@ -204,7 +254,9 @@ export default function GeneratePaperPage() {
       .map((c) => c.title);
 
     setIsGenerating(true);
-    toast.info('Generating examination paper with AI from scanned documents...');
+    toast.info(
+      `Generating paper with equal marks distribution across ${selectedChapterNames.length} chapters...`
+    );
 
     try {
       const sections = [
@@ -254,7 +306,9 @@ export default function GeneratePaperPage() {
 
       if (data.data && Array.isArray(data.data)) {
         setPaperQuestions(data.data);
-        toast.success(`Generated paper with ${data.data.length} questions!`);
+        toast.success(
+          `Generated ${data.data.length} questions balanced across ${selectedChapterNames.length} chapters!`
+        );
       } else {
         throw new Error('Invalid response format');
       }
@@ -297,6 +351,7 @@ export default function GeneratePaperPage() {
             schoolName,
             timeAllowed,
             instructions,
+            selectedChapterIds,
           },
           selected_questions: paperQuestions,
           status: 'finalized',
@@ -325,8 +380,24 @@ export default function GeneratePaperPage() {
   const shorts = paperQuestions.filter((q) => q.type === 'short_answer' || q.type === 'short');
   const longs = paperQuestions.filter((q) => q.type === 'long_answer' || q.type === 'long');
 
+  const calculatedTotalMarks =
+    mcqCount * mcqMarks + shortCount * shortMarks + longCount * longMarks;
+  const approxPerChapterMarks =
+    selectedChapterIds.length > 0
+      ? (calculatedTotalMarks / selectedChapterIds.length).toFixed(1)
+      : '0';
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
+      {/* Hidden File Input for Image Uploading */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleImageSelected}
+        accept="image/*"
+        className="hidden"
+      />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5 print:hidden">
         <div>
@@ -337,7 +408,7 @@ export default function GeneratePaperPage() {
             Automated Exam Paper Generator
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            Design, customize, and print high-quality school exam papers in seconds
+            Design, customize, attach diagrams, and print high-quality school exam papers in seconds
           </p>
         </div>
 
@@ -358,14 +429,14 @@ export default function GeneratePaperPage() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column: Configuration Cards */}
         <div className="lg:col-span-5 space-y-5 print:hidden">
-          {/* 1. Target Selection */}
+          {/* 1. Target Selection & Chapter Equal Weightage */}
           <Card className="rounded-2xl border-slate-200 shadow-xs">
             <CardHeader className="pb-3">
               <CardTitle className="text-base font-bold flex items-center gap-2">
-                <GraduationCap className="w-4 h-4 text-indigo-600" /> 1. Class & Subject
+                <GraduationCap className="w-4 h-4 text-indigo-600" /> 1. Class, Subject & Chapters
               </CardTitle>
               <CardDescription className="text-xs">
-                Select the target grade and subject for this examination paper.
+                Select chapters to distribute questions with equal weightage.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -403,8 +474,8 @@ export default function GeneratePaperPage() {
               </div>
 
               {chapters.length > 0 && (
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
                     <Label className="text-xs font-semibold text-slate-700">Included Chapters</Label>
                     <button
                       type="button"
@@ -414,7 +485,18 @@ export default function GeneratePaperPage() {
                       {selectedChapterIds.length === chapters.length ? 'Deselect All' : 'Select All'}
                     </button>
                   </div>
-                  <div className="max-h-40 overflow-y-auto space-y-1.5 p-2 bg-slate-50 rounded-xl border border-slate-100">
+
+                  {/* Equal Weightage Badge Indicator */}
+                  {selectedChapterIds.length > 0 && (
+                    <div className="flex items-center gap-1.5 p-2 bg-indigo-50/80 border border-indigo-100 rounded-lg text-xs text-indigo-900 font-semibold">
+                      <Scale className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                      <span>
+                        {selectedChapterIds.length} Chapters Selected (~{approxPerChapterMarks} Marks / Chapter)
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="max-h-44 overflow-y-auto space-y-1.5 p-2 bg-slate-50 rounded-xl border border-slate-100">
                     {chapters.map((chap) => (
                       <label
                         key={chap.id}
@@ -588,13 +670,13 @@ export default function GeneratePaperPage() {
 
               <Button
                 onClick={handleGeneratePaper}
-                disabled={isGenerating || !selectedClassId || !selectedSubjectId}
+                disabled={isGenerating || !selectedClassId || !selectedSubjectId || selectedChapterIds.length === 0}
                 className="w-full h-11 rounded-xl gradient-brand text-white font-bold text-sm shadow-md hover:opacity-95 transition-opacity flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 {isGenerating ? (
                   <>
                     <RefreshCw className="w-4 h-4 animate-spin" />
-                    Generating Exam Paper with AI...
+                    Generating Equal Chapter Weightage Paper...
                   </>
                 ) : (
                   <>
@@ -624,7 +706,7 @@ export default function GeneratePaperPage() {
                 }`}
               >
                 <Key className="w-3.5 h-3.5 mr-1 text-amber-600" />
-                {showAnswerKey ? 'Hide Answer Key' : 'Show Answer Key'}
+                {showAnswerKey ? 'Hide Key' : 'Answer Key'}
               </Button>
             </div>
 
@@ -661,7 +743,7 @@ export default function GeneratePaperPage() {
                 </div>
                 <h3 className="font-bold text-slate-800 text-base mb-1">Paper Preview Ready</h3>
                 <p className="text-xs text-slate-500 max-w-sm mb-4">
-                  Select your class, subject, and question distribution on the left, then click &ldquo;Generate Exam Paper&rdquo;.
+                  Select your class, subject, and chapters on the left, then click &ldquo;Generate Exam Paper&rdquo;.
                 </p>
               </div>
             ) : (
@@ -707,34 +789,81 @@ export default function GeneratePaperPage() {
                         </h4>
                       </div>
                       <div className="space-y-3">
-                        {mcqs.map((q, idx) => (
-                          <div key={q.id || idx} className="text-xs space-y-1">
-                            <div className="flex items-start justify-between font-medium">
-                              <span>
-                                Q{idx + 1}. {q.question_text}
-                              </span>
-                              <span className="font-bold text-slate-500">[{q.marks || mcqMarks}m]</span>
+                        {mcqs.map((q, idx) => {
+                          const globalIdx = paperQuestions.findIndex((item) => item.id === q.id);
+                          return (
+                            <div key={q.id || idx} className="text-xs space-y-1.5 group relative">
+                              <div className="flex items-start justify-between font-medium">
+                                <div className="flex-1">
+                                  <span>
+                                    Q{idx + 1}. {q.question_text}
+                                  </span>
+                                  {q.chapter_title && (
+                                    <span className="text-[10px] text-slate-400 font-normal ml-2 italic">
+                                      ({q.chapter_title})
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-slate-500">[{q.marks || mcqMarks}m]</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenImagePicker(globalIdx)}
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity text-indigo-600 hover:text-indigo-800 text-[11px] font-bold flex items-center gap-0.5 print:hidden"
+                                    title="Attach diagram/image"
+                                  >
+                                    <ImageIcon className="w-3.5 h-3.5" />
+                                    {q.image_url ? 'Change Diagram' : '+ Diagram'}
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Attached Diagram / Image */}
+                              {q.image_url && (
+                                <div className="relative inline-block my-2 border border-slate-300 rounded p-1 bg-white">
+                                  <img
+                                    src={q.image_url}
+                                    alt={`Figure for Q${idx + 1}`}
+                                    className="max-h-48 max-w-sm object-contain rounded"
+                                  />
+                                  <div className="text-[10px] text-center text-slate-500 font-serif italic mt-0.5">
+                                    [Fig. Q{idx + 1}]
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveImage(globalIdx)}
+                                    className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full p-0.5 shadow hover:bg-red-700 print:hidden"
+                                    title="Remove diagram"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              )}
+
+                              {/* MCQ Options */}
+                              {Array.isArray(q.options) && q.options.length > 0 && (
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pl-4 pt-1 text-slate-700">
+                                  {q.options.map((opt: any, oIdx: number) => {
+                                    const label = typeof opt === 'string' ? String.fromCharCode(65 + oIdx) : opt.label || String.fromCharCode(65 + oIdx);
+                                    const text = typeof opt === 'string' ? opt : opt.text;
+                                    return (
+                                      <div key={oIdx}>
+                                        ({label}) {text}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+
+                              {/* Answer Key */}
+                              {showAnswerKey && (q.correct_option || q.correct_answer || q.answer_text) && (
+                                <div className="text-[11px] text-emerald-700 font-semibold pl-4">
+                                  ✓ Key: {q.correct_option || q.correct_answer || q.answer_text}
+                                </div>
+                              )}
                             </div>
-                            {Array.isArray(q.options) && q.options.length > 0 && (
-                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pl-4 pt-1 text-slate-700">
-                                {q.options.map((opt: any, oIdx: number) => {
-                                  const label = typeof opt === 'string' ? String.fromCharCode(65 + oIdx) : opt.label || String.fromCharCode(65 + oIdx);
-                                  const text = typeof opt === 'string' ? opt : opt.text;
-                                  return (
-                                    <div key={oIdx}>
-                                      ({label}) {text}
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            )}
-                            {showAnswerKey && (q.correct_option || q.correct_answer || q.answer_text) && (
-                              <div className="text-[11px] text-emerald-700 font-semibold pl-4">
-                                ✓ Key: {q.correct_option || q.correct_answer || q.answer_text}
-                              </div>
-                            )}
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -748,21 +877,65 @@ export default function GeneratePaperPage() {
                         </h4>
                       </div>
                       <div className="space-y-3">
-                        {shorts.map((q, idx) => (
-                          <div key={q.id || idx} className="text-xs space-y-1">
-                            <div className="flex items-start justify-between font-medium">
-                              <span>
-                                Q{idx + 1 + mcqs.length}. {q.question_text}
-                              </span>
-                              <span className="font-bold text-slate-500">[{q.marks || shortMarks}m]</span>
-                            </div>
-                            {showAnswerKey && (q.answer_text || q.correct_answer) && (
-                              <div className="text-[11px] text-emerald-700 font-semibold pl-4">
-                                ✓ Model Answer: {q.answer_text || q.correct_answer}
+                        {shorts.map((q, idx) => {
+                          const globalIdx = paperQuestions.findIndex((item) => item.id === q.id);
+                          return (
+                            <div key={q.id || idx} className="text-xs space-y-1.5 group relative">
+                              <div className="flex items-start justify-between font-medium">
+                                <div className="flex-1">
+                                  <span>
+                                    Q{idx + 1 + mcqs.length}. {q.question_text}
+                                  </span>
+                                  {q.chapter_title && (
+                                    <span className="text-[10px] text-slate-400 font-normal ml-2 italic">
+                                      ({q.chapter_title})
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-slate-500">[{q.marks || shortMarks}m]</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenImagePicker(globalIdx)}
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity text-indigo-600 hover:text-indigo-800 text-[11px] font-bold flex items-center gap-0.5 print:hidden"
+                                    title="Attach diagram/image"
+                                  >
+                                    <ImageIcon className="w-3.5 h-3.5" />
+                                    {q.image_url ? 'Change Diagram' : '+ Diagram'}
+                                  </button>
+                                </div>
                               </div>
-                            )}
-                          </div>
-                        ))}
+
+                              {/* Attached Diagram */}
+                              {q.image_url && (
+                                <div className="relative inline-block my-2 border border-slate-300 rounded p-1 bg-white">
+                                  <img
+                                    src={q.image_url}
+                                    alt={`Figure for Q${idx + 1 + mcqs.length}`}
+                                    className="max-h-48 max-w-sm object-contain rounded"
+                                  />
+                                  <div className="text-[10px] text-center text-slate-500 font-serif italic mt-0.5">
+                                    [Fig. Q{idx + 1 + mcqs.length}]
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveImage(globalIdx)}
+                                    className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full p-0.5 shadow hover:bg-red-700 print:hidden"
+                                    title="Remove diagram"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              )}
+
+                              {showAnswerKey && (q.answer_text || q.correct_answer) && (
+                                <div className="text-[11px] text-emerald-700 font-semibold pl-4">
+                                  ✓ Model Answer: {q.answer_text || q.correct_answer}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -776,21 +949,65 @@ export default function GeneratePaperPage() {
                         </h4>
                       </div>
                       <div className="space-y-3">
-                        {longs.map((q, idx) => (
-                          <div key={q.id || idx} className="text-xs space-y-1">
-                            <div className="flex items-start justify-between font-medium">
-                              <span>
-                                Q{idx + 1 + mcqs.length + shorts.length}. {q.question_text}
-                              </span>
-                              <span className="font-bold text-slate-500">[{q.marks || longMarks}m]</span>
-                            </div>
-                            {showAnswerKey && (q.answer_text || q.correct_answer) && (
-                              <div className="text-[11px] text-emerald-700 font-semibold pl-4">
-                                ✓ Model Answer: {q.answer_text || q.correct_answer}
+                        {longs.map((q, idx) => {
+                          const globalIdx = paperQuestions.findIndex((item) => item.id === q.id);
+                          return (
+                            <div key={q.id || idx} className="text-xs space-y-1.5 group relative">
+                              <div className="flex items-start justify-between font-medium">
+                                <div className="flex-1">
+                                  <span>
+                                    Q{idx + 1 + mcqs.length + shorts.length}. {q.question_text}
+                                  </span>
+                                  {q.chapter_title && (
+                                    <span className="text-[10px] text-slate-400 font-normal ml-2 italic">
+                                      ({q.chapter_title})
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-slate-500">[{q.marks || longMarks}m]</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenImagePicker(globalIdx)}
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity text-indigo-600 hover:text-indigo-800 text-[11px] font-bold flex items-center gap-0.5 print:hidden"
+                                    title="Attach diagram/image"
+                                  >
+                                    <ImageIcon className="w-3.5 h-3.5" />
+                                    {q.image_url ? 'Change Diagram' : '+ Diagram'}
+                                  </button>
+                                </div>
                               </div>
-                            )}
-                          </div>
-                        ))}
+
+                              {/* Attached Diagram */}
+                              {q.image_url && (
+                                <div className="relative inline-block my-2 border border-slate-300 rounded p-1 bg-white">
+                                  <img
+                                    src={q.image_url}
+                                    alt={`Figure for Q${idx + 1 + mcqs.length + shorts.length}`}
+                                    className="max-h-48 max-w-sm object-contain rounded"
+                                  />
+                                  <div className="text-[10px] text-center text-slate-500 font-serif italic mt-0.5">
+                                    [Fig. Q{idx + 1 + mcqs.length + shorts.length}]
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveImage(globalIdx)}
+                                    className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full p-0.5 shadow hover:bg-red-700 print:hidden"
+                                    title="Remove diagram"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              )}
+
+                              {showAnswerKey && (q.answer_text || q.correct_answer) && (
+                                <div className="text-[11px] text-emerald-700 font-semibold pl-4">
+                                  ✓ Model Answer: {q.answer_text || q.correct_answer}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
