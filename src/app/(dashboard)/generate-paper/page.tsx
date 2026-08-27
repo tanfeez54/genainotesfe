@@ -26,7 +26,14 @@ import {
   Columns,
   Sliders,
   ArrowLeft,
-  ArrowRight
+  ArrowRight,
+  ArrowUp,
+  ArrowDown,
+  HelpCircle,
+  CheckSquare,
+  AlignLeft,
+  ListOrdered,
+  Shuffle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,6 +43,24 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { API_URL } from '@/lib/api';
 import { toast } from 'sonner';
+
+export type QuestionType =
+  | 'mcq'
+  | 'fill_blank'
+  | 'true_false'
+  | 'match_the_following'
+  | 'short_answer'
+  | 'long_answer';
+
+export interface SectionConfigItem {
+  id: string;
+  section_name: string;
+  type: QuestionType;
+  count: number;
+  marks_per_question: number;
+  difficulty: 'easy' | 'medium' | 'hard';
+  enabled: boolean;
+}
 
 interface ClassItem {
   id: string;
@@ -56,6 +81,7 @@ interface ChapterItem {
 
 interface QuestionItem {
   id: string;
+  section_name?: string;
   chapter_id?: string;
   chapter_title?: string;
   type: string;
@@ -68,6 +94,111 @@ interface QuestionItem {
   marks?: number;
   difficulty?: string;
 }
+
+const SECTION_TYPE_METADATA: Record<
+  QuestionType,
+  { label: string; defaultMarks: number; defaultCount: number; badgeColor: string; icon: any }
+> = {
+  mcq: {
+    label: 'Multiple Choice (MCQ)',
+    defaultMarks: 1,
+    defaultCount: 5,
+    badgeColor: 'bg-blue-50 text-blue-700 border-blue-200',
+    icon: CheckSquare,
+  },
+  fill_blank: {
+    label: 'Fill in the Blanks',
+    defaultMarks: 1,
+    defaultCount: 5,
+    badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    icon: AlignLeft,
+  },
+  true_false: {
+    label: 'True / False',
+    defaultMarks: 1,
+    defaultCount: 4,
+    badgeColor: 'bg-amber-50 text-amber-700 border-amber-200',
+    icon: CheckCircle2,
+  },
+  match_the_following: {
+    label: 'Match the Following',
+    defaultMarks: 4,
+    defaultCount: 2,
+    badgeColor: 'bg-purple-50 text-purple-700 border-purple-200',
+    icon: Shuffle,
+  },
+  short_answer: {
+    label: 'Short Answer Questions',
+    defaultMarks: 3,
+    defaultCount: 4,
+    badgeColor: 'bg-orange-50 text-orange-700 border-orange-200',
+    icon: FileText,
+  },
+  long_answer: {
+    label: 'Long / Essay Questions',
+    defaultMarks: 5,
+    defaultCount: 2,
+    badgeColor: 'bg-rose-50 text-rose-700 border-rose-200',
+    icon: ListOrdered,
+  },
+};
+
+const DEFAULT_SECTIONS: SectionConfigItem[] = [
+  {
+    id: 'sec-1',
+    section_name: 'Section A: Multiple Choice Questions',
+    type: 'mcq',
+    count: 5,
+    marks_per_question: 1,
+    difficulty: 'easy',
+    enabled: true,
+  },
+  {
+    id: 'sec-2',
+    section_name: 'Section B: Fill in the Blanks',
+    type: 'fill_blank',
+    count: 5,
+    marks_per_question: 1,
+    difficulty: 'easy',
+    enabled: true,
+  },
+  {
+    id: 'sec-3',
+    section_name: 'Section C: Match the Following',
+    type: 'match_the_following',
+    count: 2,
+    marks_per_question: 4,
+    difficulty: 'medium',
+    enabled: true,
+  },
+  {
+    id: 'sec-4',
+    section_name: 'Section D: True or False',
+    type: 'true_false',
+    count: 4,
+    marks_per_question: 1,
+    difficulty: 'easy',
+    enabled: false,
+  },
+  {
+    id: 'sec-5',
+    section_name: 'Section E: Short Answer Questions',
+    type: 'short_answer',
+    count: 4,
+    marks_per_question: 3,
+    difficulty: 'medium',
+    enabled: true,
+  },
+  {
+    id: 'sec-6',
+    section_name: 'Section F: Long Answer Questions',
+    type: 'long_answer',
+    count: 2,
+    marks_per_question: 5,
+    difficulty: 'hard',
+    enabled: true,
+  },
+];
 
 export default function GeneratePaperPage() {
   const [token, setToken] = useState('');
@@ -92,13 +223,8 @@ export default function GeneratePaperPage() {
     '1. Attempt all questions.\n2. Write answers clearly and neatly.\n3. Section A is compulsory.'
   );
 
-  // Question counts by type
-  const [mcqCount, setMcqCount] = useState(5);
-  const [mcqMarks, setMcqMarks] = useState(1);
-  const [shortCount, setShortCount] = useState(4);
-  const [shortMarks, setShortMarks] = useState(3);
-  const [longCount, setLongCount] = useState(3);
-  const [longMarks, setLongMarks] = useState(5);
+  // Dynamic Section Config State
+  const [sections, setSections] = useState<SectionConfigItem[]>(DEFAULT_SECTIONS);
 
   // Generated paper state
   const [paperQuestions, setPaperQuestions] = useState<QuestionItem[]>([]);
@@ -204,6 +330,79 @@ export default function GeneratePaperPage() {
     }
   };
 
+  // Section Management Handlers
+  const handleToggleSection = (id: string) => {
+    setSections((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, enabled: !s.enabled } : s))
+    );
+  };
+
+  const handleUpdateSection = (id: string, updates: Partial<SectionConfigItem>) => {
+    setSections((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, ...updates } : s))
+    );
+  };
+
+  const handleDeleteSection = (id: string) => {
+    if (sections.length <= 1) {
+      toast.error('You must keep at least one section');
+      return;
+    }
+    setSections((prev) => prev.filter((s) => s.id !== id));
+  };
+
+  const handleMoveSection = (idx: number, direction: 'up' | 'down') => {
+    if (
+      (direction === 'up' && idx === 0) ||
+      (direction === 'down' && idx === sections.length - 1)
+    ) {
+      return;
+    }
+    const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+    const newSections = [...sections];
+    const temp = newSections[idx];
+    newSections[idx] = newSections[targetIdx];
+    newSections[targetIdx] = temp;
+    setSections(newSections);
+  };
+
+  const handleAddSection = (type: QuestionType = 'mcq') => {
+    const meta = SECTION_TYPE_METADATA[type];
+    const letter = String.fromCharCode(65 + sections.length);
+    const newSection: SectionConfigItem = {
+      id: `sec-${Date.now()}`,
+      section_name: `Section ${letter}: ${meta.label}`,
+      type,
+      count: meta.defaultCount,
+      marks_per_question: meta.defaultMarks,
+      difficulty: 'medium',
+      enabled: true,
+    };
+    setSections((prev) => [...prev, newSection]);
+    toast.success(`Added ${meta.label} section`);
+  };
+
+  // Total Configured Marks & Questions
+  const activeSections = sections.filter((s) => s.enabled && s.count > 0);
+  const totalConfiguredMarks = activeSections.reduce(
+    (acc, s) => acc + s.count * s.marks_per_question,
+    0
+  );
+  const totalConfiguredQuestions = activeSections.reduce(
+    (acc, s) => acc + s.count,
+    0
+  );
+  const approxPerChapterMarks =
+    selectedChapterIds.length > 0
+      ? (totalConfiguredMarks / selectedChapterIds.length).toFixed(1)
+      : '0';
+
+  // Synchronize totalMarks with configured marks automatically when sections change
+  const syncTotalMarks = () => {
+    setTotalMarks(String(totalConfiguredMarks));
+    toast.info(`Updated Total Marks to ${totalConfiguredMarks}`);
+  };
+
   // Image attachment handler
   const handleOpenImagePicker = (qIdx: number) => {
     setActiveQuestionIdxForImage(qIdx);
@@ -242,7 +441,7 @@ export default function GeneratePaperPage() {
     toast.info(`Diagram removed from Question ${qIdx + 1}`);
   };
 
-  // Generate Paper using Gemini AI & Scanned Document / Chapter Content
+  // Generate Paper using Gemini AI
   const handleGeneratePaper = async () => {
     if (!selectedClassId || !selectedSubjectId) {
       toast.error('Please select both a class and a subject');
@@ -254,6 +453,11 @@ export default function GeneratePaperPage() {
       return;
     }
 
+    if (activeSections.length === 0) {
+      toast.error('Please enable at least one section with at least 1 question');
+      return;
+    }
+
     const selectedClassName = classes.find((c) => c.id === selectedClassId)?.name || 'Class';
     const selectedSubjectName = subjects.find((s) => s.id === selectedSubjectId)?.name || 'Subject';
     const selectedChapterNames = chapters
@@ -262,33 +466,17 @@ export default function GeneratePaperPage() {
 
     setIsGenerating(true);
     toast.info(
-      `Generating paper with equal marks distribution across ${selectedChapterNames.length} chapters...`
+      `Generating paper with ${activeSections.length} sections balanced across ${selectedChapterNames.length} chapters...`
     );
 
     try {
-      const sections = [
-        {
-          section_name: 'Section A: Multiple Choice Questions',
-          type: 'mcq',
-          count: mcqCount,
-          marks_per_question: mcqMarks,
-          difficulty: 'easy',
-        },
-        {
-          section_name: 'Section B: Short Answer Questions',
-          type: 'short_answer',
-          count: shortCount,
-          marks_per_question: shortMarks,
-          difficulty: 'medium',
-        },
-        {
-          section_name: 'Section C: Long Answer Questions',
-          type: 'long_answer',
-          count: longCount,
-          marks_per_question: longMarks,
-          difficulty: 'hard',
-        },
-      ];
+      const payloadSections = activeSections.map((s) => ({
+        section_name: s.section_name,
+        type: s.type,
+        count: Number(s.count),
+        marks_per_question: Number(s.marks_per_question),
+        difficulty: s.difficulty,
+      }));
 
       const res = await fetch(`${API_URL}/api/question-papers/ai-generate`, {
         method: 'POST',
@@ -304,7 +492,7 @@ export default function GeneratePaperPage() {
           chapter_ids: selectedChapterIds,
           chapter_names: selectedChapterNames,
           strict_ocr_only: true,
-          sections,
+          sections: payloadSections,
         }),
       });
 
@@ -315,7 +503,7 @@ export default function GeneratePaperPage() {
         setPaperQuestions(data.data);
         setViewMode('preview');
         toast.success(
-          `Generated ${data.data.length} questions balanced across ${selectedChapterNames.length} chapters!`
+          `Generated ${data.data.length} questions across ${activeSections.length} sections!`
         );
       } else {
         throw new Error('Invalid response format');
@@ -360,6 +548,7 @@ export default function GeneratePaperPage() {
             timeAllowed,
             instructions,
             selectedChapterIds,
+            sections: activeSections,
           },
           selected_questions: paperQuestions,
           status: 'finalized',
@@ -384,16 +573,17 @@ export default function GeneratePaperPage() {
   const selectedClassName = classes.find((c) => c.id === selectedClassId)?.name || '';
   const selectedSubjectName = subjects.find((s) => s.id === selectedSubjectId)?.name || '';
 
-  const mcqs = paperQuestions.filter((q) => q.type === 'mcq');
-  const shorts = paperQuestions.filter((q) => q.type === 'short_answer' || q.type === 'short');
-  const longs = paperQuestions.filter((q) => q.type === 'long_answer' || q.type === 'long');
-
-  const calculatedTotalMarks =
-    mcqCount * mcqMarks + shortCount * shortMarks + longCount * longMarks;
-  const approxPerChapterMarks =
-    selectedChapterIds.length > 0
-      ? (calculatedTotalMarks / selectedChapterIds.length).toFixed(1)
-      : '0';
+  // Helper to group questions by section
+  const groupedSections: { sectionName: string; type: string; questions: QuestionItem[] }[] = [];
+  paperQuestions.forEach((q) => {
+    const secName = q.section_name || 'General Questions';
+    let group = groupedSections.find((g) => g.sectionName === secName);
+    if (!group) {
+      group = { sectionName: secName, type: q.type, questions: [] };
+      groupedSections.push(group);
+    }
+    group.questions.push(q);
+  });
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
@@ -416,7 +606,7 @@ export default function GeneratePaperPage() {
             Automated Exam Paper Generator
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            Design curriculum-aligned test papers with equal chapter weightage and diagram attachments
+            Create custom exam papers with Fill in the Blanks, Match the Following, MCQs, True/False, and Descriptive sections
           </p>
         </div>
 
@@ -516,7 +706,7 @@ export default function GeneratePaperPage() {
                       <button
                         type="button"
                         onClick={toggleSelectAllChapters}
-                        className="text-[11px] font-bold text-indigo-600 hover:underline"
+                        className="text-[11px] font-bold text-indigo-600 hover:underline cursor-pointer"
                       >
                         {selectedChapterIds.length === chapters.length ? 'Deselect All' : 'Select All'}
                       </button>
@@ -595,7 +785,18 @@ export default function GeneratePaperPage() {
                     />
                   </div>
                   <div>
-                    <Label className="text-xs font-semibold text-slate-700">Total Marks</Label>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-semibold text-slate-700">Total Marks</Label>
+                      {Number(totalMarks) !== totalConfiguredMarks && (
+                        <button
+                          type="button"
+                          onClick={syncTotalMarks}
+                          className="text-[10px] text-indigo-600 font-bold hover:underline cursor-pointer"
+                        >
+                          Sync ({totalConfiguredMarks}M)
+                        </button>
+                      )}
+                    </div>
                     <Input
                       value={totalMarks}
                       onChange={(e) => setTotalMarks(e.target.value)}
@@ -619,134 +820,326 @@ export default function GeneratePaperPage() {
             </Card>
           </div>
 
-          {/* Row 2: Question Distribution & Generate Action */}
+          {/* Row 2: Dynamic Question Sections Builder */}
           <Card className="rounded-2xl border-slate-200 shadow-xs">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <Layers className="w-4 h-4 text-indigo-600" /> 3. Question Distribution & Mark Breakdown
-              </CardTitle>
-              <CardDescription className="text-xs">
-                Configure question counts and marks per section. Total configured: {calculatedTotalMarks} Marks.
-              </CardDescription>
+            <CardHeader className="pb-3 border-b border-slate-100">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <CardTitle className="text-base font-bold flex items-center gap-2">
+                    <Layers className="w-4 h-4 text-indigo-600" /> 3. Question Sections & Mark Breakdown
+                  </CardTitle>
+                  <CardDescription className="text-xs mt-0.5">
+                    Customize sections: Add Fill in the Blanks, Match the Following, MCQs, True/False & Descriptive questions.
+                  </CardDescription>
+                </div>
+
+                {/* Live Section Summary Pills */}
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-xs font-bold bg-indigo-50 border-indigo-200 text-indigo-800">
+                    {activeSections.length} Active Sections
+                  </Badge>
+                  <Badge variant="outline" className="text-xs font-bold bg-emerald-50 border-emerald-200 text-emerald-800">
+                    {totalConfiguredQuestions} Qs = {totalConfiguredMarks} Marks
+                  </Badge>
+                </div>
+              </div>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {/* MCQ */}
-                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-                  <div className="font-bold text-xs text-slate-900">Multiple Choice (MCQ)</div>
-                  <div className="flex items-center justify-between gap-2">
-                    <div>
-                      <Label className="text-[10px] text-slate-500">Count</Label>
-                      <Input
-                        type="number"
-                        min={0}
-                        max={30}
-                        value={mcqCount}
-                        onChange={(e) => setMcqCount(Number(e.target.value))}
-                        className="w-16 h-8 text-center text-xs font-bold mt-0.5"
-                      />
+            <CardContent className="space-y-4 pt-4">
+              {/* Sections List */}
+              <div className="space-y-3">
+                {sections.map((section, idx) => {
+                  const meta = SECTION_TYPE_METADATA[section.type] || SECTION_TYPE_METADATA.mcq;
+                  const Icon = meta.icon;
+                  const sectionMarksTotal = section.count * section.marks_per_question;
+
+                  return (
+                    <div
+                      key={section.id}
+                      className={`p-3.5 rounded-xl border transition-all ${
+                        section.enabled
+                          ? 'bg-white border-slate-200 shadow-xs hover:border-slate-300'
+                          : 'bg-slate-50 border-dashed border-slate-200 opacity-60'
+                      }`}
+                    >
+                      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                        {/* Left: Enable toggle, Order buttons, Title & Type */}
+                        <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                          {/* Reorder Buttons */}
+                          <div className="flex flex-col gap-0.5">
+                            <button
+                              type="button"
+                              onClick={() => handleMoveSection(idx, 'up')}
+                              disabled={idx === 0}
+                              className="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-700 disabled:opacity-20 cursor-pointer"
+                              title="Move section up"
+                            >
+                              <ArrowUp className="w-3 h-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleMoveSection(idx, 'down')}
+                              disabled={idx === sections.length - 1}
+                              className="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-700 disabled:opacity-20 cursor-pointer"
+                              title="Move section down"
+                            >
+                              <ArrowDown className="w-3 h-3" />
+                            </button>
+                          </div>
+
+                          {/* Checkbox Toggle */}
+                          <input
+                            type="checkbox"
+                            checked={section.enabled}
+                            onChange={() => handleToggleSection(section.id)}
+                            className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                            title="Enable or disable section"
+                          />
+
+                          {/* Section Title Input */}
+                          <div className="flex-1 min-w-[200px]">
+                            <Input
+                              value={section.section_name}
+                              onChange={(e) =>
+                                handleUpdateSection(section.id, { section_name: e.target.value })
+                              }
+                              disabled={!section.enabled}
+                              className="h-8 text-xs font-semibold rounded-lg bg-slate-50/70 border-slate-200 focus:bg-white"
+                              placeholder="Section Name (e.g. Section A: Fill in the Blanks)"
+                            />
+                          </div>
+
+                          {/* Question Type Selector */}
+                          <select
+                            value={section.type}
+                            onChange={(e) =>
+                              handleUpdateSection(section.id, {
+                                type: e.target.value as QuestionType,
+                              })
+                            }
+                            disabled={!section.enabled}
+                            className="h-8 text-xs font-semibold rounded-lg border border-slate-200 bg-slate-50/70 px-2.5 focus:bg-white focus:outline-none cursor-pointer"
+                          >
+                            <option value="mcq">MCQ (Multiple Choice)</option>
+                            <option value="fill_blank">Fill in the Blanks</option>
+                            <option value="match_the_following">Match the Following</option>
+                            <option value="true_false">True / False</option>
+                            <option value="short_answer">Short Answer</option>
+                            <option value="long_answer">Long / Essay</option>
+                          </select>
+                        </div>
+
+                        {/* Right: Count, Marks Each, Difficulty, Total Badge, Delete */}
+                        <div className="flex items-center justify-between lg:justify-end gap-3 shrink-0">
+                          {/* Count */}
+                          <div className="flex items-center gap-1">
+                            <span className="text-[11px] text-slate-500 font-medium">Count:</span>
+                            <div className="flex items-center">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleUpdateSection(section.id, {
+                                    count: Math.max(1, section.count - 1),
+                                  })
+                                }
+                                disabled={!section.enabled || section.count <= 1}
+                                className="w-6 h-7 flex items-center justify-center bg-slate-100 hover:bg-slate-200 rounded-l border border-r-0 border-slate-200 text-xs font-bold disabled:opacity-40"
+                              >
+                                -
+                              </button>
+                              <Input
+                                type="number"
+                                min={1}
+                                max={50}
+                                value={section.count}
+                                onChange={(e) =>
+                                  handleUpdateSection(section.id, {
+                                    count: Math.max(1, Number(e.target.value) || 1),
+                                  })
+                                }
+                                disabled={!section.enabled}
+                                className="w-12 h-7 rounded-none text-center text-xs font-bold border-slate-200 p-0"
+                              />
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleUpdateSection(section.id, { count: section.count + 1 })
+                                }
+                                disabled={!section.enabled}
+                                className="w-6 h-7 flex items-center justify-center bg-slate-100 hover:bg-slate-200 rounded-r border border-l-0 border-slate-200 text-xs font-bold disabled:opacity-40"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Marks Each */}
+                          <div className="flex items-center gap-1">
+                            <span className="text-[11px] text-slate-500 font-medium">Marks:</span>
+                            <div className="flex items-center">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleUpdateSection(section.id, {
+                                    marks_per_question: Math.max(1, section.marks_per_question - 1),
+                                  })
+                                }
+                                disabled={!section.enabled || section.marks_per_question <= 1}
+                                className="w-6 h-7 flex items-center justify-center bg-slate-100 hover:bg-slate-200 rounded-l border border-r-0 border-slate-200 text-xs font-bold disabled:opacity-40"
+                              >
+                                -
+                              </button>
+                              <Input
+                                type="number"
+                                min={1}
+                                max={20}
+                                value={section.marks_per_question}
+                                onChange={(e) =>
+                                  handleUpdateSection(section.id, {
+                                    marks_per_question: Math.max(1, Number(e.target.value) || 1),
+                                  })
+                                }
+                                disabled={!section.enabled}
+                                className="w-10 h-7 rounded-none text-center text-xs font-bold border-slate-200 p-0"
+                              />
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleUpdateSection(section.id, {
+                                    marks_per_question: section.marks_per_question + 1,
+                                  })
+                                }
+                                disabled={!section.enabled}
+                                className="w-6 h-7 flex items-center justify-center bg-slate-100 hover:bg-slate-200 rounded-r border border-l-0 border-slate-200 text-xs font-bold disabled:opacity-40"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Difficulty */}
+                          <select
+                            value={section.difficulty}
+                            onChange={(e) =>
+                              handleUpdateSection(section.id, {
+                                difficulty: e.target.value as any,
+                              })
+                            }
+                            disabled={!section.enabled}
+                            className="h-7 text-[11px] font-semibold rounded border border-slate-200 bg-white px-2 focus:outline-none"
+                          >
+                            <option value="easy">Easy</option>
+                            <option value="medium">Medium</option>
+                            <option value="hard">Hard</option>
+                          </select>
+
+                          {/* Section Total Badge */}
+                          <div className="min-w-[45px] text-right">
+                            <span
+                              className={`text-xs font-bold ${
+                                section.enabled ? 'text-indigo-600' : 'text-slate-400'
+                              }`}
+                            >
+                              ={sectionMarksTotal}M
+                            </span>
+                          </div>
+
+                          {/* Delete Section */}
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSection(section.id)}
+                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                            title="Delete this section"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                    <span className="text-slate-400 font-bold">×</span>
-                    <div>
-                      <Label className="text-[10px] text-slate-500">Marks Each</Label>
-                      <Input
-                        type="number"
-                        min={1}
-                        max={10}
-                        value={mcqMarks}
-                        onChange={(e) => setMcqMarks(Number(e.target.value))}
-                        className="w-16 h-8 text-center text-xs font-bold mt-0.5"
-                      />
-                    </div>
-                    <span className="text-indigo-600 font-bold text-xs ml-auto pt-3">
-                      ={mcqCount * mcqMarks}M
-                    </span>
-                  </div>
+                  );
+                })}
+              </div>
+
+              {/* Add New Section Action Buttons Bar */}
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-semibold text-slate-600 mr-1">Quick Add Section:</span>
+                  <button
+                    type="button"
+                    onClick={() => handleAddSection('fill_blank')}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-3 h-3" /> + Fill in Blanks
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAddSection('match_the_following')}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-3 h-3" /> + Match the Following
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAddSection('true_false')}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-3 h-3" /> + True / False
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAddSection('mcq')}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-3 h-3" /> + MCQ
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAddSection('short_answer')}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-orange-50 text-orange-700 border border-orange-200 hover:bg-orange-100 transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-3 h-3" /> + Short Qs
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAddSection('long_answer')}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-3 h-3" /> + Long Qs
+                  </button>
                 </div>
 
-                {/* Short */}
-                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-                  <div className="font-bold text-xs text-slate-900">Short Answer Questions</div>
-                  <div className="flex items-center justify-between gap-2">
-                    <div>
-                      <Label className="text-[10px] text-slate-500">Count</Label>
-                      <Input
-                        type="number"
-                        min={0}
-                        max={20}
-                        value={shortCount}
-                        onChange={(e) => setShortCount(Number(e.target.value))}
-                        className="w-16 h-8 text-center text-xs font-bold mt-0.5"
-                      />
-                    </div>
-                    <span className="text-slate-400 font-bold">×</span>
-                    <div>
-                      <Label className="text-[10px] text-slate-500">Marks Each</Label>
-                      <Input
-                        type="number"
-                        min={1}
-                        max={10}
-                        value={shortMarks}
-                        onChange={(e) => setShortMarks(Number(e.target.value))}
-                        className="w-16 h-8 text-center text-xs font-bold mt-0.5"
-                      />
-                    </div>
-                    <span className="text-indigo-600 font-bold text-xs ml-auto pt-3">
-                      ={shortCount * shortMarks}M
-                    </span>
-                  </div>
-                </div>
-
-                {/* Long */}
-                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-                  <div className="font-bold text-xs text-slate-900">Long / Essay Questions</div>
-                  <div className="flex items-center justify-between gap-2">
-                    <div>
-                      <Label className="text-[10px] text-slate-500">Count</Label>
-                      <Input
-                        type="number"
-                        min={0}
-                        max={10}
-                        value={longCount}
-                        onChange={(e) => setLongCount(Number(e.target.value))}
-                        className="w-16 h-8 text-center text-xs font-bold mt-0.5"
-                      />
-                    </div>
-                    <span className="text-slate-400 font-bold">×</span>
-                    <div>
-                      <Label className="text-[10px] text-slate-500">Marks Each</Label>
-                      <Input
-                        type="number"
-                        min={1}
-                        max={10}
-                        value={longMarks}
-                        onChange={(e) => setLongMarks(Number(e.target.value))}
-                        className="w-16 h-8 text-center text-xs font-bold mt-0.5"
-                      />
-                    </div>
-                    <span className="text-indigo-600 font-bold text-xs ml-auto pt-3">
-                      ={longCount * longMarks}M
-                    </span>
-                  </div>
-                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleAddSection('mcq')}
+                  className="text-xs font-bold text-indigo-700 border-indigo-200 hover:bg-indigo-50"
+                >
+                  <Plus className="w-3.5 h-3.5 mr-1" /> Custom Section
+                </Button>
               </div>
 
               {/* Main Full-Width Action Button */}
-              <div className="pt-2">
+              <div className="pt-3">
                 <Button
                   onClick={handleGeneratePaper}
-                  disabled={isGenerating || !selectedClassId || !selectedSubjectId || selectedChapterIds.length === 0}
+                  disabled={
+                    isGenerating ||
+                    !selectedClassId ||
+                    !selectedSubjectId ||
+                    selectedChapterIds.length === 0 ||
+                    activeSections.length === 0
+                  }
                   className="w-full h-12 rounded-xl gradient-brand text-white font-bold text-sm shadow-md hover:opacity-95 transition-opacity flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   {isGenerating ? (
                     <>
                       <RefreshCw className="w-4 h-4 animate-spin" />
-                      Generating Equal Chapter Weightage Paper with AI...
+                      Generating {totalConfiguredQuestions} Questions across {activeSections.length} Sections with AI...
                     </>
                   ) : (
                     <>
                       <Sparkles className="w-4 h-4" />
-                      Generate Examination Paper ({mcqCount + shortCount + longCount} Questions)
+                      Generate Examination Paper ({totalConfiguredQuestions} Questions, {totalConfiguredMarks} Marks)
                     </>
                   )}
                 </Button>
@@ -768,7 +1161,7 @@ export default function GeneratePaperPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => setViewMode('config')}
-                className="h-8 text-xs font-bold rounded-lg border-slate-300 text-slate-700"
+                className="h-8 text-xs font-bold rounded-lg border-slate-300 text-slate-700 cursor-pointer"
               >
                 <ArrowLeft className="w-3.5 h-3.5 mr-1" />
                 Edit Setup
@@ -780,7 +1173,7 @@ export default function GeneratePaperPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => setIsTwoColumn(!isTwoColumn)}
-                className={`h-8 text-xs font-semibold rounded-lg ${
+                className={`h-8 text-xs font-semibold rounded-lg cursor-pointer ${
                   isTwoColumn ? 'bg-indigo-50 border-indigo-300 text-indigo-900 font-bold' : 'text-slate-700'
                 }`}
                 title="Toggle 2-column examination layout"
@@ -792,12 +1185,12 @@ export default function GeneratePaperPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => setShowAnswerKey(!showAnswerKey)}
-                className={`h-8 text-xs font-semibold rounded-lg ${
-                  showAnswerKey ? 'bg-amber-50 border-amber-300 text-amber-900' : 'text-slate-700'
+                className={`h-8 text-xs font-semibold rounded-lg cursor-pointer ${
+                  showAnswerKey ? 'bg-amber-50 border-amber-300 text-amber-900 font-bold' : 'text-slate-700'
                 }`}
               >
                 <Key className="w-3.5 h-3.5 mr-1 text-amber-600" />
-                {showAnswerKey ? 'Hide Key' : 'Answer Key'}
+                {showAnswerKey ? 'Hide Answer Key' : 'Show Answer Key'}
               </Button>
             </div>
 
@@ -807,7 +1200,7 @@ export default function GeneratePaperPage() {
                 disabled={isSaving || paperQuestions.length === 0}
                 size="sm"
                 variant="outline"
-                className="h-8 text-xs font-bold rounded-lg border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                className="h-8 text-xs font-bold rounded-lg border-emerald-300 text-emerald-700 hover:bg-emerald-50 cursor-pointer"
               >
                 {isSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin mr-1" /> : <Save className="w-3.5 h-3.5 mr-1" />}
                 Save Paper
@@ -836,7 +1229,7 @@ export default function GeneratePaperPage() {
                 <p className="text-xs text-slate-500 max-w-sm">
                   Click below to go to the setup form, select your chapters and generate.
                 </p>
-                <Button onClick={() => setViewMode('config')} className="h-8 text-xs gradient-brand text-white rounded-lg">
+                <Button onClick={() => setViewMode('config')} className="h-8 text-xs gradient-brand text-white rounded-lg cursor-pointer">
                   Go to Setup Form
                 </Button>
               </div>
@@ -872,239 +1265,167 @@ export default function GeneratePaperPage() {
                   </div>
                 )}
 
-                {/* Question Sections */}
-                <div className={`space-y-6 pt-2 ${isTwoColumn ? 'columns-1 sm:columns-2 gap-8 [column-rule:1px_solid_#cbd5e1] print:columns-2 print:gap-6' : ''}`}>
-                  {/* Section A: MCQs */}
-                  {mcqs.length > 0 && (
-                    <div className={`space-y-3 ${isTwoColumn ? 'break-inside-avoid print:break-inside-avoid mb-6' : ''}`}>
-                      <div className="flex items-center justify-between border-b border-slate-300 pb-1">
-                        <h4 className="font-bold text-sm uppercase tracking-wider">
-                          Section A: Multiple Choice Questions ({mcqs.length * mcqMarks} Marks)
-                        </h4>
-                      </div>
-                      <div className="space-y-3">
-                        {mcqs.map((q, idx) => {
-                          const globalIdx = paperQuestions.findIndex((item) => item.id === q.id);
-                          return (
-                            <div key={q.id || idx} className={`text-xs space-y-1.5 group relative ${isTwoColumn ? 'break-inside-avoid print:break-inside-avoid mb-4' : ''}`}>
-                              <div className="flex items-start justify-between font-medium">
-                                <div className="flex-1">
-                                  <span>
-                                    Q{idx + 1}. {q.question_text}
-                                  </span>
-                                  {q.chapter_title && (
-                                    <span className="text-[10px] text-slate-400 font-normal ml-2 italic">
-                                      ({q.chapter_title})
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <span className="font-bold text-slate-500">[{q.marks || mcqMarks}m]</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleOpenImagePicker(globalIdx)}
-                                    className="opacity-0 group-hover:opacity-100 transition-opacity text-indigo-600 hover:text-indigo-800 text-[11px] font-bold flex items-center gap-0.5 print:hidden"
-                                    title="Attach diagram/image"
-                                  >
-                                    <ImageIcon className="w-3.5 h-3.5" />
-                                    {q.image_url ? 'Change Diagram' : '+ Diagram'}
-                                  </button>
-                                </div>
-                              </div>
+                {/* Dynamic Question Sections Rendered in Order */}
+                <div
+                  className={`space-y-6 pt-2 ${
+                    isTwoColumn
+                      ? 'columns-1 sm:columns-2 gap-8 [column-rule:1px_solid_#cbd5e1] print:columns-2 print:gap-6'
+                      : ''
+                  }`}
+                >
+                  {groupedSections.map((secGroup, secIdx) => {
+                    const secQuestions = secGroup.questions;
+                    const secMarksTotal = secQuestions.reduce((acc, q) => acc + (q.marks || 1), 0);
 
-                              {/* Attached Diagram / Image */}
-                              {q.image_url && (
-                                <div className="relative inline-block my-2 border border-slate-300 rounded p-1 bg-white">
-                                  <img
-                                    src={q.image_url}
-                                    alt={`Figure for Q${idx + 1}`}
-                                    className="max-h-48 max-w-sm object-contain rounded"
-                                  />
-                                  <div className="text-[10px] text-center text-slate-500 font-serif italic mt-0.5">
-                                    [Fig. Q{idx + 1}]
+                    return (
+                      <div
+                        key={secGroup.sectionName || secIdx}
+                        className={`space-y-3 ${
+                          isTwoColumn ? 'break-inside-avoid print:break-inside-avoid mb-6' : ''
+                        }`}
+                      >
+                        {/* Section Header */}
+                        <div className="flex items-center justify-between border-b-2 border-slate-800 pb-1">
+                          <h4 className="font-bold text-sm uppercase tracking-wider text-slate-900">
+                            {secGroup.sectionName} ({secMarksTotal} Marks)
+                          </h4>
+                        </div>
+
+                        {/* Questions in this Section */}
+                        <div className="space-y-4">
+                          {secQuestions.map((q) => {
+                            const globalIdx = paperQuestions.findIndex((item) => item.id === q.id);
+                            const qNumber = globalIdx + 1;
+
+                            return (
+                              <div
+                                key={q.id || globalIdx}
+                                className={`text-xs space-y-1.5 group relative ${
+                                  isTwoColumn ? 'break-inside-avoid print:break-inside-avoid mb-4' : ''
+                                }`}
+                              >
+                                {/* Question Header Line */}
+                                <div className="flex items-start justify-between font-medium">
+                                  <div className="flex-1 leading-relaxed">
+                                    <span className="font-bold">Q{qNumber}. </span>
+                                    <span>{q.question_text}</span>
+                                    {q.chapter_title && (
+                                      <span className="text-[10px] text-slate-400 font-normal ml-2 italic">
+                                        ({q.chapter_title})
+                                      </span>
+                                    )}
                                   </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleRemoveImage(globalIdx)}
-                                    className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full p-0.5 shadow hover:bg-red-700 print:hidden"
-                                    title="Remove diagram"
-                                  >
-                                    <X className="w-3 h-3" />
-                                  </button>
-                                </div>
-                              )}
-
-                              {/* MCQ Options */}
-                              {Array.isArray(q.options) && q.options.length > 0 && (
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pl-4 pt-1 text-slate-700">
-                                  {q.options.map((opt: any, oIdx: number) => {
-                                    const label = typeof opt === 'string' ? String.fromCharCode(65 + oIdx) : opt.label || String.fromCharCode(65 + oIdx);
-                                    const text = typeof opt === 'string' ? opt : opt.text;
-                                    return (
-                                      <div key={oIdx}>
-                                        ({label}) {text}
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              )}
-
-                              {/* Answer Key */}
-                              {showAnswerKey && (q.correct_option || q.correct_answer || q.answer_text) && (
-                                <div className="text-[11px] text-emerald-700 font-semibold pl-4">
-                                  ✓ Key: {q.correct_option || q.correct_answer || q.answer_text}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Section B: Short Questions */}
-                  {shorts.length > 0 && (
-                    <div className={`space-y-3 pt-2 ${isTwoColumn ? 'break-inside-avoid print:break-inside-avoid mb-6' : ''}`}>
-                      <div className="flex items-center justify-between border-b border-slate-300 pb-1">
-                        <h4 className="font-bold text-sm uppercase tracking-wider">
-                          Section B: Short Answer Questions ({shorts.length * shortMarks} Marks)
-                        </h4>
-                      </div>
-                      <div className="space-y-3">
-                        {shorts.map((q, idx) => {
-                          const globalIdx = paperQuestions.findIndex((item) => item.id === q.id);
-                          return (
-                            <div key={q.id || idx} className={`text-xs space-y-1.5 group relative ${isTwoColumn ? 'break-inside-avoid print:break-inside-avoid mb-4' : ''}`}>
-                              <div className="flex items-start justify-between font-medium">
-                                <div className="flex-1">
-                                  <span>
-                                    Q{idx + 1 + mcqs.length}. {q.question_text}
-                                  </span>
-                                  {q.chapter_title && (
-                                    <span className="text-[10px] text-slate-400 font-normal ml-2 italic">
-                                      ({q.chapter_title})
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <span className="font-bold text-slate-500">[{q.marks || shortMarks}m]</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleOpenImagePicker(globalIdx)}
-                                    className="opacity-0 group-hover:opacity-100 transition-opacity text-indigo-600 hover:text-indigo-800 text-[11px] font-bold flex items-center gap-0.5 print:hidden"
-                                    title="Attach diagram/image"
-                                  >
-                                    <ImageIcon className="w-3.5 h-3.5" />
-                                    {q.image_url ? 'Change Diagram' : '+ Diagram'}
-                                  </button>
-                                </div>
-                              </div>
-
-                              {/* Attached Diagram */}
-                              {q.image_url && (
-                                <div className="relative inline-block my-2 border border-slate-300 rounded p-1 bg-white">
-                                  <img
-                                    src={q.image_url}
-                                    alt={`Figure for Q${idx + 1 + mcqs.length}`}
-                                    className="max-h-48 max-w-sm object-contain rounded"
-                                  />
-                                  <div className="text-[10px] text-center text-slate-500 font-serif italic mt-0.5">
-                                    [Fig. Q{idx + 1 + mcqs.length}]
+                                  <div className="flex items-center gap-2 shrink-0 ml-2">
+                                    <span className="font-bold text-slate-600">[{q.marks || 1}m]</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenImagePicker(globalIdx)}
+                                      className="opacity-0 group-hover:opacity-100 transition-opacity text-indigo-600 hover:text-indigo-800 text-[11px] font-bold flex items-center gap-0.5 print:hidden cursor-pointer"
+                                      title="Attach diagram/image"
+                                    >
+                                      <ImageIcon className="w-3.5 h-3.5" />
+                                      {q.image_url ? 'Change Diagram' : '+ Diagram'}
+                                    </button>
                                   </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleRemoveImage(globalIdx)}
-                                    className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full p-0.5 shadow hover:bg-red-700 print:hidden"
-                                    title="Remove diagram"
-                                  >
-                                    <X className="w-3 h-3" />
-                                  </button>
                                 </div>
-                              )}
 
-                              {showAnswerKey && (q.answer_text || q.correct_answer) && (
-                                <div className="text-[11px] text-emerald-700 font-semibold pl-4">
-                                  ✓ Model Answer: {q.answer_text || q.correct_answer}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Section C: Long Questions */}
-                  {longs.length > 0 && (
-                    <div className={`space-y-3 pt-2 ${isTwoColumn ? 'break-inside-avoid print:break-inside-avoid mb-6' : ''}`}>
-                      <div className="flex items-center justify-between border-b border-slate-300 pb-1">
-                        <h4 className="font-bold text-sm uppercase tracking-wider">
-                          Section C: Long / Essay Questions ({longs.length * longMarks} Marks)
-                        </h4>
-                      </div>
-                      <div className="space-y-3">
-                        {longs.map((q, idx) => {
-                          const globalIdx = paperQuestions.findIndex((item) => item.id === q.id);
-                          return (
-                            <div key={q.id || idx} className={`text-xs space-y-1.5 group relative ${isTwoColumn ? 'break-inside-avoid print:break-inside-avoid mb-4' : ''}`}>
-                              <div className="flex items-start justify-between font-medium">
-                                <div className="flex-1">
-                                  <span>
-                                    Q{idx + 1 + mcqs.length + shorts.length}. {q.question_text}
-                                  </span>
-                                  {q.chapter_title && (
-                                    <span className="text-[10px] text-slate-400 font-normal ml-2 italic">
-                                      ({q.chapter_title})
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <span className="font-bold text-slate-500">[{q.marks || longMarks}m]</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleOpenImagePicker(globalIdx)}
-                                    className="opacity-0 group-hover:opacity-100 transition-opacity text-indigo-600 hover:text-indigo-800 text-[11px] font-bold flex items-center gap-0.5 print:hidden"
-                                    title="Attach diagram/image"
-                                  >
-                                    <ImageIcon className="w-3.5 h-3.5" />
-                                    {q.image_url ? 'Change Diagram' : '+ Diagram'}
-                                  </button>
-                                </div>
-                              </div>
-
-                              {/* Attached Diagram */}
-                              {q.image_url && (
-                                <div className="relative inline-block my-2 border border-slate-300 rounded p-1 bg-white">
-                                  <img
-                                    src={q.image_url}
-                                    alt={`Figure for Q${idx + 1 + mcqs.length + shorts.length}`}
-                                    className="max-h-48 max-w-sm object-contain rounded"
-                                  />
-                                  <div className="text-[10px] text-center text-slate-500 font-serif italic mt-0.5">
-                                    [Fig. Q{idx + 1 + mcqs.length + shorts.length}]
+                                {/* Attached Diagram / Image */}
+                                {q.image_url && (
+                                  <div className="relative inline-block my-2 border border-slate-300 rounded p-1 bg-white">
+                                    <img
+                                      src={q.image_url}
+                                      alt={`Figure for Q${qNumber}`}
+                                      className="max-h-48 max-w-sm object-contain rounded"
+                                    />
+                                    <div className="text-[10px] text-center text-slate-500 font-serif italic mt-0.5">
+                                      [Fig. Q{qNumber}]
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveImage(globalIdx)}
+                                      className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full p-0.5 shadow hover:bg-red-700 print:hidden cursor-pointer"
+                                      title="Remove diagram"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
                                   </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleRemoveImage(globalIdx)}
-                                    className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full p-0.5 shadow hover:bg-red-700 print:hidden"
-                                    title="Remove diagram"
-                                  >
-                                    <X className="w-3 h-3" />
-                                  </button>
-                                </div>
-                              )}
+                                )}
 
-                              {showAnswerKey && (q.answer_text || q.correct_answer) && (
-                                <div className="text-[11px] text-emerald-700 font-semibold pl-4">
-                                  ✓ Model Answer: {q.answer_text || q.correct_answer}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
+                                {/* Specific Type Renderers */}
+
+                                {/* 1. MCQ Options */}
+                                {q.type === 'mcq' && Array.isArray(q.options) && q.options.length > 0 && (
+                                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pl-4 pt-1 text-slate-700">
+                                    {q.options.map((opt: any, oIdx: number) => {
+                                      const label =
+                                        typeof opt === 'string'
+                                          ? String.fromCharCode(65 + oIdx)
+                                          : opt.label || String.fromCharCode(65 + oIdx);
+                                      const text = typeof opt === 'string' ? opt : opt.text;
+                                      return (
+                                        <div key={oIdx} className="font-normal">
+                                          <span className="font-semibold">({label})</span> {text}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+
+                                {/* 2. True / False Indicator */}
+                                {q.type === 'true_false' && (
+                                  <div className="pl-4 pt-1 flex items-center gap-6 text-slate-700 font-semibold text-[11px]">
+                                    <span className="inline-flex items-center gap-1.5">
+                                      <span className="w-4 h-4 rounded border border-slate-400 inline-block"></span>
+                                      True
+                                    </span>
+                                    <span className="inline-flex items-center gap-1.5">
+                                      <span className="w-4 h-4 rounded border border-slate-400 inline-block"></span>
+                                      False
+                                    </span>
+                                  </div>
+                                )}
+
+                                {/* 3. Match the Following Options / Pairs */}
+                                {q.type === 'match_the_following' && Array.isArray(q.options) && q.options.length > 0 && (
+                                  <div className="pl-4 pt-1">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-slate-50/70 p-2.5 rounded-lg border border-slate-200 text-[11px]">
+                                      {q.options.map((opt: any, oIdx: number) => {
+                                        const optText = typeof opt === 'string' ? opt : `${opt.label ? `(${opt.label}) ` : ''}${opt.text || ''}`;
+                                        return (
+                                          <div key={oIdx} className="text-slate-800">
+                                            {optText}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                    <div className="text-[10px] text-slate-400 mt-1 italic pl-1">
+                                      Answer: 1. [ &nbsp;&nbsp; ], 2. [ &nbsp;&nbsp; ], 3. [ &nbsp;&nbsp; ], 4. [ &nbsp;&nbsp; ]
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* 4. Fill in the Blanks Note */}
+                                {q.type === 'fill_blank' && (
+                                  <div className="text-[10px] text-slate-400 pl-4 italic">
+                                    (Write the suitable word/phrase in the blank space)
+                                  </div>
+                                )}
+
+                                {/* Answer Key for Teachers */}
+                                {showAnswerKey && (
+                                  <div className="mt-1 pl-4 text-[11px] text-emerald-700 bg-emerald-50/70 border border-emerald-200 rounded p-1.5 font-medium">
+                                    <span className="font-bold">✓ Model Answer: </span>
+                                    {q.correct_option ? `Option (${q.correct_option}) ` : ''}
+                                    {q.answer_text || q.correct_answer || 'N/A'}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })}
                 </div>
 
                 {/* Footer */}
