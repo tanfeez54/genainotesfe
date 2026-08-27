@@ -14,6 +14,7 @@ import {
   X,
   ChevronRight,
   Sparkles,
+  FileCheck2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -21,6 +22,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 const navItems = [
+  { href: '/papers', label: 'Saved Papers', icon: FileCheck2 },
   { href: '/classes', label: 'Classes & Subjects', icon: FolderOpen },
   { href: '/scan', label: 'Scan Papers', icon: Sparkles },
   { href: '/question-bank', label: 'Question Bank', icon: FileText },

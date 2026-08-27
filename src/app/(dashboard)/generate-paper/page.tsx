@@ -33,7 +33,8 @@ import {
   CheckSquare,
   AlignLeft,
   ListOrdered,
-  Shuffle
+  Shuffle,
+  FileCheck2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -868,6 +869,11 @@ export default function GeneratePaperPage() {
             </button>
           </div>
 
+          <Link href="/papers">
+            <Button variant="outline" size="sm" className="cursor-pointer font-bold text-indigo-700 bg-indigo-50/70 border-indigo-200 hover:bg-indigo-100">
+              <FileCheck2 className="w-4 h-4 mr-1.5 text-indigo-600" /> Saved Papers
+            </Button>
+          </Link>
           <Link href="/question-bank">
             <Button variant="outline" size="sm" className="cursor-pointer">
               <BookOpen className="w-4 h-4 mr-2 text-indigo-600" /> Bank
