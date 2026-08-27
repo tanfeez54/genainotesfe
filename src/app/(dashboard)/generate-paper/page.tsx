@@ -23,7 +23,10 @@ import {
   Upload,
   X,
   Scale,
-  Columns
+  Columns,
+  Sliders,
+  ArrowLeft,
+  ArrowRight
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -68,6 +71,8 @@ interface QuestionItem {
 
 export default function GeneratePaperPage() {
   const [token, setToken] = useState('');
+  const [viewMode, setViewMode] = useState<'config' | 'preview'>('config');
+
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [subjects, setSubjects] = useState<SubjectItem[]>([]);
   const [chapters, setChapters] = useState<ChapterItem[]>([]);
@@ -308,6 +313,7 @@ export default function GeneratePaperPage() {
 
       if (data.data && Array.isArray(data.data)) {
         setPaperQuestions(data.data);
+        setViewMode('preview');
         toast.success(
           `Generated ${data.data.length} questions balanced across ${selectedChapterNames.length} chapters!`
         );
@@ -400,7 +406,7 @@ export default function GeneratePaperPage() {
         className="hidden"
       />
 
-      {/* Header */}
+      {/* Top Header & View Mode Switcher */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5 print:hidden">
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold text-indigo-600 uppercase tracking-wider mb-1">
@@ -410,292 +416,363 @@ export default function GeneratePaperPage() {
             Automated Exam Paper Generator
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            Design, customize, attach diagrams, and print high-quality school exam papers in seconds
+            Design curriculum-aligned test papers with equal chapter weightage and diagram attachments
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        {/* View Mode Switcher */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+            <button
+              onClick={() => setViewMode('config')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                viewMode === 'config'
+                  ? 'bg-white text-indigo-600 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Sliders className="w-3.5 h-3.5" /> 1. Setup Form
+            </button>
+            <button
+              onClick={() => setViewMode('preview')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                viewMode === 'preview'
+                  ? 'bg-white text-indigo-600 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Eye className="w-3.5 h-3.5" /> 2. Paper Preview ({paperQuestions.length})
+            </button>
+          </div>
+
           <Link href="/question-bank">
             <Button variant="outline" size="sm" className="cursor-pointer">
-              <BookOpen className="w-4 h-4 mr-2 text-indigo-600" /> Question Bank
+              <BookOpen className="w-4 h-4 mr-2 text-indigo-600" /> Bank
             </Button>
           </Link>
           <Link href="/scan">
             <Button variant="outline" size="sm" className="cursor-pointer">
-              <Plus className="w-4 h-4 mr-2 text-emerald-600" /> Scan Papers
+              <Plus className="w-4 h-4 mr-2 text-emerald-600" /> Scan
             </Button>
           </Link>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column: Configuration Cards */}
-        <div className="lg:col-span-5 space-y-5 print:hidden">
-          {/* 1. Target Selection & Chapter Equal Weightage */}
+      {/* ========================================================================= */}
+      {/* FULL PAGE VIEW 1: FULL-WIDTH CONFIGURATION SETUP                          */}
+      {/* ========================================================================= */}
+      {viewMode === 'config' && (
+        <div className="max-w-5xl mx-auto space-y-6 animate-fade-in print:hidden">
+          {/* Row 1: Academic Selection & Paper Header Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* 1. Target Selection & Chapter Equal Weightage */}
+            <Card className="rounded-2xl border-slate-200 shadow-xs">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-bold flex items-center gap-2">
+                  <GraduationCap className="w-4 h-4 text-indigo-600" /> 1. Class, Subject & Chapters
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Select chapters to distribute questions with equal weightage.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label className="text-xs font-semibold text-slate-700">Class / Grade *</Label>
+                  <select
+                    value={selectedClassId}
+                    onChange={(e) => handleClassChange(e.target.value)}
+                    className="w-full mt-1.5 h-10 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  >
+                    <option value="">Select a class...</option>
+                    {classes.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <Label className="text-xs font-semibold text-slate-700">Subject *</Label>
+                  <select
+                    value={selectedSubjectId}
+                    onChange={(e) => handleSubjectChange(e.target.value)}
+                    disabled={!selectedClassId}
+                    className="w-full mt-1.5 h-10 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none disabled:opacity-50"
+                  >
+                    <option value="">Select a subject...</option>
+                    {subjects.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {chapters.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-semibold text-slate-700">Included Chapters</Label>
+                      <button
+                        type="button"
+                        onClick={toggleSelectAllChapters}
+                        className="text-[11px] font-bold text-indigo-600 hover:underline"
+                      >
+                        {selectedChapterIds.length === chapters.length ? 'Deselect All' : 'Select All'}
+                      </button>
+                    </div>
+
+                    {/* Equal Weightage Badge Indicator */}
+                    {selectedChapterIds.length > 0 && (
+                      <div className="flex items-center gap-1.5 p-2.5 bg-indigo-50/80 border border-indigo-100 rounded-xl text-xs text-indigo-900 font-semibold">
+                        <Scale className="w-4 h-4 text-indigo-600 shrink-0" />
+                        <span>
+                          {selectedChapterIds.length} Chapters Selected (~{approxPerChapterMarks} Marks / Chapter)
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="max-h-56 overflow-y-auto space-y-1.5 p-2.5 bg-slate-50 rounded-xl border border-slate-200">
+                      {chapters.map((chap) => (
+                        <label
+                          key={chap.id}
+                          className="flex items-center gap-2.5 text-xs text-slate-700 hover:bg-white p-2 rounded-lg cursor-pointer transition-colors"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedChapterIds.includes(chap.id)}
+                            onChange={() => toggleChapter(chap.id)}
+                            className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4"
+                          />
+                          <span className="font-medium">{chap.title}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* 2. Paper Details */}
+            <Card className="rounded-2xl border-slate-200 shadow-xs">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-bold flex items-center gap-2">
+                  <School className="w-4 h-4 text-indigo-600" /> 2. Exam Paper Header
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Set school name, examination title, duration and rules.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3.5">
+                <div>
+                  <Label className="text-xs font-semibold text-slate-700">School Name</Label>
+                  <Input
+                    value={schoolName}
+                    onChange={(e) => setSchoolName(e.target.value)}
+                    className="mt-1 h-9 rounded-lg text-sm"
+                    placeholder="e.g. Modern Public School"
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-xs font-semibold text-slate-700">Exam Title</Label>
+                  <Input
+                    value={examTitle}
+                    onChange={(e) => setExamTitle(e.target.value)}
+                    className="mt-1 h-9 rounded-lg text-sm"
+                    placeholder="e.g. Mid-Term Examination 2026"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs font-semibold text-slate-700">Time Allowed</Label>
+                    <Input
+                      value={timeAllowed}
+                      onChange={(e) => setTimeAllowed(e.target.value)}
+                      className="mt-1 h-9 rounded-lg text-sm"
+                      placeholder="e.g. 2.5 Hours"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold text-slate-700">Total Marks</Label>
+                    <Input
+                      value={totalMarks}
+                      onChange={(e) => setTotalMarks(e.target.value)}
+                      className="mt-1 h-9 rounded-lg text-sm"
+                      placeholder="e.g. 50"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-xs font-semibold text-slate-700">General Instructions</Label>
+                  <Textarea
+                    value={instructions}
+                    onChange={(e) => setInstructions(e.target.value)}
+                    rows={3}
+                    className="mt-1 text-xs rounded-lg"
+                    placeholder="Instructions for students..."
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Row 2: Question Distribution & Generate Action */}
           <Card className="rounded-2xl border-slate-200 shadow-xs">
             <CardHeader className="pb-3">
               <CardTitle className="text-base font-bold flex items-center gap-2">
-                <GraduationCap className="w-4 h-4 text-indigo-600" /> 1. Class, Subject & Chapters
+                <Layers className="w-4 h-4 text-indigo-600" /> 3. Question Distribution & Mark Breakdown
               </CardTitle>
               <CardDescription className="text-xs">
-                Select chapters to distribute questions with equal weightage.
+                Configure question counts and marks per section. Total configured: {calculatedTotalMarks} Marks.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div>
-                <Label className="text-xs font-semibold text-slate-700">Class / Grade *</Label>
-                <select
-                  value={selectedClassId}
-                  onChange={(e) => handleClassChange(e.target.value)}
-                  className="w-full mt-1.5 h-10 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                >
-                  <option value="">Select a class...</option>
-                  {classes.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <Label className="text-xs font-semibold text-slate-700">Subject *</Label>
-                <select
-                  value={selectedSubjectId}
-                  onChange={(e) => handleSubjectChange(e.target.value)}
-                  disabled={!selectedClassId}
-                  className="w-full mt-1.5 h-10 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none disabled:opacity-50"
-                >
-                  <option value="">Select a subject...</option>
-                  {subjects.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {chapters.length > 0 && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs font-semibold text-slate-700">Included Chapters</Label>
-                    <button
-                      type="button"
-                      onClick={toggleSelectAllChapters}
-                      className="text-[11px] font-bold text-indigo-600 hover:underline"
-                    >
-                      {selectedChapterIds.length === chapters.length ? 'Deselect All' : 'Select All'}
-                    </button>
-                  </div>
-
-                  {/* Equal Weightage Badge Indicator */}
-                  {selectedChapterIds.length > 0 && (
-                    <div className="flex items-center gap-1.5 p-2 bg-indigo-50/80 border border-indigo-100 rounded-lg text-xs text-indigo-900 font-semibold">
-                      <Scale className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-                      <span>
-                        {selectedChapterIds.length} Chapters Selected (~{approxPerChapterMarks} Marks / Chapter)
-                      </span>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {/* MCQ */}
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                  <div className="font-bold text-xs text-slate-900">Multiple Choice (MCQ)</div>
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <Label className="text-[10px] text-slate-500">Count</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={30}
+                        value={mcqCount}
+                        onChange={(e) => setMcqCount(Number(e.target.value))}
+                        className="w-16 h-8 text-center text-xs font-bold mt-0.5"
+                      />
                     </div>
-                  )}
-
-                  <div className="max-h-44 overflow-y-auto space-y-1.5 p-2 bg-slate-50 rounded-xl border border-slate-100">
-                    {chapters.map((chap) => (
-                      <label
-                        key={chap.id}
-                        className="flex items-center gap-2 text-xs text-slate-700 hover:bg-white p-1.5 rounded-lg cursor-pointer transition-colors"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedChapterIds.includes(chap.id)}
-                          onChange={() => toggleChapter(chap.id)}
-                          className="rounded text-indigo-600 focus:ring-indigo-500"
-                        />
-                        <span className="truncate">{chap.title}</span>
-                      </label>
-                    ))}
+                    <span className="text-slate-400 font-bold">×</span>
+                    <div>
+                      <Label className="text-[10px] text-slate-500">Marks Each</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={10}
+                        value={mcqMarks}
+                        onChange={(e) => setMcqMarks(Number(e.target.value))}
+                        className="w-16 h-8 text-center text-xs font-bold mt-0.5"
+                      />
+                    </div>
+                    <span className="text-indigo-600 font-bold text-xs ml-auto pt-3">
+                      ={mcqCount * mcqMarks}M
+                    </span>
                   </div>
                 </div>
-              )}
-            </CardContent>
-          </Card>
 
-          {/* 2. Paper Details */}
-          <Card className="rounded-2xl border-slate-200 shadow-xs">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <School className="w-4 h-4 text-indigo-600" /> 2. Exam Paper Header
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div>
-                <Label className="text-xs font-semibold text-slate-700">School Name</Label>
-                <Input
-                  value={schoolName}
-                  onChange={(e) => setSchoolName(e.target.value)}
-                  className="mt-1 h-9 rounded-lg text-sm"
-                  placeholder="e.g. Modern Public School"
-                />
-              </div>
-
-              <div>
-                <Label className="text-xs font-semibold text-slate-700">Exam Title</Label>
-                <Input
-                  value={examTitle}
-                  onChange={(e) => setExamTitle(e.target.value)}
-                  className="mt-1 h-9 rounded-lg text-sm"
-                  placeholder="e.g. Mid-Term Examination 2026"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-xs font-semibold text-slate-700">Time Allowed</Label>
-                  <Input
-                    value={timeAllowed}
-                    onChange={(e) => setTimeAllowed(e.target.value)}
-                    className="mt-1 h-9 rounded-lg text-sm"
-                    placeholder="e.g. 2.5 Hours"
-                  />
+                {/* Short */}
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                  <div className="font-bold text-xs text-slate-900">Short Answer Questions</div>
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <Label className="text-[10px] text-slate-500">Count</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={20}
+                        value={shortCount}
+                        onChange={(e) => setShortCount(Number(e.target.value))}
+                        className="w-16 h-8 text-center text-xs font-bold mt-0.5"
+                      />
+                    </div>
+                    <span className="text-slate-400 font-bold">×</span>
+                    <div>
+                      <Label className="text-[10px] text-slate-500">Marks Each</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={10}
+                        value={shortMarks}
+                        onChange={(e) => setShortMarks(Number(e.target.value))}
+                        className="w-16 h-8 text-center text-xs font-bold mt-0.5"
+                      />
+                    </div>
+                    <span className="text-indigo-600 font-bold text-xs ml-auto pt-3">
+                      ={shortCount * shortMarks}M
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <Label className="text-xs font-semibold text-slate-700">Total Marks</Label>
-                  <Input
-                    value={totalMarks}
-                    onChange={(e) => setTotalMarks(e.target.value)}
-                    className="mt-1 h-9 rounded-lg text-sm"
-                    placeholder="e.g. 50"
-                  />
-                </div>
-              </div>
 
-              <div>
-                <Label className="text-xs font-semibold text-slate-700">General Instructions</Label>
-                <Textarea
-                  value={instructions}
-                  onChange={(e) => setInstructions(e.target.value)}
-                  rows={2}
-                  className="mt-1 text-xs rounded-lg"
-                  placeholder="Instructions for students..."
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 3. Question Distribution */}
-          <Card className="rounded-2xl border-slate-200 shadow-xs">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <Layers className="w-4 h-4 text-indigo-600" /> 3. Question Distribution
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
-                <div>
-                  <div className="text-xs font-bold text-slate-800">Multiple Choice (MCQ)</div>
-                  <div className="text-[11px] text-slate-500">1-mark objective questions</div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    min={0}
-                    max={30}
-                    value={mcqCount}
-                    onChange={(e) => setMcqCount(Number(e.target.value))}
-                    className="w-14 h-8 text-center text-xs font-bold"
-                  />
-                  <span className="text-xs text-slate-400">×</span>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={10}
-                    value={mcqMarks}
-                    onChange={(e) => setMcqMarks(Number(e.target.value))}
-                    className="w-12 h-8 text-center text-xs"
-                  />
-                  <span className="text-xs text-slate-500">m</span>
+                {/* Long */}
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                  <div className="font-bold text-xs text-slate-900">Long / Essay Questions</div>
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <Label className="text-[10px] text-slate-500">Count</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={10}
+                        value={longCount}
+                        onChange={(e) => setLongCount(Number(e.target.value))}
+                        className="w-16 h-8 text-center text-xs font-bold mt-0.5"
+                      />
+                    </div>
+                    <span className="text-slate-400 font-bold">×</span>
+                    <div>
+                      <Label className="text-[10px] text-slate-500">Marks Each</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={10}
+                        value={longMarks}
+                        onChange={(e) => setLongMarks(Number(e.target.value))}
+                        className="w-16 h-8 text-center text-xs font-bold mt-0.5"
+                      />
+                    </div>
+                    <span className="text-indigo-600 font-bold text-xs ml-auto pt-3">
+                      ={longCount * longMarks}M
+                    </span>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
-                <div>
-                  <div className="text-xs font-bold text-slate-800">Short Answer Questions</div>
-                  <div className="text-[11px] text-slate-500">2-3 mark conceptual questions</div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    min={0}
-                    max={20}
-                    value={shortCount}
-                    onChange={(e) => setShortCount(Number(e.target.value))}
-                    className="w-14 h-8 text-center text-xs font-bold"
-                  />
-                  <span className="text-xs text-slate-400">×</span>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={10}
-                    value={shortMarks}
-                    onChange={(e) => setShortMarks(Number(e.target.value))}
-                    className="w-12 h-8 text-center text-xs"
-                  />
-                  <span className="text-xs text-slate-500">m</span>
-                </div>
+              {/* Main Full-Width Action Button */}
+              <div className="pt-2">
+                <Button
+                  onClick={handleGeneratePaper}
+                  disabled={isGenerating || !selectedClassId || !selectedSubjectId || selectedChapterIds.length === 0}
+                  className="w-full h-12 rounded-xl gradient-brand text-white font-bold text-sm shadow-md hover:opacity-95 transition-opacity flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {isGenerating ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      Generating Equal Chapter Weightage Paper with AI...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4" />
+                      Generate Examination Paper ({mcqCount + shortCount + longCount} Questions)
+                    </>
+                  )}
+                </Button>
               </div>
-
-              <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
-                <div>
-                  <div className="text-xs font-bold text-slate-800">Long / Essay Questions</div>
-                  <div className="text-[11px] text-slate-500">4-5 mark detailed questions</div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    min={0}
-                    max={10}
-                    value={longCount}
-                    onChange={(e) => setLongCount(Number(e.target.value))}
-                    className="w-14 h-8 text-center text-xs font-bold"
-                  />
-                  <span className="text-xs text-slate-400">×</span>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={10}
-                    value={longMarks}
-                    onChange={(e) => setLongMarks(Number(e.target.value))}
-                    className="w-12 h-8 text-center text-xs"
-                  />
-                  <span className="text-xs text-slate-500">m</span>
-                </div>
-              </div>
-
-              <Button
-                onClick={handleGeneratePaper}
-                disabled={isGenerating || !selectedClassId || !selectedSubjectId || selectedChapterIds.length === 0}
-                className="w-full h-11 rounded-xl gradient-brand text-white font-bold text-sm shadow-md hover:opacity-95 transition-opacity flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-              >
-                {isGenerating ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    Generating Equal Chapter Weightage Paper...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-4 h-4" />
-                    Generate Exam Paper ({mcqCount + shortCount + longCount} Questions)
-                  </>
-                )}
-              </Button>
             </CardContent>
           </Card>
         </div>
+      )}
 
-        {/* Right Column: Paper Preview & Print Setup */}
-        <div className="lg:col-span-7 space-y-4">
-          <div className="flex items-center justify-between bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs print:hidden">
+      {/* ========================================================================= */}
+      {/* FULL PAGE VIEW 2: FULL-WIDTH PAPER PREVIEW & PRINT CANVAS                 */}
+      {/* ========================================================================= */}
+      {viewMode === 'preview' && (
+        <div className="max-w-5xl mx-auto space-y-4 animate-fade-in">
+          {/* Top Control Bar for Preview Mode */}
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs print:hidden">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-slate-700">Preview:</span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setViewMode('config')}
+                className="h-8 text-xs font-bold rounded-lg border-slate-300 text-slate-700"
+              >
+                <ArrowLeft className="w-3.5 h-3.5 mr-1" />
+                Edit Setup
+              </Button>
               <Badge variant="outline" className="text-xs font-bold text-indigo-700 bg-indigo-50 border-indigo-200">
                 {paperQuestions.length} Questions
               </Badge>
@@ -706,7 +783,7 @@ export default function GeneratePaperPage() {
                 className={`h-8 text-xs font-semibold rounded-lg ${
                   isTwoColumn ? 'bg-indigo-50 border-indigo-300 text-indigo-900 font-bold' : 'text-slate-700'
                 }`}
-                title="Toggle between 1-column and 2-column examination layout"
+                title="Toggle 2-column examination layout"
               >
                 <Columns className="w-3.5 h-3.5 mr-1 text-indigo-600" />
                 {isTwoColumn ? '2 Columns (Active)' : '2-Column Layout'}
@@ -749,16 +826,19 @@ export default function GeneratePaperPage() {
           </div>
 
           {/* Printable Exam Paper Canvas */}
-          <div className="bg-white border border-slate-300 rounded-2xl p-6 sm:p-10 shadow-md min-h-[600px] text-slate-900 print:shadow-none print:border-none print:p-0">
+          <div className="bg-white border border-slate-300 rounded-2xl p-8 sm:p-12 shadow-md min-h-[650px] text-slate-900 print:shadow-none print:border-none print:p-0">
             {paperQuestions.length === 0 ? (
-              <div className="h-[450px] flex flex-col items-center justify-center text-center p-6 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50 print:hidden">
-                <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center mb-3">
+              <div className="h-[450px] flex flex-col items-center justify-center text-center p-6 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50 print:hidden space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center">
                   <FileText className="w-6 h-6 text-indigo-600" />
                 </div>
-                <h3 className="font-bold text-slate-800 text-base mb-1">Paper Preview Ready</h3>
-                <p className="text-xs text-slate-500 max-w-sm mb-4">
-                  Select your class, subject, and chapters on the left, then click &ldquo;Generate Exam Paper&rdquo;.
+                <h3 className="font-bold text-slate-800 text-base">Paper Preview Ready</h3>
+                <p className="text-xs text-slate-500 max-w-sm">
+                  Click below to go to the setup form, select your chapters and generate.
                 </p>
+                <Button onClick={() => setViewMode('config')} className="h-8 text-xs gradient-brand text-white rounded-lg">
+                  Go to Setup Form
+                </Button>
               </div>
             ) : (
               <div className="space-y-6">
@@ -806,7 +886,7 @@ export default function GeneratePaperPage() {
                         {mcqs.map((q, idx) => {
                           const globalIdx = paperQuestions.findIndex((item) => item.id === q.id);
                           return (
-                            <div key={q.id || idx} className="text-xs space-y-1.5 group relative">
+                            <div key={q.id || idx} className={`text-xs space-y-1.5 group relative ${isTwoColumn ? 'break-inside-avoid print:break-inside-avoid mb-4' : ''}`}>
                               <div className="flex items-start justify-between font-medium">
                                 <div className="flex-1">
                                   <span>
@@ -1035,7 +1115,7 @@ export default function GeneratePaperPage() {
             )}
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
