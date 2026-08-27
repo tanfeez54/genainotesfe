@@ -24,7 +24,8 @@ import {
   CheckCircle2,
   Clock,
   Maximize2,
-  Copy
+  Copy,
+  ExternalLink
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -1052,52 +1053,79 @@ export default function AcademicStructurePage() {
         </div>
       )}
 
-      {/* Full-Screen PDF / Image Preview Modal */}
+      {/* Professional Full-Screen PDF / Image Document Viewer Modal */}
       {previewImageUrl && (
         <div
           onClick={() => setPreviewImageUrl(null)}
-          className="fixed inset-0 z-60 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 cursor-zoom-out"
+          className="fixed inset-0 z-70 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-6"
         >
           <div
-            className={`relative bg-white rounded-2xl overflow-hidden shadow-2xl ${
-              previewImageUrl.toLowerCase().includes('.pdf') || previewImageUrl.includes('application/pdf')
-                ? 'w-full max-w-5xl h-[88vh] flex flex-col'
-                : 'max-w-4xl max-h-[90vh] p-2'
-            }`}
+            className="relative w-full max-w-5xl h-[88vh] bg-slate-900 rounded-3xl overflow-hidden shadow-2xl flex flex-col border border-slate-800 animate-scale-up"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="absolute top-3 right-3 z-10 flex items-center gap-2">
-              {(previewImageUrl.toLowerCase().includes('.pdf') || previewImageUrl.includes('application/pdf')) && (
+            {/* Modal Header Bar */}
+            <div className="h-14 px-5 bg-slate-900 border-b border-slate-800 flex items-center justify-between shrink-0 text-white select-none">
+              <div className="flex items-center gap-3">
+                {previewImageUrl.toLowerCase().includes('.pdf') || previewImageUrl.includes('application/pdf') ? (
+                  <div className="w-8 h-8 rounded-xl bg-red-600/90 text-white flex items-center justify-center font-black text-xs shadow-xs">
+                    PDF
+                  </div>
+                ) : (
+                  <div className="w-8 h-8 rounded-xl bg-indigo-600/90 text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                    IMG
+                  </div>
+                )}
+                <div>
+                  <h3 className="font-bold text-sm text-slate-100 flex items-center gap-2">
+                    Document Preview
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    {viewingDocsChapter?.title || 'Chapter Document'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2.5">
                 <a
                   href={previewImageUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-3 py-1.5 bg-slate-900/80 hover:bg-slate-900 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-md cursor-pointer"
+                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-xl text-xs font-bold flex items-center gap-1.5 border border-slate-700 transition-colors cursor-pointer"
+                  title="Open full file in a new browser tab"
                 >
-                  Open in New Tab &rarr;
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Open in New Tab</span>
                 </a>
-              )}
-              <button
-                onClick={() => setPreviewImageUrl(null)}
-                className="w-8 h-8 rounded-full bg-slate-900/70 text-white flex items-center justify-center hover:bg-slate-900 cursor-pointer shadow-md"
-              >
-                <X className="w-4 h-4" />
-              </button>
+
+                <button
+                  onClick={() => setPreviewImageUrl(null)}
+                  className="w-8 h-8 rounded-xl bg-slate-800 hover:bg-red-600 text-slate-300 hover:text-white flex items-center justify-center transition-colors cursor-pointer border border-slate-700"
+                  title="Close Preview (Esc)"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
-            {previewImageUrl.toLowerCase().includes('.pdf') || previewImageUrl.includes('application/pdf') ? (
-              <iframe
-                src={previewImageUrl}
-                title="PDF Document Preview"
-                className="w-full flex-1 border-none bg-slate-100"
-              />
-            ) : (
-              <img
-                src={previewImageUrl}
-                alt="Full Preview"
-                className="max-h-[85vh] w-auto rounded-xl object-contain mx-auto"
-              />
-            )}
+            {/* Modal Body */}
+            <div className="flex-1 bg-slate-950 flex items-center justify-center overflow-hidden relative">
+              {previewImageUrl.toLowerCase().includes('.pdf') || previewImageUrl.includes('application/pdf') ? (
+                <iframe
+                  src={`${previewImageUrl}#toolbar=1&navpanes=0&scrollbar=1&view=FitH`}
+                  title="PDF Document"
+                  className="w-full h-full border-none bg-white"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center p-4 overflow-auto">
+                  <img
+                    src={previewImageUrl}
+                    alt="Document Preview"
+                    className="max-h-full max-w-full rounded-xl object-contain shadow-lg"
+                  />
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
