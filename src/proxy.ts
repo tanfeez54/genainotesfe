@@ -2,20 +2,27 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  
+
   // Simple check for our session cookie
   const hasSession = request.cookies.has('notegen_session');
 
-  // Protected routes
+  // Protected routes that require login
   const isProtected =
     pathname.startsWith('/dashboard') ||
+    pathname.startsWith('/classes') ||
+    pathname.startsWith('/scan') ||
+    pathname.startsWith('/question-bank') ||
+    pathname.startsWith('/generate-paper') ||
     pathname.startsWith('/notes') ||
     pathname.startsWith('/subjects') ||
     pathname.startsWith('/settings');
 
-  // Auth routes (redirect to dashboard if already logged in)
+  // Auth routes (redirect to classes if already logged in)
   const isAuthRoute =
-    pathname.startsWith('/login') || pathname.startsWith('/verify');
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/signup') ||
+    pathname.startsWith('/verify') ||
+    pathname.startsWith('/set-password');
 
   if (isProtected && !hasSession) {
     const url = request.nextUrl.clone();
@@ -26,11 +33,11 @@ export default async function proxy(request: NextRequest) {
 
   if (isAuthRoute && hasSession) {
     const url = request.nextUrl.clone();
-    url.pathname = '/dashboard';
+    url.pathname = '/classes';
     return NextResponse.redirect(url);
   }
 
-  return NextResponse.next({ request });
+  return NextResponse.next();
 }
 
 export const config = {

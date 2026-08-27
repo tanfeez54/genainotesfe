@@ -160,7 +160,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       // Check if user has a school
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/schools/my-school`, {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://genainotesbe.onrender.com';
+        const res = await fetch(`${apiUrl}/api/schools/my-school`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 

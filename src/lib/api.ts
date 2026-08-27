@@ -1,7 +1,7 @@
 // API client utility for communicating with the backend
 // Automatically attaches Supabase JWT token to all requests
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://genainotesbe.onrender.com';
 
 function getAuthToken(): string | null {
   if (typeof document === 'undefined') return null;
