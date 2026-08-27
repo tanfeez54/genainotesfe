@@ -642,16 +642,16 @@ export default function GeneratePaperPage() {
 
       {/* Main Single-Screen Layout */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-        {/* Left Side: Scanned Document Selector & OCR Text Control (~360px) */}
-        <aside className="w-full lg:w-[370px] bg-white border-r border-slate-200 flex flex-col h-auto lg:h-[calc(100vh-53px)] overflow-y-auto p-4 space-y-4 print-hidden">
-          {/* 1. Scanned Document Selection */}
-          <div className="bg-indigo-50/70 p-3 rounded-xl border border-indigo-100 space-y-2.5">
+        {/* Left Side: Document Selector & Exam Controls (~360px) */}
+        <aside className="w-full lg:w-[360px] bg-white border-r border-slate-200 flex flex-col h-auto lg:h-[calc(100vh-53px)] overflow-y-auto p-4 space-y-4 print-hidden">
+          {/* 1. Scanned Document Selection (Clean & Hidden OCR) */}
+          <div className="bg-indigo-50/70 p-3.5 rounded-xl border border-indigo-100 space-y-2.5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-indigo-950 flex items-center gap-1.5">
                 <FileScan className="w-4 h-4 text-indigo-600" /> 1. Select Scanned Document
               </span>
               <Link href="/scan" className="text-[11px] font-bold text-indigo-600 hover:underline">
-                + Upload/Scan
+                + Scan New
               </Link>
             </div>
 
@@ -660,64 +660,34 @@ export default function GeneratePaperPage() {
                 <p className="text-[11px] text-slate-500">No scanned documents found.</p>
                 <Link href="/scan">
                   <Button size="sm" className="h-7 text-xs gradient-brand text-white rounded-lg">
-                    Scan Page Now
+                    Scan a Page Now
                   </Button>
                 </Link>
               </div>
             ) : (
-              <select
-                value={selectedScanId}
-                onChange={(e) => {
-                  const found = scannedDocs.find((s) => s.id === e.target.value);
-                  if (found) handleSelectScan(found);
-                  else setSelectedScanId(e.target.value);
-                }}
-                className="w-full h-9 px-2.5 rounded-lg border border-indigo-200 bg-white text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-              >
-                <option value="">Choose a Scanned Document...</option>
-                {scannedDocs.map((s, idx) => (
-                  <option key={s.id} value={s.id}>
-                    Doc #{idx + 1} ({s.chapters?.title || s.doc_type || 'Scan'}) — {s.raw_ocr_text?.length || 0} chars
-                  </option>
-                ))}
-              </select>
-            )}
+              <div className="space-y-2">
+                <select
+                  value={selectedScanId}
+                  onChange={(e) => {
+                    const found = scannedDocs.find((s) => s.id === e.target.value);
+                    if (found) handleSelectScan(found);
+                    else setSelectedScanId(e.target.value);
+                  }}
+                  className="w-full h-9 px-2.5 rounded-lg border border-indigo-200 bg-white text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                >
+                  <option value="">Choose a Scanned Document...</option>
+                  {scannedDocs.map((s, idx) => (
+                    <option key={s.id} value={s.id}>
+                      Doc #{idx + 1} — {s.chapters?.title || s.doc_type || 'Scanned Document'}
+                    </option>
+                  ))}
+                </select>
 
-            {/* Editable Saved OCR Text Area */}
-            {selectedScanId && (
-              <div className="space-y-1.5 pt-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-slate-700">
-                    Saved OCR Text ({currentOcrText.length} chars)
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setIsEditingOcr(!isEditingOcr)}
-                    className="text-[10px] font-bold text-indigo-600 hover:underline"
-                  >
-                    {isEditingOcr ? 'Collapse' : 'Edit OCR Text'}
-                  </button>
-                </div>
-
-                <Textarea
-                  value={currentOcrText}
-                  onChange={(e) => setCurrentOcrText(e.target.value)}
-                  rows={isEditingOcr ? 6 : 3}
-                  className="text-[11px] bg-white border-indigo-200 rounded-lg font-mono leading-relaxed"
-                  placeholder="Scanned OCR text will appear here..."
-                />
-
-                {isEditingOcr && (
-                  <Button
-                    onClick={handleSaveOcrText}
-                    disabled={isSavingOcr}
-                    size="sm"
-                    variant="outline"
-                    className="w-full h-7 text-[11px] font-bold border-indigo-300 text-indigo-700 bg-white hover:bg-indigo-50"
-                  >
-                    {isSavingOcr ? <RefreshCw className="w-3 h-3 animate-spin mr-1" /> : <Save className="w-3 h-3 mr-1" />}
-                    Save Updated OCR Text to DB
-                  </Button>
+                {selectedScanId && (
+                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 bg-emerald-50/80 px-2 py-1 rounded-md border border-emerald-200">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span className="truncate">Document ready for question extraction</span>
+                  </div>
                 )}
               </div>
             )}
