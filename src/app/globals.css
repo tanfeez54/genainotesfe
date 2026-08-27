@@ -219,3 +219,42 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--primary);
 }
+
+/* Print Optimization for 1-2 Page Clean Question Papers */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm 10mm;
+  }
+
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 10pt !important;
+    line-height: 1.35 !important;
+  }
+
+  header, aside, nav, button, .print-hidden {
+    display: none !important;
+  }
+
+  .print-page {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  .print-question {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    margin-bottom: 6px !important;
+  }
+
+  .print-header {
+    margin-bottom: 8px !important;
+    padding-bottom: 4px !important;
+  }
+}

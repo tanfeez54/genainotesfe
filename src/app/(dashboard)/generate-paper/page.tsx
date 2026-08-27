@@ -32,7 +32,9 @@ import {
   ChevronDown,
   ChevronUp,
   Image as ImageIcon,
-  Edit2
+  Columns,
+  Square,
+  UploadCloud
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -135,60 +137,62 @@ export default function GeneratePaperPage() {
 
   // Selection states
   const [selectedScanId, setSelectedScanId] = useState<string>('');
+  const [currentOcrText, setCurrentOcrText] = useState<string>('');
+  const [isEditingOcr, setIsEditingOcr] = useState(false);
   const [selectedClassId, setSelectedClassId] = useState('');
   const [selectedSubjectId, setSelectedSubjectId] = useState('');
   const [selectedChapterId, setSelectedChapterId] = useState('');
 
-  // Paper Config & Header
-  const [schoolName, setSchoolName] = useState('SchoolPapers Public School');
+  // Paper Header & Meta
+  const [schoolName, setSchoolName] = useState('Modern Public School');
   const [schoolLogo, setSchoolLogo] = useState('');
-  const [examTitle, setExamTitle] = useState('Unit Test Examination 2026');
-  const [timeAllowed, setTimeAllowed] = useState('2 Hours');
-  const [targetMarks, setTargetMarks] = useState(50);
+  const [examTitle, setExamTitle] = useState('Periodic Test / Half-Yearly Exam');
+  const [timeAllowed, setTimeAllowed] = useState('1.5 Hours');
+  const [targetMarks, setTargetMarks] = useState(40);
   const [generalInstructions, setGeneralInstructions] = useState(
-    '1. All questions are compulsory.\n2. Write answers clearly and neatly.\n3. Section A contains objective questions. Section B contains descriptive questions.'
+    '1. All questions are compulsory.\n2. Section A has 1-mark objective questions. Section B has descriptive questions.'
   );
   const [language, setLanguage] = useState('English');
+  const [isTwoColumn, setIsTwoColumn] = useState(false);
   const [showAnswerKey, setShowAnswerKey] = useState(false);
-  const [showOcrDrawer, setShowOcrDrawer] = useState(false);
   const [showSavedModal, setShowSavedModal] = useState(false);
 
-  // Blueprint sections (compact)
+  // Blueprint sections
   const [sections, setSections] = useState<SectionBlueprint[]>([
     {
       id: 'sec-1',
-      name: 'SECTION A (MCQs & Objective)',
+      name: 'SECTION A (Objective Type - 1 Mark)',
       type: 'mcq',
-      count: 5,
+      count: 6,
       marks_per_question: 1,
       difficulty: 'easy',
     },
     {
       id: 'sec-2',
-      name: 'SECTION B (Short Answer Questions)',
+      name: 'SECTION B (Short Answer - 3 Marks)',
       type: 'short_answer',
-      count: 5,
+      count: 4,
       marks_per_question: 3,
       difficulty: 'medium',
     },
     {
       id: 'sec-3',
-      name: 'SECTION C (Long Answer Questions)',
+      name: 'SECTION C (Long Answer - 5 Marks)',
       type: 'long_answer',
-      count: 3,
+      count: 2,
       marks_per_question: 5,
       difficulty: 'hard',
     },
   ]);
 
-  // Generated Questions (live on the single sheet)
+  // Questions state
   const [paperQuestions, setPaperQuestions] = useState<QuestionItem[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSavingOcr, setIsSavingOcr] = useState(false);
 
-  // Saved Papers History
+  // Saved Papers
   const [savedPapers, setSavedPapers] = useState<SavedPaper[]>([]);
-  const [loadingHistory, setLoadingHistory] = useState(false);
 
   useEffect(() => {
     const tokenMatch = document.cookie.match(new RegExp('(^| )notegen_session=([^;]+)'));
@@ -257,7 +261,7 @@ export default function GeneratePaperPage() {
         headers: { Authorization: `Bearer ${authToken}` },
       });
       const data = await res.json();
-      if (data.data) {
+      if (data.data && Array.isArray(data.data)) {
         setScannedDocs(data.data);
         if (data.data.length > 0 && !selectedScanId) {
           handleSelectScan(data.data[0]);
@@ -269,7 +273,6 @@ export default function GeneratePaperPage() {
   }
 
   async function fetchSavedPapers(authToken = token) {
-    setLoadingHistory(true);
     try {
       const res = await fetch(`${API_URL}/api/question-papers`, {
         headers: { Authorization: `Bearer ${authToken}` },
@@ -278,14 +281,13 @@ export default function GeneratePaperPage() {
       if (data.data) setSavedPapers(data.data);
     } catch (e) {
       console.error(e);
-    } finally {
-      setLoadingHistory(false);
     }
   }
 
-  // Handle Scan selection — Auto populates Class, Subject & Chapter
+  // Handle Scan selection
   const handleSelectScan = (scan: ScannedDocItem) => {
     setSelectedScanId(scan.id);
+    setCurrentOcrText(scan.raw_ocr_text || '');
     if (scan.chapters) {
       const chap = scan.chapters;
       setSelectedChapterId(chap.id);
@@ -297,6 +299,36 @@ export default function GeneratePaperPage() {
           fetchChapters(chap.subjects.id);
         }
       }
+    }
+  };
+
+  // Save modified OCR Text to Backend
+  const handleSaveOcrText = async () => {
+    if (!selectedScanId) {
+      toast.error('Please select a scanned document first');
+      return;
+    }
+    setIsSavingOcr(true);
+    try {
+      const res = await fetch(`${API_URL}/api/scans/${selectedScanId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          raw_ocr_text: currentOcrText,
+          status: 'ocr_completed',
+        }),
+      });
+      if (!res.ok) throw new Error('Failed to update OCR text');
+      toast.success('OCR text saved successfully in database!');
+      setIsEditingOcr(false);
+      fetchScannedDocs();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to save OCR text');
+    } finally {
+      setIsSavingOcr(false);
     }
   };
 
@@ -315,14 +347,14 @@ export default function GeneratePaperPage() {
     if (subjectId) fetchChapters(subjectId);
   };
 
-  // Section Blueprint Handlers
+  // Sections config helpers
   const handleAddSection = () => {
     const nextLetter = String.fromCharCode(65 + sections.length);
     const newSec: SectionBlueprint = {
       id: `sec-${Date.now()}`,
-      name: `SECTION ${nextLetter} (Additional Questions)`,
+      name: `SECTION ${nextLetter} (Questions)`,
       type: 'short_answer',
-      count: 4,
+      count: 3,
       marks_per_question: 3,
       difficulty: 'medium',
     };
@@ -340,14 +372,10 @@ export default function GeneratePaperPage() {
     );
   };
 
-  // Selected scan object
-  const activeScan = scannedDocs.find((s) => s.id === selectedScanId);
-  const activeScanOcrText = activeScan?.raw_ocr_text || '';
-
-  // Generate Questions Strictly from Selected Scanned Document
-  const handleGenerateFromScan = async () => {
-    if (!selectedScanId && !activeScanOcrText) {
-      toast.error('Please select a scanned document with OCR text first');
+  // Generate Questions using Saved OCR Data with Gemini AI
+  const handleGenerateFromOcr = async () => {
+    if (!currentOcrText || !currentOcrText.trim()) {
+      toast.error('No OCR text available for this document. Please scan a document or paste text.');
       return;
     }
 
@@ -356,7 +384,7 @@ export default function GeneratePaperPage() {
     const selectedChapterTitle = chapters.find((c) => c.id === selectedChapterId)?.title || '';
 
     setIsGenerating(true);
-    toast.info('Extracting questions strictly from scanned document...');
+    toast.info('Generating exam questions strictly from saved OCR data with Gemini...');
 
     try {
       const res = await fetch(`${API_URL}/api/question-papers/ai-generate`, {
@@ -367,7 +395,7 @@ export default function GeneratePaperPage() {
         },
         body: JSON.stringify({
           scan_ids: selectedScanId ? [selectedScanId] : undefined,
-          raw_ocr_text: activeScanOcrText,
+          raw_ocr_text: currentOcrText,
           strict_ocr_only: true,
           class_id: selectedClassId || undefined,
           subject_id: selectedSubjectId || undefined,
@@ -386,19 +414,19 @@ export default function GeneratePaperPage() {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to extract questions from scan');
+      if (!res.ok) throw new Error(data.error || 'Failed to extract questions from OCR data');
 
       setPaperQuestions(data.data || []);
-      toast.success(`Generated ${data.data.length} questions strictly from scanned document!`);
+      toast.success(`Generated ${data.data.length} questions strictly from document!`);
     } catch (err: any) {
-      console.error('Extraction error:', err);
-      toast.error(err.message || 'Error creating paper from scan');
+      console.error('Generation error:', err);
+      toast.error(err.message || 'Error creating paper from OCR');
     } finally {
       setIsGenerating(false);
     }
   };
 
-  // Save Paper
+  // Save Paper to Database
   const handleSavePaper = async () => {
     if (paperQuestions.length === 0) {
       toast.error('Question paper is currently empty');
@@ -422,9 +450,9 @@ export default function GeneratePaperPage() {
           title: examTitle,
           class_id: selectedClassId || null,
           subject_id: selectedSubjectId || null,
-          exam_type: examTitle.includes('Test') ? 'Unit Test' : 'Exam',
+          exam_type: 'Exam',
           total_marks: calculatedTotalMarks || targetMarks,
-          time_allowed_minutes: 120,
+          time_allowed_minutes: 90,
           blueprint: {
             schoolName,
             timeAllowed,
@@ -500,7 +528,7 @@ export default function GeneratePaperPage() {
       section_name: sectionName,
       type: 'short_answer',
       question_text: 'Type custom question here...',
-      answer_text: 'Model answer solution...',
+      answer_text: 'Expected answer...',
       marks: 3,
       difficulty: 'medium',
     };
@@ -528,29 +556,43 @@ export default function GeneratePaperPage() {
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col font-sans">
-      {/* Top Studio Action Bar */}
-      <header className="bg-white border-b border-slate-200 px-4 py-2.5 flex items-center justify-between shadow-xs sticky top-0 z-30 print:hidden">
+      {/* Top Studio Control Bar */}
+      <header className="bg-white border-b border-slate-200 px-4 py-2.5 flex items-center justify-between shadow-xs sticky top-0 z-30 print-hidden">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg gradient-brand flex items-center justify-center text-white shadow-xs">
-            <Sparkles className="w-4 h-4" />
+            <FileText className="w-4 h-4" />
           </div>
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-sm font-bold text-slate-900 leading-none">
-                Exam Paper Studio
+                Exam Paper Studio (1-2 Page Fit)
               </h1>
-              <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 text-[10px] py-0 px-1.5 font-bold">
-                Strict OCR Grounded
+              <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] py-0 px-1.5 font-bold">
+                Saved OCR Grounded
               </Badge>
             </div>
             <p className="text-[11px] text-slate-500 mt-0.5">
-              Live unified generator & worksheet editor
+              Strict document extraction & compact printable sheets
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Quick open saved papers */}
+          {/* 2-Column Layout Toggle */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsTwoColumn(!isTwoColumn)}
+            className={`h-8 text-xs font-semibold rounded-lg ${
+              isTwoColumn ? 'bg-indigo-50 border-indigo-300 text-indigo-900' : 'text-slate-700 border-slate-300'
+            }`}
+            title="Toggle 2-column compact layout"
+          >
+            <Columns className="w-3.5 h-3.5 mr-1 text-indigo-600" />
+            {isTwoColumn ? '2 Columns (Dense)' : '1 Column'}
+          </Button>
+
+          {/* Saved Papers */}
           <Button
             variant="outline"
             size="sm"
@@ -558,22 +600,20 @@ export default function GeneratePaperPage() {
             className="h-8 text-xs font-semibold rounded-lg text-slate-700 border-slate-300"
           >
             <FolderOpen className="w-3.5 h-3.5 mr-1 text-indigo-600" />
-            Saved Papers ({savedPapers.length})
+            Saved ({savedPapers.length})
           </Button>
 
-          {/* Toggle Answer Key */}
+          {/* Answer Key Toggle */}
           <Button
             variant="outline"
             size="sm"
             onClick={() => setShowAnswerKey(!showAnswerKey)}
             className={`h-8 text-xs font-semibold rounded-lg ${
-              showAnswerKey
-                ? 'bg-amber-50 border-amber-300 text-amber-900'
-                : 'text-slate-700 border-slate-300'
+              showAnswerKey ? 'bg-amber-50 border-amber-300 text-amber-900' : 'text-slate-700 border-slate-300'
             }`}
           >
             <Key className="w-3.5 h-3.5 mr-1 text-amber-600" />
-            {showAnswerKey ? 'Hide Answers' : 'Teacher Answer Key'}
+            {showAnswerKey ? 'Hide Key' : 'Answer Key'}
           </Button>
 
           {/* Save Paper */}
@@ -588,112 +628,105 @@ export default function GeneratePaperPage() {
             Save Paper
           </Button>
 
-          {/* Print / Export */}
+          {/* Clean Download PDF / Print */}
           <Button
             onClick={handlePrint}
             size="sm"
             className="h-8 text-xs font-bold rounded-lg gradient-brand text-white shadow-xs hover:opacity-90 cursor-pointer"
           >
-            <Printer className="w-3.5 h-3.5 mr-1" />
-            Print / PDF
+            <Download className="w-3.5 h-3.5 mr-1" />
+            Download PDF / Print
           </Button>
         </div>
       </header>
 
-      {/* Main Single-Screen Workspace Layout */}
+      {/* Main Single-Screen Layout */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-        {/* Left Side: Scanned Document Selector & Compact Exam Settings (~360px) */}
-        <aside className="w-full lg:w-[380px] bg-white border-r border-slate-200 flex flex-col h-auto lg:h-[calc(100vh-53px)] overflow-y-auto p-4 space-y-4 print:hidden">
-          {/* 1. Scanned Document Picker (Strict Source) */}
-          <div className="bg-indigo-50/60 p-3 rounded-xl border border-indigo-100 space-y-2.5">
+        {/* Left Side: Scanned Document Selector & OCR Text Control (~360px) */}
+        <aside className="w-full lg:w-[370px] bg-white border-r border-slate-200 flex flex-col h-auto lg:h-[calc(100vh-53px)] overflow-y-auto p-4 space-y-4 print-hidden">
+          {/* 1. Scanned Document Selection */}
+          <div className="bg-indigo-50/70 p-3 rounded-xl border border-indigo-100 space-y-2.5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-indigo-950 flex items-center gap-1.5">
-                <FileScan className="w-4 h-4 text-indigo-600" /> Source Scanned Doc (OCR)
+                <FileScan className="w-4 h-4 text-indigo-600" /> 1. Select Scanned Document
               </span>
-              <Link href="/scan" className="text-[11px] font-bold text-indigo-600 hover:underline flex items-center gap-0.5">
-                + New Scan
+              <Link href="/scan" className="text-[11px] font-bold text-indigo-600 hover:underline">
+                + Upload/Scan
               </Link>
             </div>
 
             {scannedDocs.length === 0 ? (
               <div className="p-3 bg-white rounded-lg border border-indigo-100 text-center space-y-1.5">
-                <p className="text-[11px] text-slate-500">No scanned documents found yet.</p>
+                <p className="text-[11px] text-slate-500">No scanned documents found.</p>
                 <Link href="/scan">
                   <Button size="sm" className="h-7 text-xs gradient-brand text-white rounded-lg">
-                    Scan a Page Now
+                    Scan Page Now
                   </Button>
                 </Link>
               </div>
             ) : (
-              <div>
-                <select
-                  value={selectedScanId}
-                  onChange={(e) => {
-                    const found = scannedDocs.find((s) => s.id === e.target.value);
-                    if (found) handleSelectScan(found);
-                    else setSelectedScanId(e.target.value);
-                  }}
-                  className="w-full h-9 px-2.5 rounded-lg border border-indigo-200 bg-white text-xs font-medium text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                >
-                  <option value="">Choose a Scanned Document...</option>
-                  {scannedDocs.map((s, idx) => (
-                    <option key={s.id} value={s.id}>
-                      Doc #{idx + 1} ({s.chapters?.title || s.doc_type || 'Scan'}) — {s.raw_ocr_text ? `${s.raw_ocr_text.slice(0, 35)}...` : 'No OCR'}
-                    </option>
-                  ))}
-                </select>
+              <select
+                value={selectedScanId}
+                onChange={(e) => {
+                  const found = scannedDocs.find((s) => s.id === e.target.value);
+                  if (found) handleSelectScan(found);
+                  else setSelectedScanId(e.target.value);
+                }}
+                className="w-full h-9 px-2.5 rounded-lg border border-indigo-200 bg-white text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+              >
+                <option value="">Choose a Scanned Document...</option>
+                {scannedDocs.map((s, idx) => (
+                  <option key={s.id} value={s.id}>
+                    Doc #{idx + 1} ({s.chapters?.title || s.doc_type || 'Scan'}) — {s.raw_ocr_text?.length || 0} chars
+                  </option>
+                ))}
+              </select>
+            )}
 
-                {activeScan && (
-                  <div className="mt-2 p-2 bg-white rounded-lg border border-indigo-100 flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 truncate">
-                      {activeScan.image_url && (
-                        <img
-                          src={activeScan.image_url}
-                          alt="Scan preview"
-                          className="w-8 h-8 object-cover rounded border border-slate-200"
-                        />
-                      )}
-                      <div className="text-[11px] truncate">
-                        <div className="font-bold text-slate-800 truncate">
-                          {activeScan.chapters?.title || 'Scanned Document'}
-                        </div>
-                        <div className="text-slate-500 text-[10px]">
-                          {activeScan.raw_ocr_text?.length || 0} characters OCR text
-                        </div>
-                      </div>
-                    </div>
+            {/* Editable Saved OCR Text Area */}
+            {selectedScanId && (
+              <div className="space-y-1.5 pt-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-slate-700">
+                    Saved OCR Text ({currentOcrText.length} chars)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingOcr(!isEditingOcr)}
+                    className="text-[10px] font-bold text-indigo-600 hover:underline"
+                  >
+                    {isEditingOcr ? 'Collapse' : 'Edit OCR Text'}
+                  </button>
+                </div>
 
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowOcrDrawer(!showOcrDrawer)}
-                      className="h-6 text-[10px] font-bold text-indigo-600 hover:bg-indigo-50 px-2 rounded"
-                    >
-                      {showOcrDrawer ? 'Hide OCR' : 'View OCR'}
-                    </Button>
-                  </div>
+                <Textarea
+                  value={currentOcrText}
+                  onChange={(e) => setCurrentOcrText(e.target.value)}
+                  rows={isEditingOcr ? 6 : 3}
+                  className="text-[11px] bg-white border-indigo-200 rounded-lg font-mono leading-relaxed"
+                  placeholder="Scanned OCR text will appear here..."
+                />
+
+                {isEditingOcr && (
+                  <Button
+                    onClick={handleSaveOcrText}
+                    disabled={isSavingOcr}
+                    size="sm"
+                    variant="outline"
+                    className="w-full h-7 text-[11px] font-bold border-indigo-300 text-indigo-700 bg-white hover:bg-indigo-50"
+                  >
+                    {isSavingOcr ? <RefreshCw className="w-3 h-3 animate-spin mr-1" /> : <Save className="w-3 h-3 mr-1" />}
+                    Save Updated OCR Text to DB
+                  </Button>
                 )}
               </div>
             )}
           </div>
 
-          {/* Collapsible Source OCR Text Viewer */}
-          {showOcrDrawer && activeScanOcrText && (
-            <div className="p-3 bg-slate-900 text-slate-100 rounded-xl space-y-1 text-xs">
-              <div className="flex items-center justify-between text-[11px] font-bold text-slate-300 border-b border-slate-800 pb-1">
-                <span>Extracted Verbatim OCR Text:</span>
-                <button onClick={() => setShowOcrDrawer(false)} className="text-slate-400 hover:text-white">✕</button>
-              </div>
-              <div className="max-h-36 overflow-y-auto font-mono text-[11px] leading-relaxed whitespace-pre-wrap text-slate-300">
-                {activeScanOcrText}
-              </div>
-            </div>
-          )}
-
-          {/* 2. Compact Academic & Exam Details */}
+          {/* 2. Compact Academic Details */}
           <div className="space-y-2.5">
             <span className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-              Exam Details
+              2. Exam Setup
             </span>
 
             <div className="grid grid-cols-2 gap-2">
@@ -704,7 +737,7 @@ export default function GeneratePaperPage() {
                   onChange={(e) => handleClassChange(e.target.value)}
                   className="w-full mt-0.5 h-8 px-2 rounded-lg border border-slate-200 bg-slate-50 text-xs focus:ring-1 focus:ring-indigo-500 focus:outline-none"
                 >
-                  <option value="">Select...</option>
+                  <option value="">Select Class...</option>
                   {classes.map((c) => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
@@ -719,7 +752,7 @@ export default function GeneratePaperPage() {
                   disabled={!selectedClassId}
                   className="w-full mt-0.5 h-8 px-2 rounded-lg border border-slate-200 bg-slate-50 text-xs focus:ring-1 focus:ring-indigo-500 focus:outline-none disabled:opacity-50"
                 >
-                  <option value="">Select...</option>
+                  <option value="">Select Subject...</option>
                   {subjects.map((s) => (
                     <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
@@ -764,31 +797,18 @@ export default function GeneratePaperPage() {
                 />
               </div>
             </div>
-
-            <div>
-              <Label className="text-[11px] font-semibold text-slate-600">Language</Label>
-              <select
-                value={language}
-                onChange={(e) => setLanguage(e.target.value)}
-                className="w-full mt-0.5 h-8 px-2 rounded-lg border border-slate-200 bg-slate-50 text-xs focus:ring-1 focus:ring-indigo-500 focus:outline-none"
-              >
-                <option value="English">English</option>
-                <option value="Hindi">Hindi (हिंदी)</option>
-                <option value="Hinglish">Bilingual / Hinglish</option>
-              </select>
-            </div>
           </div>
 
-          {/* 3. Section Blueprint Breakdown */}
+          {/* 3. Section Question Counts */}
           <div className="space-y-2 pt-2 border-t border-slate-200">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                Question Distribution
+                3. Sections (Max 1-2 Pages)
               </span>
               <button
                 type="button"
                 onClick={handleAddSection}
-                className="text-[11px] font-bold text-indigo-600 hover:underline flex items-center gap-0.5"
+                className="text-[11px] font-bold text-indigo-600 hover:underline"
               >
                 + Add Section
               </button>
@@ -820,7 +840,7 @@ export default function GeneratePaperPage() {
                       onChange={(e) => handleUpdateSection(sec.id, 'type', e.target.value)}
                       className="h-6 px-1 rounded border border-slate-200 bg-white text-[10px]"
                     >
-                      <option value="mcq">MCQ</option>
+                      <option value="mcq">MCQ (1M)</option>
                       <option value="short_answer">Short</option>
                       <option value="long_answer">Long</option>
                       <option value="fill_blank">Fill Blank</option>
@@ -831,7 +851,7 @@ export default function GeneratePaperPage() {
                       <input
                         type="number"
                         min={1}
-                        max={30}
+                        max={20}
                         value={sec.count}
                         onChange={(e) =>
                           handleUpdateSection(sec.id, 'count', Math.max(1, Number(e.target.value)))
@@ -844,7 +864,7 @@ export default function GeneratePaperPage() {
                       <input
                         type="number"
                         min={1}
-                        max={20}
+                        max={10}
                         value={sec.marks_per_question}
                         onChange={(e) =>
                           handleUpdateSection(
@@ -865,44 +885,44 @@ export default function GeneratePaperPage() {
             </div>
           </div>
 
-          {/* 4. Action Button: Generate Strictly from Scan */}
+          {/* 4. Action: Generate Strictly from OCR */}
           <div className="pt-2">
             <Button
-              onClick={handleGenerateFromScan}
-              disabled={isGenerating || !selectedScanId}
+              onClick={handleGenerateFromOcr}
+              disabled={isGenerating || !currentOcrText}
               className="w-full h-11 rounded-xl gradient-brand text-white font-bold text-xs shadow-md hover:opacity-95 transition-opacity flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
               {isGenerating ? (
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin" />
-                  Extracting from Scanned Document...
+                  Generating Questions from OCR...
                 </>
               ) : (
                 <>
                   <Sparkles className="w-4 h-4" />
-                  Generate Paper from Scanned Doc
+                  Generate Paper from Saved OCR
                 </>
               )}
             </Button>
           </div>
         </aside>
 
-        {/* Right Side: Live Full-Page Worksheet / Question Paper Canvas */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 flex justify-center bg-slate-200/70">
-          <div className="w-full max-w-4xl bg-white shadow-lg rounded-xl border border-slate-300 p-8 sm:p-12 text-slate-900 font-serif min-h-[900px] flex flex-col justify-between print:shadow-none print:border-none print:p-0 print:m-0 print:w-full">
-            <div className="space-y-6">
-              {/* Paper Header (Board Exam Style) */}
-              <div className="text-center border-b-2 border-slate-900 pb-4 space-y-1.5">
+        {/* Right Side: Live Compact 1-2 Page Printable Sheet Canvas */}
+        <main className="flex-1 overflow-y-auto p-3 sm:p-6 flex justify-center bg-slate-200/60">
+          <div className="print-page w-full max-w-4xl bg-white shadow-md rounded-xl border border-slate-300 p-6 sm:p-8 text-slate-900 font-serif min-h-[950px] flex flex-col justify-between">
+            <div className="space-y-4">
+              {/* Paper Header (Clean & Compact) */}
+              <div className="print-header text-center border-b-2 border-slate-900 pb-2 space-y-1">
                 {schoolLogo && (
-                  <img src={schoolLogo} alt="School Logo" className="h-14 mx-auto mb-1 object-contain" />
+                  <img src={schoolLogo} alt="Logo" className="h-10 mx-auto mb-1 object-contain" />
                 )}
-                <h2 className="text-xl sm:text-2xl font-black uppercase tracking-wide">
+                <h2 className="text-base sm:text-lg font-black uppercase tracking-wide leading-tight">
                   {schoolName}
                 </h2>
-                <h3 className="text-sm sm:text-base font-bold text-slate-800 uppercase tracking-tight">
+                <h3 className="text-xs sm:text-sm font-bold text-slate-800 uppercase tracking-tight">
                   {examTitle}
                 </h3>
-                <div className="flex flex-wrap items-center justify-between text-xs font-bold pt-2 border-t border-slate-400 mt-2 font-sans">
+                <div className="flex flex-wrap items-center justify-between text-[11px] font-bold pt-1 border-t border-slate-300 mt-1 font-sans">
                   <span>Class: {selectedClassName || 'Standard'}</span>
                   <span>Subject: {selectedSubjectName || 'Subject'}</span>
                   <span>Time: {timeAllowed}</span>
@@ -910,114 +930,108 @@ export default function GeneratePaperPage() {
                 </div>
               </div>
 
-              {/* Student Details Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs border border-slate-400 p-2.5 rounded font-sans">
-                <div>Candidate Name: _________</div>
-                <div>Roll Number: ____________</div>
-                <div>Section / Room: __________</div>
-                <div>Date: __________________</div>
+              {/* Student Details Line */}
+              <div className="flex flex-wrap items-center justify-between text-[10px] border border-slate-300 px-2 py-1 rounded font-sans">
+                <div>Candidate Name: _____________________</div>
+                <div>Roll No: __________</div>
+                <div>Section: _______</div>
+                <div>Date: _________</div>
               </div>
 
               {/* General Instructions */}
               {generalInstructions && (
-                <div className="p-3 bg-slate-50 border border-slate-200 rounded text-xs space-y-0.5 font-sans">
-                  <div className="font-bold uppercase text-[10px] tracking-wider text-slate-700">
-                    General Instructions:
-                  </div>
-                  <div className="whitespace-pre-line text-slate-600 leading-relaxed text-[11px]">
-                    {generalInstructions}
-                  </div>
+                <div className="px-2 py-1.5 bg-slate-50 border border-slate-200 rounded text-[10px] font-sans">
+                  <span className="font-bold text-slate-800">General Instructions: </span>
+                  <span className="text-slate-600">{generalInstructions.replace(/\n/g, ' ')}</span>
                 </div>
               )}
 
-              {/* Live Questions List (Directly on this single page) */}
+              {/* Live Questions Canvas */}
               {paperQuestions.length === 0 ? (
-                <div className="py-20 text-center space-y-3 print:hidden">
-                  <FileScan className="w-12 h-12 text-slate-300 mx-auto" />
-                  <h4 className="text-sm font-bold text-slate-700">No Questions Added Yet</h4>
-                  <p className="text-xs text-slate-500 max-w-sm mx-auto font-sans">
-                    Select a scanned document from the left panel and click <strong>"Generate Paper from Scanned Doc"</strong> to extract questions directly onto this page.
+                <div className="py-24 text-center space-y-2 print-hidden">
+                  <FileScan className="w-10 h-10 text-slate-300 mx-auto" />
+                  <h4 className="text-xs font-bold text-slate-700">Exam Paper is Ready to Assemble</h4>
+                  <p className="text-[11px] text-slate-500 max-w-sm mx-auto font-sans">
+                    Select a scanned document on the left and click <strong>"Generate Paper from Saved OCR"</strong> to instantly populate this sheet.
                   </p>
                 </div>
               ) : (
-                <div className="space-y-6 pt-2">
+                <div className={`space-y-4 pt-1 ${isTwoColumn ? 'columns-1 sm:columns-2 gap-6' : ''}`}>
                   {Object.entries(groupedQuestions).map(([sectionName, qList], secIdx) => (
-                    <div key={secIdx} className="space-y-3">
-                      {/* Section Title Header */}
-                      <div className="flex items-center justify-between border-b-2 border-slate-800 pb-1 mt-4">
-                        <h4 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-900">
+                    <div key={secIdx} className="space-y-2 print-question">
+                      {/* Section Title */}
+                      <div className="flex items-center justify-between border-b border-slate-800 pb-0.5 mt-2">
+                        <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-900">
                           {sectionName}
                         </h4>
-                        <span className="text-xs font-bold text-slate-700 font-sans">
+                        <span className="text-[10px] font-bold text-slate-700 font-sans">
                           [{qList.reduce((acc, q) => acc + (Number(q.marks) || 1), 0)} Marks]
                         </span>
                       </div>
 
                       {/* Questions in Section */}
-                      <div className="space-y-3">
+                      <div className="space-y-2">
                         {qList.map((q, qIdx) => {
                           const globalIdx = paperQuestions.findIndex((item) => item.id === q.id);
                           return (
                             <div
                               key={q.id || qIdx}
-                              className="group relative p-2.5 rounded-lg border border-transparent hover:border-slate-300 hover:bg-slate-50/50 transition-all space-y-1.5"
+                              className="print-question group relative p-1.5 rounded border border-transparent hover:border-slate-300 hover:bg-slate-50/50 transition-all space-y-1"
                             >
-                              {/* Question Number & Text */}
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="flex items-start gap-2 flex-1">
-                                  <span className="font-bold text-xs">Q{globalIdx + 1}.</span>
-                                  <div className="flex-1 text-xs font-medium text-slate-900 leading-relaxed">
+                              {/* Question Number, Text & Inline Marks */}
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-start gap-1.5 flex-1">
+                                  <span className="font-bold text-[11px] select-none">Q{globalIdx + 1}.</span>
+                                  <div className="flex-1 text-[11px] font-medium text-slate-900 leading-snug">
                                     <textarea
                                       value={q.question_text}
                                       onChange={(e) =>
                                         handleUpdateQuestion(globalIdx, 'question_text', e.target.value)
                                       }
-                                      rows={2}
-                                      className="w-full bg-transparent border-none focus:ring-1 focus:ring-indigo-300 rounded p-1 resize-y text-xs font-serif leading-relaxed"
+                                      rows={1}
+                                      className="w-full bg-transparent border-none focus:ring-1 focus:ring-indigo-300 rounded p-0.5 resize-y text-[11px] font-serif leading-snug"
                                     />
                                   </div>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                  <span className="font-bold text-xs text-slate-800 font-sans">
-                                    [{q.marks} Mark{q.marks > 1 ? 's' : ''}]
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-bold text-[10px] text-slate-800 font-sans whitespace-nowrap">
+                                    [{q.marks}M]
                                   </span>
                                   <button
                                     type="button"
                                     onClick={() => handleDeleteQuestion(globalIdx)}
-                                    className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-red-600 print:hidden"
-                                    title="Delete question"
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-red-600 print-hidden"
+                                    title="Delete"
                                   >
-                                    <Trash2 className="w-3.5 h-3.5" />
+                                    <Trash2 className="w-3 h-3" />
                                   </button>
                                 </div>
                               </div>
 
-                              {/* MCQ Options */}
+                              {/* Horizontal Compact MCQ Options */}
                               {q.type === 'mcq' && q.options && Array.isArray(q.options) && (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pl-6 pt-0.5 text-xs font-sans">
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 pl-4 pt-0.5 text-[10px] font-sans">
                                   {q.options.map((opt: any, optIdx: number) => {
                                     const label = typeof opt === 'string' ? String.fromCharCode(65 + optIdx) : opt.label;
                                     const text = typeof opt === 'string' ? opt : opt.text;
                                     return (
-                                      <div key={optIdx} className="flex items-center gap-1.5">
+                                      <div key={optIdx} className="flex items-center gap-1">
                                         <span className="font-bold text-slate-700">({label})</span>
-                                        <span>{text}</span>
+                                        <span className="truncate">{text}</span>
                                       </div>
                                     );
                                   })}
                                 </div>
                               )}
 
-                              {/* Teacher's Model Answer / Answer Key */}
+                              {/* Teacher's Model Answer / Key */}
                               {showAnswerKey && (q.answer_text || q.correct_option) && (
-                                <div className="ml-6 p-2 bg-amber-50/80 border border-amber-200 rounded text-[11px] text-amber-950 font-sans space-y-0.5">
+                                <div className="ml-4 p-1.5 bg-amber-50 border border-amber-200 rounded text-[10px] text-amber-950 font-sans space-y-0.5">
                                   <div className="font-bold text-amber-900">
-                                    Solution / Answer Key:
+                                    Answer Key:
                                   </div>
                                   {q.correct_option && (
-                                    <div>
-                                      <span className="font-semibold">Correct Option:</span> ({q.correct_option})
-                                    </div>
+                                    <div><strong>Ans:</strong> ({q.correct_option})</div>
                                   )}
                                   {q.answer_text && (
                                     <div className="whitespace-pre-line text-slate-700">{q.answer_text}</div>
@@ -1029,14 +1043,14 @@ export default function GeneratePaperPage() {
                         })}
                       </div>
 
-                      {/* Add Single Custom Question inline */}
-                      <div className="pl-4 pt-0.5 print:hidden">
+                      {/* Add Question Button */}
+                      <div className="pl-2 pt-0.5 print-hidden">
                         <button
                           type="button"
                           onClick={() => handleAddNewQuestion(sectionName)}
-                          className="text-[11px] font-bold text-indigo-600 hover:underline flex items-center gap-1"
+                          className="text-[10px] font-bold text-indigo-600 hover:underline flex items-center gap-0.5"
                         >
-                          <Plus className="w-3 h-3" /> Add Question to {sectionName}
+                          <Plus className="w-2.5 h-2.5" /> Add Question
                         </button>
                       </div>
                     </div>
@@ -1047,51 +1061,48 @@ export default function GeneratePaperPage() {
 
             {/* Exam Paper Footer */}
             {paperQuestions.length > 0 && (
-              <div className="border-t-2 border-slate-900 pt-4 text-center text-xs font-bold text-slate-600 uppercase tracking-widest mt-12 font-sans">
-                *** END OF EXAMINATION PAPER ***
+              <div className="border-t border-slate-900 pt-2 text-center text-[10px] font-bold text-slate-600 uppercase tracking-widest mt-6 font-sans">
+                --- END OF QUESTION PAPER ---
               </div>
             )}
           </div>
         </main>
       </div>
 
-      {/* Saved Papers Quick Modal */}
+      {/* Saved Papers Modal */}
       {showSavedModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white w-full max-w-2xl rounded-2xl shadow-xl border border-slate-200 p-6 space-y-4 max-h-[80vh] flex flex-col">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div>
-                <h3 className="text-base font-bold text-slate-900">Saved Examination Papers</h3>
-                <p className="text-xs text-slate-500">Click on any paper to open and print on the live canvas</p>
-              </div>
-              <button onClick={() => setShowSavedModal(false)} className="text-slate-400 hover:text-slate-700 text-sm font-bold">
+          <div className="bg-white w-full max-w-xl rounded-2xl shadow-xl border border-slate-200 p-5 space-y-3 max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+              <h3 className="text-sm font-bold text-slate-900">Saved Examination Papers</h3>
+              <button onClick={() => setShowSavedModal(false)} className="text-slate-400 hover:text-slate-700 text-xs font-bold">
                 ✕
               </button>
             </div>
 
             <div className="flex-1 overflow-y-auto space-y-2">
               {savedPapers.length === 0 ? (
-                <div className="py-12 text-center text-slate-400 text-xs">
+                <div className="py-8 text-center text-slate-400 text-xs">
                   No saved papers found.
                 </div>
               ) : (
                 savedPapers.map((p) => (
                   <div
                     key={p.id}
-                    className="p-3 rounded-xl border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/30 transition-all flex items-center justify-between gap-3"
+                    className="p-2.5 rounded-xl border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/30 transition-all flex items-center justify-between gap-2"
                   >
                     <div>
-                      <div className="font-bold text-sm text-slate-900">{p.title}</div>
-                      <div className="text-xs text-slate-500">
-                        {p.classes?.name || 'Class'} • {p.subjects?.name || 'Subject'} • {p.total_marks} Marks • {new Date(p.created_at).toLocaleDateString()}
+                      <div className="font-bold text-xs text-slate-900">{p.title}</div>
+                      <div className="text-[11px] text-slate-500">
+                        {p.classes?.name || 'Class'} • {p.subjects?.name || 'Subject'} • {p.total_marks} Marks
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
                       <Button
                         size="sm"
                         onClick={() => handleLoadPaper(p)}
-                        className="h-8 text-xs font-bold gradient-brand text-white rounded-lg"
+                        className="h-7 text-[11px] font-bold gradient-brand text-white rounded-lg"
                       >
                         <Eye className="w-3 h-3 mr-1" /> Open
                       </Button>
@@ -1099,9 +1110,9 @@ export default function GeneratePaperPage() {
                         size="sm"
                         variant="ghost"
                         onClick={() => handleDeletePaper(p.id)}
-                        className="h-8 w-8 p-0 text-slate-400 hover:text-red-600 rounded-lg"
+                        className="h-7 w-7 p-0 text-slate-400 hover:text-red-600 rounded-lg"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-3 h-3" />
                       </Button>
                     </div>
                   </div>
