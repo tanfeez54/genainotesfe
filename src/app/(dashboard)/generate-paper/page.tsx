@@ -1298,7 +1298,7 @@ export default function GeneratePaperPage() {
           </div>
 
           {/* Printable Exam Paper Canvas */}
-          <div className="bg-white border border-slate-300 rounded-2xl p-8 sm:p-12 shadow-md min-h-[650px] text-slate-900 print:shadow-none print:border-none print:p-0">
+          <div className="print-page bg-white border border-slate-300 rounded-2xl p-8 sm:p-12 shadow-md min-h-[650px] text-slate-900 print:shadow-none print:border-none print:p-0 print:m-0">
             {paperQuestions.length === 0 ? (
               <div className="h-[450px] flex flex-col items-center justify-center text-center p-6 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50 print:hidden space-y-3">
                 <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center">
@@ -1363,7 +1363,7 @@ export default function GeneratePaperPage() {
                           isTwoColumn ? 'break-inside-avoid print:break-inside-avoid mb-6' : ''
                         }`}
                       >
-                        {/* Section Header */}
+                        {/* Section Header with Section Marks */}
                         <div className="flex items-center justify-between border-b-2 border-slate-800 pb-1">
                           <h4 className="font-bold text-sm uppercase tracking-wider text-slate-900">
                             {secGroup.sectionName} ({secMarksTotal} Marks)
@@ -1381,22 +1381,21 @@ export default function GeneratePaperPage() {
                             return (
                               <div
                                 key={q.id || globalIdx}
-                                className={`text-xs space-y-1.5 group relative ${
+                                className={`print-question text-xs space-y-1.5 group relative ${
                                   isTwoColumn ? 'break-inside-avoid print:break-inside-avoid mb-4' : ''
                                 }`}
                               >
-                                {/* Question Header Line without printing chapter name on paper */}
+                                {/* Question Header Line (Marks only shown at section header) */}
                                 <div className="flex items-start justify-between font-medium">
                                   <div className="flex-1 leading-relaxed">
                                     <span className="font-bold">Q{qNumber}. </span>
                                     <span>{displayQuestionText}</span>
                                   </div>
-                                  <div className="flex items-center gap-2 shrink-0 ml-2">
-                                    <span className="font-bold text-slate-600">[{q.marks || 1}m]</span>
+                                  <div className="flex items-center gap-2 shrink-0 ml-2 print:hidden">
                                     <button
                                       type="button"
                                       onClick={() => handleOpenImagePicker(globalIdx)}
-                                      className="opacity-0 group-hover:opacity-100 transition-opacity text-indigo-600 hover:text-indigo-800 text-[11px] font-bold flex items-center gap-0.5 print:hidden cursor-pointer"
+                                      className="opacity-0 group-hover:opacity-100 transition-opacity text-indigo-600 hover:text-indigo-800 text-[11px] font-bold flex items-center gap-0.5 cursor-pointer"
                                       title="Attach diagram/image"
                                     >
                                       <ImageIcon className="w-3.5 h-3.5" />

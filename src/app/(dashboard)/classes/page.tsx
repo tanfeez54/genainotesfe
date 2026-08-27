@@ -23,7 +23,8 @@ import {
   FileScan,
   CheckCircle2,
   Clock,
-  Maximize2
+  Maximize2,
+  Copy
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -92,6 +93,7 @@ export default function AcademicStructurePage() {
   const [isLoadingScans, setIsLoadingScans] = useState(false);
   const [isUploadingScan, setIsUploadingScan] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const [viewingOcrDoc, setViewingOcrDoc] = useState<{ pageNum: number; text: string; imageUrl?: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -987,10 +989,19 @@ export default function AcademicStructurePage() {
                         </div>
 
                         <div className="flex items-center gap-1">
-                          <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
-                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                            Ready
-                          </span>
+                          <button
+                            onClick={() =>
+                              setViewingOcrDoc({
+                                pageNum: sIdx + 1,
+                                text: scan.raw_ocr_text || 'No text extracted yet for this page.',
+                                imageUrl: scan.image_url,
+                              })
+                            }
+                            className="text-[10px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2 py-1 rounded-md transition-colors cursor-pointer"
+                            title="View extracted OCR text"
+                          >
+                            <FileText className="w-3 h-3 inline mr-0.5" /> Text
+                          </button>
 
                           <button
                             onClick={() => handleDeleteScan(scan.id, sIdx + 1)}
@@ -1041,6 +1052,69 @@ export default function AcademicStructurePage() {
               alt="Full Preview"
               className="max-h-[85vh] w-auto rounded-xl object-contain"
             />
+          </div>
+        </div>
+      )}
+
+      {/* Extracted OCR Text Viewer Modal */}
+      {viewingOcrDoc && (
+        <div
+          onClick={() => setViewingOcrDoc(null)}
+          className="fixed inset-0 z-60 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4"
+        >
+          <div
+            className="relative w-full max-w-2xl max-h-[85vh] bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col animate-scale-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center font-bold text-xs">
+                  P{viewingOcrDoc.pageNum}
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-slate-900">
+                    Extracted Verbatim Text (Page {viewingOcrDoc.pageNum})
+                  </h3>
+                  <p className="text-[11px] text-slate-500">OCR text extracted from document scan</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    navigator.clipboard.writeText(viewingOcrDoc.text);
+                    toast.success('Copied page text to clipboard!');
+                  }}
+                  className="h-8 text-xs cursor-pointer"
+                >
+                  <Copy className="w-3 h-3 mr-1" /> Copy Text
+                </Button>
+                <button
+                  onClick={() => setViewingOcrDoc(null)}
+                  className="w-8 h-8 rounded-full bg-slate-200 hover:bg-slate-300 flex items-center justify-center text-slate-700 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 overflow-y-auto flex-1 font-mono text-xs leading-relaxed whitespace-pre-wrap text-slate-800 bg-slate-50/50">
+              {viewingOcrDoc.text}
+            </div>
+
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
+              <span>{viewingOcrDoc.text.split(/\s+/).filter(Boolean).length} words extracted</span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setViewingOcrDoc(null)}
+                className="h-8 text-xs cursor-pointer"
+              >
+                Close
+              </Button>
+            </div>
           </div>
         </div>
       )}

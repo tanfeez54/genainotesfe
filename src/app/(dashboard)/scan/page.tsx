@@ -675,21 +675,40 @@ export default function ScanPage() {
 
             <CardContent className="flex-1 flex flex-col p-4 sm:p-6 space-y-4">
               {isSavedSuccessfully && (
-                <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-between gap-3 text-emerald-800">
+                <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-emerald-800">
                   <div className="flex items-center gap-2.5">
                     <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
                     <div className="text-xs font-semibold">
                       Successfully saved and mapped to <strong>{selectedChapterName}</strong>!
                     </div>
                   </div>
-                  <Button
-                    onClick={handleResetScan}
-                    size="sm"
-                    variant="outline"
-                    className="bg-white border-emerald-300 text-emerald-800 hover:bg-emerald-100 text-xs h-7 cursor-pointer"
-                  >
-                    Scan Next Page
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Link href="/classes">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="bg-white border-indigo-200 text-indigo-700 hover:bg-indigo-50 text-xs h-7 cursor-pointer"
+                      >
+                        <FolderOpen className="w-3.5 h-3.5 mr-1" /> View in Chapter
+                      </Button>
+                    </Link>
+                    <Link href="/generate-paper">
+                      <Button
+                        size="sm"
+                        className="gradient-brand text-white text-xs h-7 cursor-pointer shadow-2xs"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 mr-1" /> Create Paper
+                      </Button>
+                    </Link>
+                    <Button
+                      onClick={handleResetScan}
+                      size="sm"
+                      variant="outline"
+                      className="bg-white border-emerald-300 text-emerald-800 hover:bg-emerald-100 text-xs h-7 cursor-pointer"
+                    >
+                      Scan Next Page
+                    </Button>
+                  </div>
                 </div>
               )}
 
