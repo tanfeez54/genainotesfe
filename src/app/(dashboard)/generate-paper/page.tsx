@@ -1363,11 +1363,32 @@ export default function GeneratePaperPage() {
                           isTwoColumn ? 'break-inside-avoid print:break-inside-avoid mb-6' : ''
                         }`}
                       >
-                        {/* Section Header with Section Marks */}
-                        <div className="flex items-center justify-between border-b-2 border-slate-800 pb-1">
+                        {/* Section Header with Section Marks & Section Instruction */}
+                        <div className="border-b-2 border-slate-800 pb-1.5 space-y-0.5">
                           <h4 className="font-bold text-sm uppercase tracking-wider text-slate-900">
                             {secGroup.sectionName} ({secMarksTotal} Marks)
                           </h4>
+                          {(() => {
+                            const inst =
+                              secGroup.type === 'mcq'
+                                ? 'Choose and write the correct option for each question:'
+                                : secGroup.type === 'fill_blank'
+                                ? 'Fill in the blanks with suitable words / phrases:'
+                                : secGroup.type === 'match_the_following'
+                                ? 'Match the items in Column A with Column B:'
+                                : secGroup.type === 'true_false'
+                                ? 'State whether the following statements are True or False:'
+                                : secGroup.type === 'short_answer'
+                                ? 'Answer the following short answer questions:'
+                                : secGroup.type === 'long_answer'
+                                ? 'Answer the following questions in detail:'
+                                : '';
+                            return inst ? (
+                              <p className="text-[11px] text-slate-600 italic font-medium">
+                                {inst}
+                              </p>
+                            ) : null;
+                          })()}
                         </div>
 
                         {/* Questions in this Section */}
@@ -1376,7 +1397,10 @@ export default function GeneratePaperPage() {
                             const globalIdx = paperQuestions.findIndex((item) => item.id === q.id);
                             const qNumber = globalIdx + 1;
                             const { colA, colB, cleanQuestionText } = parseMatchTheFollowing(q);
-                            const displayQuestionText = q.type === 'match_the_following' ? cleanQuestionText : q.question_text;
+                            const displayQuestionText =
+                              q.type === 'match_the_following'
+                                ? 'Match the following:'
+                                : q.question_text;
 
                             return (
                               <div
@@ -1385,7 +1409,7 @@ export default function GeneratePaperPage() {
                                   isTwoColumn ? 'break-inside-avoid print:break-inside-avoid mb-4' : ''
                                 }`}
                               >
-                                {/* Question Header Line (Marks only shown at section header) */}
+                                {/* Question Header Line without chapter name or per-question marks */}
                                 <div className="flex items-start justify-between font-medium">
                                   <div className="flex-1 leading-relaxed">
                                     <span className="font-bold">Q{qNumber}. </span>
@@ -1460,76 +1484,55 @@ export default function GeneratePaperPage() {
                                   </div>
                                 )}
 
-                                {/* 3. Match the Following - Clean Column A and Column B Two-Column Table */}
+                                {/* 3. Match the Following - Clean Board Exam Two-Column Format */}
                                 {q.type === 'match_the_following' && (
-                                  <div className="pl-4 pt-1.5 space-y-2">
-                                    <div className="border border-slate-300 rounded-lg overflow-hidden max-w-xl bg-white shadow-2xs">
-                                      {/* Header Row */}
-                                      <div className="grid grid-cols-2 bg-slate-100 font-bold text-[11px] text-slate-800 border-b border-slate-300 py-1.5 px-3">
-                                        <div>Column A</div>
-                                        <div>Column B</div>
-                                      </div>
+                                  <div className="pl-4 pt-1.5 space-y-2 max-w-xl">
+                                    {/* Column Headers with bottom divider */}
+                                    <div className="grid grid-cols-2 font-bold text-xs text-slate-900 border-b border-slate-300 pb-1">
+                                      <div>Column A</div>
+                                      <div>Column B</div>
+                                    </div>
 
-                                      {/* Rows */}
-                                      <div className="divide-y divide-slate-200">
-                                        {Array.from({ length: Math.max(colA.length, colB.length, 1) }).map((_, rIdx) => {
-                                          const itemA = colA[rIdx];
-                                          const itemB = colB[rIdx];
-                                          return (
-                                            <div key={rIdx} className="grid grid-cols-2 text-xs py-1.5 px-3 hover:bg-slate-50/50">
-                                              <div className="pr-3 text-slate-800">
-                                                {itemA ? (
-                                                  <>
-                                                    <span className="font-semibold text-slate-900">({itemA.label || rIdx + 1})</span> {itemA.text}
-                                                  </>
-                                                ) : ''}
-                                              </div>
-                                              <div className="pl-3 text-slate-800 border-l border-slate-200">
-                                                {itemB ? (
-                                                  <>
-                                                    <span className="font-semibold text-slate-900">({itemB.label || String.fromCharCode(65 + rIdx)})</span> {itemB.text}
-                                                  </>
-                                                ) : ''}
-                                              </div>
+                                    {/* Side-by-Side Items */}
+                                    <div className="space-y-2 pt-1 text-xs text-slate-800">
+                                      {Array.from({ length: Math.max(colA.length, colB.length, 1) }).map((_, rIdx) => {
+                                        const itemA = colA[rIdx];
+                                        const itemB = colB[rIdx];
+                                        const labelA = itemA?.label ? itemA.label.replace(/\.$/, '') : String.fromCharCode(65 + rIdx);
+                                        const labelB = itemB?.label ? itemB.label.replace(/\.$/, '') : `${rIdx + 1}`;
+
+                                        return (
+                                          <div key={rIdx} className="grid grid-cols-2 py-0.5">
+                                            <div className="pr-4">
+                                              {itemA ? (
+                                                <>
+                                                  <span className="font-bold text-slate-900">{labelA}. </span>
+                                                  <span>{itemA.text}</span>
+                                                </>
+                                              ) : ''}
                                             </div>
-                                          );
-                                        })}
-                                      </div>
+                                            <div>
+                                              {itemB ? (
+                                                <>
+                                                  <span className="font-bold text-slate-900">{labelB}. </span>
+                                                  <span>{itemB.text}</span>
+                                                </>
+                                              ) : ''}
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
                                     </div>
-
-                                    {/* Student Answer Slots Line */}
-                                    <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-600 font-medium pt-1">
-                                      <span className="font-bold text-slate-700">Answer:</span>
-                                      {Array.from({ length: colA.length || 4 }).map((_, aIdx) => (
-                                        <span key={aIdx} className="inline-flex items-center gap-1 font-mono">
-                                          {colA[aIdx]?.label || aIdx + 1} &rarr; [ &nbsp;&nbsp;&nbsp;&nbsp; ]
-                                        </span>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* 4. Fill in the Blanks Note */}
-                                {q.type === 'fill_blank' && (
-                                  <div className="text-[10px] text-slate-400 pl-4 italic">
-                                    (Write the suitable word/phrase in the blank space)
                                   </div>
                                 )}
 
                                 {/* Answer Key for Teachers */}
                                 {showAnswerKey && (
                                   <div className="mt-1.5 pl-4 text-[11px] text-emerald-700 bg-emerald-50/80 border border-emerald-200 rounded-lg p-2 font-medium">
-                                    <div className="flex items-center justify-between">
-                                      <div>
-                                        <span className="font-bold">✓ Model Answer: </span>
-                                        {q.correct_option ? `Option (${q.correct_option}) ` : ''}
-                                        {q.answer_text || q.correct_answer || 'N/A'}
-                                      </div>
-                                      {q.chapter_title && (
-                                        <span className="text-[10px] text-emerald-800 font-semibold bg-emerald-100/80 px-2 py-0.5 rounded ml-2">
-                                          {q.chapter_title}
-                                        </span>
-                                      )}
+                                    <div>
+                                      <span className="font-bold">✓ Model Answer: </span>
+                                      {q.correct_option ? `Option (${q.correct_option}) ` : ''}
+                                      {q.answer_text || q.correct_answer || 'N/A'}
                                     </div>
                                   </div>
                                 )}

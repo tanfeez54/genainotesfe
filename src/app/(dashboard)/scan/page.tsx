@@ -550,14 +550,28 @@ export default function ScanPage() {
                 </div>
               )}
 
-              {/* Image Preview */}
+              {/* Document Preview (Image or PDF) */}
               {imagePreview && !isCameraActive && (
-                <div className="relative rounded-2xl overflow-hidden border border-slate-200 bg-slate-100 aspect-4/3">
-                  <img
-                    src={imagePreview}
-                    alt="Document preview"
-                    className="w-full h-full object-contain"
-                  />
+                <div className="relative rounded-2xl overflow-hidden border border-slate-200 bg-slate-100 aspect-4/3 flex items-center justify-center">
+                  {selectedFile?.type === 'application/pdf' || imagePreview.startsWith('data:application/pdf') ? (
+                    <div className="w-full h-full bg-gradient-to-br from-rose-50 to-red-100 p-6 flex flex-col items-center justify-center text-center">
+                      <div className="w-16 h-16 rounded-2xl bg-red-600 text-white flex items-center justify-center font-black text-xl shadow-lg mb-3">
+                        PDF
+                      </div>
+                      <h4 className="font-bold text-slate-800 text-sm max-w-xs truncate">
+                        {selectedFile?.name || 'Attached PDF Document'}
+                      </h4>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Ready for Gemini AI OCR text extraction
+                      </p>
+                    </div>
+                  ) : (
+                    <img
+                      src={imagePreview}
+                      alt="Document preview"
+                      className="w-full h-full object-contain"
+                    />
+                  )}
                   <button
                     onClick={handleResetScan}
                     className="absolute top-3 right-3 bg-slate-900/80 hover:bg-slate-900 text-white p-2 rounded-xl text-xs font-semibold backdrop-blur-sm cursor-pointer"

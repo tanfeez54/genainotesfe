@@ -957,63 +957,81 @@ export default function AcademicStructurePage() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                  {chapterScans.map((scan, sIdx) => (
-                    <div
-                      key={scan.id}
-                      className="bg-slate-50 border border-slate-200 hover:border-indigo-300 rounded-2xl p-3 space-y-2 relative group transition-all"
-                    >
-                      {/* Image Thumbnail with zoom trigger */}
-                      <div
-                        onClick={() => setPreviewImageUrl(scan.image_url)}
-                        className="w-full h-40 bg-white rounded-xl border border-slate-200 overflow-hidden relative cursor-pointer group-hover:shadow-xs"
-                      >
-                        <img
-                          src={scan.image_url}
-                          alt={`Page ${sIdx + 1}`}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                        />
-                        <div className="absolute inset-0 bg-slate-900/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1">
-                          <Maximize2 className="w-4 h-4" /> Full View
-                        </div>
-                      </div>
+                    {chapterScans.map((scan, sIdx) => {
+                      const isPdf = scan.image_url?.toLowerCase().includes('.pdf') || scan.image_url?.includes('application/pdf');
 
-                      {/* Sequence Label & Status */}
-                      <div className="flex items-center justify-between pt-1">
-                        <div className="flex items-center gap-1.5">
-                          <span className="w-6 h-6 rounded-lg bg-indigo-600 text-white font-bold text-xs flex items-center justify-center shadow-xs">
-                            {sIdx + 1}
-                          </span>
-                          <span className="text-xs font-bold text-slate-800">
-                            Page {sIdx + 1}
-                          </span>
-                        </div>
-
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() =>
-                              setViewingOcrDoc({
-                                pageNum: sIdx + 1,
-                                text: scan.raw_ocr_text || 'No text extracted yet for this page.',
-                                imageUrl: scan.image_url,
-                              })
-                            }
-                            className="text-[10px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2 py-1 rounded-md transition-colors cursor-pointer"
-                            title="View extracted OCR text"
+                      return (
+                        <div
+                          key={scan.id}
+                          className="bg-slate-50 border border-slate-200 hover:border-indigo-300 rounded-2xl p-3 space-y-2 relative group transition-all"
+                        >
+                          {/* Document Preview Thumbnail (PDF or Image) */}
+                          <div
+                            onClick={() => setPreviewImageUrl(scan.image_url)}
+                            className="w-full h-40 bg-white rounded-xl border border-slate-200 overflow-hidden relative cursor-pointer group-hover:shadow-xs flex items-center justify-center"
                           >
-                            <FileText className="w-3 h-3 inline mr-0.5" /> Text
-                          </button>
+                            {isPdf ? (
+                              <div className="w-full h-full bg-gradient-to-br from-rose-50 to-red-100 flex flex-col items-center justify-center p-3 text-center">
+                                <div className="w-12 h-12 rounded-2xl bg-red-600 text-white flex items-center justify-center font-black text-sm shadow-md mb-2">
+                                  PDF
+                                </div>
+                                <span className="text-xs font-bold text-slate-800 line-clamp-1">
+                                  Page {sIdx + 1} Document
+                                </span>
+                                <span className="text-[10px] text-red-600 font-semibold mt-0.5">
+                                  Click to Preview PDF
+                                </span>
+                              </div>
+                            ) : (
+                              <img
+                                src={scan.image_url}
+                                alt={`Page ${sIdx + 1}`}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                              />
+                            )}
+                            <div className="absolute inset-0 bg-slate-900/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1">
+                              <Maximize2 className="w-4 h-4" /> {isPdf ? 'Open PDF' : 'Full View'}
+                            </div>
+                          </div>
 
-                          <button
-                            onClick={() => handleDeleteScan(scan.id, sIdx + 1)}
-                            className="p-1 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
-                            title="Delete page"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          {/* Sequence Label & Status */}
+                          <div className="flex items-center justify-between pt-1">
+                            <div className="flex items-center gap-1.5">
+                              <span className="w-6 h-6 rounded-lg bg-indigo-600 text-white font-bold text-xs flex items-center justify-center shadow-xs">
+                                {sIdx + 1}
+                              </span>
+                              <span className="text-xs font-bold text-slate-800">
+                                Page {sIdx + 1}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() =>
+                                  setViewingOcrDoc({
+                                    pageNum: sIdx + 1,
+                                    text: scan.raw_ocr_text || 'No text extracted yet for this page.',
+                                    imageUrl: scan.image_url,
+                                  })
+                                }
+                                className="text-[10px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2 py-1 rounded-md transition-colors cursor-pointer"
+                                title="View extracted OCR text"
+                              >
+                                <FileText className="w-3 h-3 inline mr-0.5" /> Text
+                              </button>
+
+                              <button
+                                onClick={() => handleDeleteScan(scan.id, sIdx + 1)}
+                                className="p-1 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                                title="Delete page"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  ))}
+                      );
+                    })}
                 </div>
               )}
             </div>
@@ -1034,24 +1052,52 @@ export default function AcademicStructurePage() {
         </div>
       )}
 
-      {/* Full-Screen Image Preview Modal */}
+      {/* Full-Screen PDF / Image Preview Modal */}
       {previewImageUrl && (
         <div
           onClick={() => setPreviewImageUrl(null)}
           className="fixed inset-0 z-60 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 cursor-zoom-out"
         >
-          <div className="relative max-w-4xl max-h-[90vh] bg-white rounded-2xl overflow-hidden shadow-2xl p-2" onClick={(e) => e.stopPropagation()}>
-            <button
-              onClick={() => setPreviewImageUrl(null)}
-              className="absolute top-4 right-4 z-10 w-8 h-8 rounded-full bg-slate-900/70 text-white flex items-center justify-center hover:bg-slate-900 cursor-pointer"
-            >
-              <X className="w-4 h-4" />
-            </button>
-            <img
-              src={previewImageUrl}
-              alt="Full Preview"
-              className="max-h-[85vh] w-auto rounded-xl object-contain"
-            />
+          <div
+            className={`relative bg-white rounded-2xl overflow-hidden shadow-2xl ${
+              previewImageUrl.toLowerCase().includes('.pdf') || previewImageUrl.includes('application/pdf')
+                ? 'w-full max-w-5xl h-[88vh] flex flex-col'
+                : 'max-w-4xl max-h-[90vh] p-2'
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="absolute top-3 right-3 z-10 flex items-center gap-2">
+              {(previewImageUrl.toLowerCase().includes('.pdf') || previewImageUrl.includes('application/pdf')) && (
+                <a
+                  href={previewImageUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-1.5 bg-slate-900/80 hover:bg-slate-900 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-md cursor-pointer"
+                >
+                  Open in New Tab &rarr;
+                </a>
+              )}
+              <button
+                onClick={() => setPreviewImageUrl(null)}
+                className="w-8 h-8 rounded-full bg-slate-900/70 text-white flex items-center justify-center hover:bg-slate-900 cursor-pointer shadow-md"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {previewImageUrl.toLowerCase().includes('.pdf') || previewImageUrl.includes('application/pdf') ? (
+              <iframe
+                src={previewImageUrl}
+                title="PDF Document Preview"
+                className="w-full flex-1 border-none bg-slate-100"
+              />
+            ) : (
+              <img
+                src={previewImageUrl}
+                alt="Full Preview"
+                className="max-h-[85vh] w-auto rounded-xl object-contain mx-auto"
+              />
+            )}
           </div>
         </div>
       )}
