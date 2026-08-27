@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   GraduationCap,
   BookOpen,
@@ -18,12 +18,17 @@ import {
   X,
   FileText,
   Bookmark,
-  MoreVertical
+  Eye,
+  Upload,
+  FileScan,
+  CheckCircle2,
+  Clock,
+  Maximize2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { API_URL } from '@/lib/api';
 import { toast } from 'sonner';
 
@@ -42,6 +47,16 @@ interface ChapterItem {
   id: string;
   title: string;
   subject_id: string;
+}
+
+interface ScannedDocItem {
+  id: string;
+  image_url: string;
+  doc_type: string;
+  status: string;
+  raw_ocr_text?: string;
+  created_at: string;
+  chapter_id?: string;
 }
 
 export default function AcademicStructurePage() {
@@ -70,6 +85,14 @@ export default function AcademicStructurePage() {
 
   // Search filter
   const [searchQuery, setSearchQuery] = useState('');
+
+  // --- Chapter Documents Modal States ---
+  const [viewingDocsChapter, setViewingDocsChapter] = useState<ChapterItem | null>(null);
+  const [chapterScans, setChapterScans] = useState<ScannedDocItem[]>([]);
+  const [isLoadingScans, setIsLoadingScans] = useState(false);
+  const [isUploadingScan, setIsUploadingScan] = useState(false);
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     const tokenMatch = document.cookie.match(new RegExp('(^| )notegen_session=([^;]+)'));
@@ -130,6 +153,23 @@ export default function AcademicStructurePage() {
     }
   }
 
+  // Fetch scans for a specific chapter in sequential order
+  async function fetchChapterScans(chapterId: string) {
+    setIsLoadingScans(true);
+    try {
+      const res = await fetch(`${API_URL}/api/scans?chapter_id=${chapterId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      setChapterScans(data.data || []);
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to load chapter documents');
+    } finally {
+      setIsLoadingScans(false);
+    }
+  }
+
   // --- Navigation Helpers ---
 
   function handleSelectClass(cls: ClassItem) {
@@ -173,6 +213,87 @@ export default function AcademicStructurePage() {
     setItemName('');
     setSearchQuery('');
     fetchSubjects(selectedClass.id);
+  }
+
+  // Open Chapter Documents Gallery
+  function handleOpenChapterDocs(chap: ChapterItem) {
+    setViewingDocsChapter(chap);
+    fetchChapterScans(chap.id);
+  }
+
+  // Handle uploading next page into the chapter
+  async function handleFileSelectedForChapter(e: React.ChangeEvent<HTMLInputElement>) {
+    if (!e.target.files || !e.target.files[0] || !viewingDocsChapter) return;
+    const file = e.target.files[0];
+    const reader = new FileReader();
+
+    reader.onload = async () => {
+      const base64 = reader.result as string;
+      setIsUploadingScan(true);
+      toast.info('Uploading and performing AI OCR for new page...');
+
+      try {
+        // 1. Create Scan Record
+        const resScan = await fetch(`${API_URL}/api/scans`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            image_url: base64,
+            doc_type: 'chapter_page',
+            chapter_id: viewingDocsChapter.id,
+            subject_id: selectedSubject?.id,
+            class_id: selectedClass?.id,
+          }),
+        });
+        const scanData = await resScan.json();
+        if (!resScan.ok) throw new Error(scanData.error || 'Failed to create scan record');
+
+        const newScanId = scanData.data?.id;
+
+        // 2. Trigger OCR Process
+        if (newScanId) {
+          await fetch(`${API_URL}/api/scans/${newScanId}/process`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+          });
+        }
+
+        toast.success(`Page ${chapterScans.length + 1} added & OCR completed!`);
+        fetchChapterScans(viewingDocsChapter.id);
+      } catch (err: any) {
+        console.error(err);
+        toast.error(err.message || 'Failed to upload document');
+      } finally {
+        setIsUploadingScan(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+
+    reader.readAsDataURL(file);
+  }
+
+  // Delete a scanned page
+  async function handleDeleteScan(scanId: string, pageNum: number) {
+    if (!confirm(`Delete Page ${pageNum}?`)) return;
+
+    try {
+      const res = await fetch(`${API_URL}/api/scans/${scanId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Failed to delete page');
+
+      setChapterScans((prev) => prev.filter((s) => s.id !== scanId));
+      toast.success(`Page ${pageNum} deleted`);
+    } catch (err: any) {
+      toast.error(err.message || 'Error deleting page');
+    }
   }
 
   // --- CRUD Operations ---
@@ -313,6 +434,15 @@ export default function AcademicStructurePage() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-10 max-w-6xl mx-auto space-y-6 animate-fade-in">
+      {/* Hidden File Input for uploading pages into a chapter */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileSelectedForChapter}
+        accept="image/*"
+        className="hidden"
+      />
+
       {/* ========================================================================= */}
       {/* TOP BREADCRUMB & NAVIGATION BAR                                           */}
       {/* ========================================================================= */}
@@ -360,7 +490,7 @@ export default function AcademicStructurePage() {
                 variant="outline"
                 size="sm"
                 onClick={currentLevel === 'chapters' ? handleBackToSubjects : handleBackToClasses}
-                className="h-8 px-2.5 rounded-xl border-slate-300 text-slate-700 hover:bg-slate-100"
+                className="h-8 px-2.5 rounded-xl border-slate-300 text-slate-700 hover:bg-slate-100 cursor-pointer"
               >
                 <ArrowLeft className="w-4 h-4 mr-1 text-slate-600" /> Back
               </Button>
@@ -391,9 +521,7 @@ export default function AcademicStructurePage() {
         </div>
       </div>
 
-      {/* ========================================================================= */}
-      {/* QUICK ADD MODAL / INLINE CARD                                             */}
-      {/* ========================================================================= */}
+      {/* Quick Add Form */}
       {isAdding && (
         <Card className="rounded-2xl border-indigo-200 bg-gradient-to-br from-indigo-50/60 to-white shadow-sm p-4 sm:p-5 animate-slide-down">
           <form onSubmit={handleCreateItem} className="space-y-3">
@@ -407,7 +535,7 @@ export default function AcademicStructurePage() {
               <button
                 type="button"
                 onClick={() => setIsAdding(false)}
-                className="text-slate-400 hover:text-slate-600 p-1"
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -427,7 +555,7 @@ export default function AcademicStructurePage() {
                 className="h-10 text-sm bg-white rounded-xl border-indigo-200 focus:ring-2 focus:ring-indigo-500"
                 autoFocus
               />
-              <Button type="submit" className="h-10 px-5 rounded-xl gradient-brand text-white font-bold text-xs shrink-0">
+              <Button type="submit" className="h-10 px-5 rounded-xl gradient-brand text-white font-bold text-xs shrink-0 cursor-pointer">
                 Save
               </Button>
             </div>
@@ -467,7 +595,7 @@ export default function AcademicStructurePage() {
               </p>
               <Button
                 onClick={() => setIsAdding(true)}
-                className="h-8 text-xs gradient-brand text-white rounded-xl font-bold"
+                className="h-8 text-xs gradient-brand text-white rounded-xl font-bold cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5 mr-1" /> Add Class
               </Button>
@@ -498,14 +626,14 @@ export default function AcademicStructurePage() {
                               setEditingId(cls.id);
                               setEditName(cls.name);
                             }}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors cursor-pointer"
                             title="Edit name"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => handleDelete(cls.id, cls.name)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
                             title="Delete class"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -522,10 +650,10 @@ export default function AcademicStructurePage() {
                             className="h-7 text-xs bg-white rounded-lg"
                             autoFocus
                           />
-                          <Button size="sm" onClick={() => handleSaveEdit(cls.id)} className="h-7 px-2 gradient-brand text-white rounded-lg">
+                          <Button size="sm" onClick={() => handleSaveEdit(cls.id)} className="h-7 px-2 gradient-brand text-white rounded-lg cursor-pointer">
                             <Check className="w-3 h-3" />
                           </Button>
-                          <Button size="sm" variant="ghost" onClick={() => setEditingId(null)} className="h-7 px-2 rounded-lg text-slate-400">
+                          <Button size="sm" variant="ghost" onClick={() => setEditingId(null)} className="h-7 px-2 rounded-lg text-slate-400 cursor-pointer">
                             <X className="w-3 h-3" />
                           </Button>
                         </div>
@@ -570,7 +698,7 @@ export default function AcademicStructurePage() {
               </p>
               <Button
                 onClick={() => setIsAdding(true)}
-                className="h-8 text-xs gradient-brand text-white rounded-xl font-bold"
+                className="h-8 text-xs gradient-brand text-white rounded-xl font-bold cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5 mr-1" /> Add Subject
               </Button>
@@ -601,14 +729,14 @@ export default function AcademicStructurePage() {
                               setEditingId(sub.id);
                               setEditName(sub.name);
                             }}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors cursor-pointer"
                             title="Edit name"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => handleDelete(sub.id, sub.name)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
                             title="Delete subject"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -625,10 +753,10 @@ export default function AcademicStructurePage() {
                             className="h-7 text-xs bg-white rounded-lg"
                             autoFocus
                           />
-                          <Button size="sm" onClick={() => handleSaveEdit(sub.id)} className="h-7 px-2 gradient-brand text-white rounded-lg">
+                          <Button size="sm" onClick={() => handleSaveEdit(sub.id)} className="h-7 px-2 gradient-brand text-white rounded-lg cursor-pointer">
                             <Check className="w-3 h-3" />
                           </Button>
-                          <Button size="sm" variant="ghost" onClick={() => setEditingId(null)} className="h-7 px-2 rounded-lg text-slate-400">
+                          <Button size="sm" variant="ghost" onClick={() => setEditingId(null)} className="h-7 px-2 rounded-lg text-slate-400 cursor-pointer">
                             <X className="w-3 h-3" />
                           </Button>
                         </div>
@@ -673,7 +801,7 @@ export default function AcademicStructurePage() {
               </p>
               <Button
                 onClick={() => setIsAdding(true)}
-                className="h-8 text-xs gradient-brand text-white rounded-xl font-bold"
+                className="h-8 text-xs gradient-brand text-white rounded-xl font-bold cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5 mr-1" /> Add Chapter
               </Button>
@@ -701,10 +829,10 @@ export default function AcademicStructurePage() {
                             className="h-8 text-xs bg-white rounded-lg"
                             autoFocus
                           />
-                          <Button size="sm" onClick={() => handleSaveEdit(chap.id)} className="h-8 px-2.5 gradient-brand text-white rounded-lg">
+                          <Button size="sm" onClick={() => handleSaveEdit(chap.id)} className="h-8 px-2.5 gradient-brand text-white rounded-lg cursor-pointer">
                             <Check className="w-3.5 h-3.5" />
                           </Button>
-                          <Button size="sm" variant="ghost" onClick={() => setEditingId(null)} className="h-8 px-2 rounded-lg text-slate-400">
+                          <Button size="sm" variant="ghost" onClick={() => setEditingId(null)} className="h-8 px-2 rounded-lg text-slate-400 cursor-pointer">
                             <X className="w-3.5 h-3.5" />
                           </Button>
                         </div>
@@ -715,20 +843,34 @@ export default function AcademicStructurePage() {
                       )}
                     </div>
 
+                    {/* Action buttons: View Documents (Left of Edit) -> Edit -> Delete */}
                     <div className="flex items-center gap-2 shrink-0">
+                      {/* VIEW DOCUMENTS BUTTON (Left of Edit) */}
+                      <button
+                        onClick={() => handleOpenChapterDocs(chap)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 text-indigo-700 hover:bg-indigo-100 text-xs font-bold transition-colors cursor-pointer border border-indigo-100"
+                        title="View & manage scanned pages of this chapter"
+                      >
+                        <Eye className="w-3.5 h-3.5 text-indigo-600" />
+                        <span>View Documents</span>
+                      </button>
+
+                      {/* EDIT BUTTON */}
                       <button
                         onClick={() => {
                           setEditingId(chap.id);
                           setEditName(chap.title);
                         }}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-amber-700 hover:bg-amber-50 transition-colors"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-amber-700 hover:bg-amber-50 transition-colors cursor-pointer"
                         title="Edit title"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
+
+                      {/* DELETE BUTTON */}
                       <button
                         onClick={() => handleDelete(chap.id, chap.title)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
                         title="Delete chapter"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -739,6 +881,167 @@ export default function AcademicStructurePage() {
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* CHAPTER DOCUMENTS GALLERY MODAL                                           */}
+      {/* ========================================================================= */}
+      {viewingDocsChapter && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden animate-scale-up">
+            {/* Modal Header */}
+            <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50/80">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2 text-[11px] font-bold text-indigo-600 uppercase tracking-wide">
+                  <FileScan className="w-3.5 h-3.5" /> Scanned Pages Sequence
+                </div>
+                <h2 className="text-lg font-black text-slate-900">
+                  {viewingDocsChapter.title}
+                </h2>
+                <p className="text-xs text-slate-500">
+                  {selectedClass?.name} • {selectedSubject?.name}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploadingScan}
+                  className="h-8 px-3 text-xs gradient-brand text-white font-bold rounded-xl cursor-pointer"
+                >
+                  {isUploadingScan ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-3.5 h-3.5 mr-1" /> + Add Next Page (Page {chapterScans.length + 1})
+                    </>
+                  )}
+                </Button>
+
+                <button
+                  onClick={() => setViewingDocsChapter(null)}
+                  className="w-8 h-8 rounded-full bg-slate-200/60 hover:bg-slate-200 flex items-center justify-center text-slate-600 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body: Scans Grid in Sequential Order */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {isLoadingScans ? (
+                <div className="h-64 flex flex-col items-center justify-center space-y-3">
+                  <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+                  <p className="text-xs text-slate-500 font-medium">Loading pages in sequence...</p>
+                </div>
+              ) : chapterScans.length === 0 ? (
+                <div className="h-64 flex flex-col items-center justify-center text-center p-6 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50 space-y-3">
+                  <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center">
+                    <FileScan className="w-6 h-6 text-indigo-600" />
+                  </div>
+                  <h3 className="font-bold text-slate-800 text-sm">No Scanned Documents Yet</h3>
+                  <p className="text-xs text-slate-500 max-w-xs">
+                    Upload photos of textbook pages or worksheets in the order you want them saved.
+                  </p>
+                  <Button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="h-8 text-xs gradient-brand text-white font-bold rounded-xl cursor-pointer"
+                  >
+                    <Upload className="w-3.5 h-3.5 mr-1" /> Upload Page 1
+                  </Button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                  {chapterScans.map((scan, sIdx) => (
+                    <div
+                      key={scan.id}
+                      className="bg-slate-50 border border-slate-200 hover:border-indigo-300 rounded-2xl p-3 space-y-2 relative group transition-all"
+                    >
+                      {/* Image Thumbnail with zoom trigger */}
+                      <div
+                        onClick={() => setPreviewImageUrl(scan.image_url)}
+                        className="w-full h-40 bg-white rounded-xl border border-slate-200 overflow-hidden relative cursor-pointer group-hover:shadow-xs"
+                      >
+                        <img
+                          src={scan.image_url}
+                          alt={`Page ${sIdx + 1}`}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                        />
+                        <div className="absolute inset-0 bg-slate-900/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1">
+                          <Maximize2 className="w-4 h-4" /> Full View
+                        </div>
+                      </div>
+
+                      {/* Sequence Label & Status */}
+                      <div className="flex items-center justify-between pt-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-6 h-6 rounded-lg bg-indigo-600 text-white font-bold text-xs flex items-center justify-center shadow-xs">
+                            {sIdx + 1}
+                          </span>
+                          <span className="text-xs font-bold text-slate-800">
+                            Page {sIdx + 1}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-1">
+                          <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                            Ready
+                          </span>
+
+                          <button
+                            onClick={() => handleDeleteScan(scan.id, sIdx + 1)}
+                            className="p-1 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                            title="Delete page"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
+              <span>{chapterScans.length} pages attached in sequential order</span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setViewingDocsChapter(null)}
+                className="h-8 rounded-xl cursor-pointer"
+              >
+                Done
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Full-Screen Image Preview Modal */}
+      {previewImageUrl && (
+        <div
+          onClick={() => setPreviewImageUrl(null)}
+          className="fixed inset-0 z-60 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 cursor-zoom-out"
+        >
+          <div className="relative max-w-4xl max-h-[90vh] bg-white rounded-2xl overflow-hidden shadow-2xl p-2" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setPreviewImageUrl(null)}
+              className="absolute top-4 right-4 z-10 w-8 h-8 rounded-full bg-slate-900/70 text-white flex items-center justify-center hover:bg-slate-900 cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <img
+              src={previewImageUrl}
+              alt="Full Preview"
+              className="max-h-[85vh] w-auto rounded-xl object-contain"
+            />
+          </div>
         </div>
       )}
     </div>
