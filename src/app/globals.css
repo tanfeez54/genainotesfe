@@ -278,20 +278,23 @@ body {
   .print-question {
     break-inside: avoid !important;
     page-break-inside: avoid !important;
-    margin-bottom: 12px !important;
+    margin-bottom: 10px !important;
   }
 
   .print-section {
-    break-inside: avoid !important;
-    page-break-inside: avoid !important;
-    margin-top: 16px !important;
-    margin-bottom: 10px !important;
+    margin-top: 14px !important;
+    margin-bottom: 8px !important;
+  }
+
+  .print-section h4 {
+    break-after: avoid !important;
+    page-break-after: avoid !important;
   }
 
   .print-header {
     break-inside: avoid !important;
     page-break-inside: avoid !important;
-    margin-bottom: 14px !important;
-    padding-bottom: 6px !important;
+    margin-bottom: 12px !important;
+    padding-bottom: 4px !important;
   }
 }

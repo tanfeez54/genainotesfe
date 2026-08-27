@@ -607,7 +607,7 @@ export default function GeneratePaperPage() {
           <style>
             @page {
               size: A4 portrait;
-              margin: 12mm 15mm 12mm 15mm;
+              margin: 10mm 12mm 10mm 12mm;
             }
             * {
               box-sizing: border-box;
@@ -663,10 +663,8 @@ export default function GeneratePaperPage() {
               margin-top: 4px;
             }
             .print-section {
-              margin-top: 14px;
-              margin-bottom: 8px;
-              page-break-inside: avoid;
-              break-inside: avoid;
+              margin-top: 12px;
+              margin-bottom: 6px;
             }
             .print-section h4 {
               font-size: 10pt;
@@ -675,6 +673,8 @@ export default function GeneratePaperPage() {
               border-bottom: 1.5px solid #000000;
               padding-bottom: 2px;
               margin: 0 0 2px 0;
+              break-after: avoid;
+              page-break-after: avoid;
             }
             .print-question {
               margin-bottom: 10px;
@@ -690,7 +690,14 @@ export default function GeneratePaperPage() {
             .grid-cols-2 {
               display: grid;
               grid-template-columns: repeat(2, 1fr);
-              gap: 4px 12px;
+              gap: 4px 16px;
+            }
+            .match-row {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 20px;
+              align-items: flex-start;
+              padding: 2px 0;
             }
             img {
               max-height: 160px;
@@ -1636,37 +1643,37 @@ export default function GeneratePaperPage() {
 
                                 {/* 3. Match the Following - Clean Board Exam Two-Column Format */}
                                 {q.type === 'match_the_following' && (
-                                  <div className="pl-4 pt-1.5 space-y-2 max-w-xl">
+                                  <div className="pl-4 pt-1.5 space-y-1.5 max-w-xl">
                                     {/* Column Headers with bottom divider */}
-                                    <div className="grid grid-cols-2 font-bold text-xs text-slate-900 border-b border-slate-300 pb-1">
+                                    <div className="match-row grid grid-cols-2 gap-6 font-bold text-xs text-slate-900 border-b border-slate-300 pb-1">
                                       <div>Column A</div>
                                       <div>Column B</div>
                                     </div>
 
                                     {/* Side-by-Side Items */}
-                                    <div className="space-y-2 pt-1 text-xs text-slate-800">
+                                    <div className="space-y-1.5 pt-1 text-xs text-slate-800">
                                       {Array.from({ length: Math.max(colA.length, colB.length, 1) }).map((_, rIdx) => {
                                         const itemA = colA[rIdx];
                                         const itemB = colB[rIdx];
-                                        const labelA = itemA?.label ? itemA.label.replace(/\.$/, '') : String.fromCharCode(65 + rIdx);
-                                        const labelB = itemB?.label ? itemB.label.replace(/\.$/, '') : `${rIdx + 1}`;
+                                        const labelA = itemA?.label ? itemA.label.replace(/\.$/, '') : `${rIdx + 1}`;
+                                        const labelB = itemB?.label ? itemB.label.replace(/\.$/, '') : String.fromCharCode(65 + rIdx);
 
                                         return (
-                                          <div key={rIdx} className="grid grid-cols-2 py-0.5">
-                                            <div className="pr-4">
+                                          <div key={rIdx} className="match-row grid grid-cols-2 gap-6 items-start py-0.5">
+                                            <div className="pr-2">
                                               {itemA ? (
-                                                <>
+                                                <div>
                                                   <span className="font-bold text-slate-900">{labelA}. </span>
                                                   <span>{itemA.text}</span>
-                                                </>
+                                                </div>
                                               ) : ''}
                                             </div>
                                             <div>
                                               {itemB ? (
-                                                <>
+                                                <div>
                                                   <span className="font-bold text-slate-900">{labelB}. </span>
                                                   <span>{itemB.text}</span>
-                                                </>
+                                                </div>
                                               ) : ''}
                                             </div>
                                           </div>
