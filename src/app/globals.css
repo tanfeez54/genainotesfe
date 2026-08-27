@@ -220,41 +220,78 @@ body {
   background: var(--primary);
 }
 
-/* Print Optimization for 1-2 Page Clean Question Papers */
+/* Print Optimization for Professional Examination Papers */
 @media print {
   @page {
     size: A4 portrait;
-    margin: 8mm 10mm;
+    margin: 15mm 15mm 15mm 15mm;
   }
 
   html, body {
+    height: auto !important;
+    min-height: 100% !important;
+    overflow: visible !important;
     background: #ffffff !important;
     color: #000000 !important;
-    font-size: 10pt !important;
-    line-height: 1.35 !important;
+    font-size: 10.5pt !important;
+    line-height: 1.45 !important;
   }
 
-  header, aside, nav, button, .print-hidden {
+  /* Reset all layout wrappers so they don't trap scroll or constrain overflow */
+  div, main, section, article {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    float: none !important;
+  }
+
+  /* Hide everything not part of the exam paper */
+  header, aside, nav, button, .print-hidden, [role="navigation"], .sidebar {
     display: none !important;
   }
 
-  .print-page {
+  body * {
+    visibility: hidden !important;
+  }
+
+  #printable-exam-paper,
+  #printable-exam-paper * {
+    visibility: visible !important;
+  }
+
+  #printable-exam-paper {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
     width: 100% !important;
     max-width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
-    box-shadow: none !important;
     border: none !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    color: #000000 !important;
   }
 
+  /* Question breaks */
   .print-question {
     break-inside: avoid !important;
     page-break-inside: avoid !important;
-    margin-bottom: 6px !important;
+    margin-bottom: 12px !important;
+  }
+
+  .print-section {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    margin-top: 16px !important;
+    margin-bottom: 10px !important;
   }
 
   .print-header {
-    margin-bottom: 8px !important;
-    padding-bottom: 4px !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    margin-bottom: 14px !important;
+    padding-bottom: 6px !important;
   }
 }

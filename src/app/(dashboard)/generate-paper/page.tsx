@@ -567,7 +567,14 @@ export default function GeneratePaperPage() {
   };
 
   const handlePrint = () => {
+    const oldTitle = document.title;
+    const cleanDocTitle = `${schoolName || 'Examination'}_${examTitle || 'Paper'}_${selectedSubjectName || 'Subject'}`
+      .replace(/[^a-zA-Z0-9_-]/g, '_');
+    document.title = cleanDocTitle;
     window.print();
+    setTimeout(() => {
+      document.title = oldTitle;
+    }, 1000);
   };
 
   const selectedClassName = classes.find((c) => c.id === selectedClassId)?.name || '';
@@ -1298,7 +1305,10 @@ export default function GeneratePaperPage() {
           </div>
 
           {/* Printable Exam Paper Canvas */}
-          <div className="print-page bg-white border border-slate-300 rounded-2xl p-8 sm:p-12 shadow-md min-h-[650px] text-slate-900 print:shadow-none print:border-none print:p-0 print:m-0">
+          <div
+            id="printable-exam-paper"
+            className="print-page bg-white border border-slate-300 rounded-2xl p-8 sm:p-12 shadow-md min-h-[650px] text-slate-900 print:shadow-none print:border-none print:p-0 print:m-0"
+          >
             {paperQuestions.length === 0 ? (
               <div className="h-[450px] flex flex-col items-center justify-center text-center p-6 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50 print:hidden space-y-3">
                 <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center">
@@ -1315,7 +1325,7 @@ export default function GeneratePaperPage() {
             ) : (
               <div className="space-y-6">
                 {/* Paper Header */}
-                <div className="text-center border-b-2 border-slate-900 pb-4 space-y-1">
+                <div className="print-header text-center border-b-2 border-slate-900 pb-4 space-y-1">
                   <h2 className="text-xl sm:text-2xl font-black uppercase tracking-wide">
                     {schoolName}
                   </h2>
@@ -1359,7 +1369,7 @@ export default function GeneratePaperPage() {
                     return (
                       <div
                         key={secGroup.sectionName || secIdx}
-                        className={`space-y-3 ${
+                        className={`print-section space-y-3 ${
                           isTwoColumn ? 'break-inside-avoid print:break-inside-avoid mb-6' : ''
                         }`}
                       >
