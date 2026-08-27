@@ -551,7 +551,7 @@ export default function GeneratePaperPage() {
             sections: activeSections,
           },
           selected_questions: paperQuestions,
-          status: 'finalized',
+          status: 'final',
         }),
       });
 
