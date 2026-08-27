@@ -12,15 +12,18 @@ import {
   Search,
   Sparkles,
   Layers,
-  CheckCircle2,
-  FolderPlus,
-  FilePlus,
-  Edit2
+  ArrowLeft,
+  Edit2,
+  Check,
+  X,
+  FileText,
+  Bookmark,
+  MoreVertical
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { API_URL } from '@/lib/api';
 import { toast } from 'sonner';
 
@@ -45,24 +48,25 @@ export default function AcademicStructurePage() {
   const [token, setToken] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
-  // Core Data
+  // Hierarchy Navigation Level: 'classes' | 'subjects' | 'chapters'
+  const [currentLevel, setCurrentLevel] = useState<'classes' | 'subjects' | 'chapters'>('classes');
+
+  // Selected entities for drill-down
+  const [selectedClass, setSelectedClass] = useState<ClassItem | null>(null);
+  const [selectedSubject, setSelectedSubject] = useState<SubjectItem | null>(null);
+
+  // Data states
   const [classes, setClasses] = useState<ClassItem[]>([]);
-  const [subjectsMap, setSubjectsMap] = useState<Record<string, SubjectItem[]>>({});
-  const [chaptersMap, setChaptersMap] = useState<Record<string, ChapterItem[]>>({});
+  const [subjects, setSubjects] = useState<SubjectItem[]>([]);
+  const [chapters, setChapters] = useState<ChapterItem[]>([]);
 
-  // Active Selection
-  const [selectedClassId, setSelectedClassId] = useState<string>('');
-  const [selectedSubjectId, setSelectedSubjectId] = useState<string>('');
+  // Add item form toggles and values
+  const [isAdding, setIsAdding] = useState(false);
+  const [itemName, setItemName] = useState('');
 
-  // Input states for adding new items
-  const [newClassName, setNewClassName] = useState('');
-  const [isAddingClass, setIsAddingClass] = useState(false);
-
-  const [newSubjectName, setNewSubjectName] = useState('');
-  const [isAddingSubject, setIsAddingSubject] = useState(false);
-
-  const [newChapterName, setNewChapterName] = useState('');
-  const [isAddingChapter, setIsAddingChapter] = useState(false);
+  // Editing state
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
 
   // Search filter
   const [searchQuery, setSearchQuery] = useState('');
@@ -72,615 +76,669 @@ export default function AcademicStructurePage() {
     const tokenStr = tokenMatch ? tokenMatch[2] : '';
     if (tokenStr) {
       setToken(tokenStr);
-      loadAllStructure(tokenStr);
+      fetchClasses(tokenStr);
     }
   }, []);
 
-  async function loadAllStructure(authToken: string) {
+  // --- Fetch Data Functions ---
+
+  async function fetchClasses(authToken = token) {
     setIsLoading(true);
     try {
-      // 1. Fetch Classes
-      const resClasses = await fetch(`${API_URL}/api/classes`, {
+      const res = await fetch(`${API_URL}/api/classes`, {
         headers: { Authorization: `Bearer ${authToken}` },
       });
-      const dataClasses = await resClasses.json();
-      const classList: ClassItem[] = dataClasses.data || [];
-      setClasses(classList);
-
-      if (classList.length > 0) {
-        const firstClassId = classList[0].id;
-        setSelectedClassId(firstClassId);
-
-        // 2. Fetch Subjects for all classes
-        const sMap: Record<string, SubjectItem[]> = {};
-        const cMap: Record<string, ChapterItem[]> = {};
-
-        for (const cls of classList) {
-          const resSub = await fetch(`${API_URL}/api/subjects?class_id=${cls.id}`, {
-            headers: { Authorization: `Bearer ${authToken}` },
-          });
-          const dataSub = await resSub.json();
-          const subs: SubjectItem[] = dataSub.data || [];
-          sMap[cls.id] = subs;
-
-          // Fetch chapters for these subjects
-          for (const sub of subs) {
-            const resChap = await fetch(`${API_URL}/api/chapters?subject_id=${sub.id}`, {
-              headers: { Authorization: `Bearer ${authToken}` },
-            });
-            const dataChap = await resChap.json();
-            cMap[sub.id] = dataChap.data || [];
-          }
-        }
-
-        setSubjectsMap(sMap);
-        setChaptersMap(cMap);
-
-        // Set active subject if available
-        if (sMap[firstClassId] && sMap[firstClassId].length > 0) {
-          setSelectedSubjectId(sMap[firstClassId][0].id);
-        }
-      }
+      const data = await res.json();
+      setClasses(data.data || []);
     } catch (e) {
       console.error(e);
-      toast.error('Failed to load academic structure');
+      toast.error('Failed to load classes');
     } finally {
       setIsLoading(false);
     }
   }
 
+  async function fetchSubjects(classId: string, authToken = token) {
+    setIsLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/subjects?class_id=${classId}`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      const data = await res.json();
+      setSubjects(data.data || []);
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to load subjects');
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function fetchChapters(subjectId: string, authToken = token) {
+    setIsLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/chapters?subject_id=${subjectId}`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      const data = await res.json();
+      setChapters(data.data || []);
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to load chapters');
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  // --- Navigation Helpers ---
+
+  function handleSelectClass(cls: ClassItem) {
+    setSelectedClass(cls);
+    setSelectedSubject(null);
+    setCurrentLevel('subjects');
+    setIsAdding(false);
+    setEditingId(null);
+    setItemName('');
+    setSearchQuery('');
+    fetchSubjects(cls.id);
+  }
+
+  function handleSelectSubject(sub: SubjectItem) {
+    setSelectedSubject(sub);
+    setCurrentLevel('chapters');
+    setIsAdding(false);
+    setEditingId(null);
+    setItemName('');
+    setSearchQuery('');
+    fetchChapters(sub.id);
+  }
+
+  function handleBackToClasses() {
+    setCurrentLevel('classes');
+    setSelectedClass(null);
+    setSelectedSubject(null);
+    setIsAdding(false);
+    setEditingId(null);
+    setItemName('');
+    setSearchQuery('');
+    fetchClasses();
+  }
+
+  function handleBackToSubjects() {
+    if (!selectedClass) return;
+    setCurrentLevel('subjects');
+    setSelectedSubject(null);
+    setIsAdding(false);
+    setEditingId(null);
+    setItemName('');
+    setSearchQuery('');
+    fetchSubjects(selectedClass.id);
+  }
+
   // --- CRUD Operations ---
 
-  // 1. Create Class
-  async function handleCreateClass(e: React.FormEvent) {
+  // CREATE
+  async function handleCreateItem(e: React.FormEvent) {
     e.preventDefault();
-    if (!newClassName.trim()) return;
+    if (!itemName.trim()) return;
 
     try {
-      const res = await fetch(`${API_URL}/api/classes`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ name: newClassName.trim() }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to create class');
-
-      const created = data.data;
-      setClasses((prev) => [...prev, created]);
-      setSubjectsMap((prev) => ({ ...prev, [created.id]: [] }));
-      setSelectedClassId(created.id);
-      setSelectedSubjectId('');
-      setNewClassName('');
-      setIsAddingClass(false);
-      toast.success(`Class "${created.name}" created!`);
-    } catch (err: any) {
-      toast.error(err.message || 'Error creating class');
-    }
-  }
-
-  // 2. Delete Class
-  async function handleDeleteClass(classId: string, className: string) {
-    if (!confirm(`Are you sure you want to delete "${className}"? All its subjects and chapters will be deleted.`)) {
-      return;
-    }
-
-    try {
-      const res = await fetch(`${API_URL}/api/classes/${classId}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error('Failed to delete class');
-
-      const updated = classes.filter((c) => c.id !== classId);
-      setClasses(updated);
-
-      if (selectedClassId === classId) {
-        if (updated.length > 0) {
-          setSelectedClassId(updated[0].id);
-          const firstSub = subjectsMap[updated[0].id]?.[0];
-          setSelectedSubjectId(firstSub ? firstSub.id : '');
-        } else {
-          setSelectedClassId('');
-          setSelectedSubjectId('');
-        }
+      if (currentLevel === 'classes') {
+        const res = await fetch(`${API_URL}/api/classes`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ name: itemName.trim() }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to create class');
+        setClasses((prev) => [...prev, data.data]);
+        toast.success(`Class "${data.data.name}" created!`);
+      } else if (currentLevel === 'subjects' && selectedClass) {
+        const res = await fetch(`${API_URL}/api/subjects`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ name: itemName.trim(), class_id: selectedClass.id }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to create subject');
+        setSubjects((prev) => [...prev, data.data]);
+        toast.success(`Subject "${data.data.name}" added to ${selectedClass.name}!`);
+      } else if (currentLevel === 'chapters' && selectedSubject) {
+        const res = await fetch(`${API_URL}/api/chapters`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ title: itemName.trim(), subject_id: selectedSubject.id }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to create chapter');
+        setChapters((prev) => [...prev, data.data]);
+        toast.success(`Chapter "${data.data.title}" added to ${selectedSubject.name}!`);
       }
-      toast.success(`Class "${className}" deleted`);
+
+      setItemName('');
+      setIsAdding(false);
     } catch (err: any) {
-      toast.error(err.message || 'Error deleting class');
+      toast.error(err.message || 'Action failed');
     }
   }
 
-  // 3. Create Subject
-  async function handleCreateSubject(e: React.FormEvent) {
-    e.preventDefault();
-    if (!newSubjectName.trim() || !selectedClassId) return;
+  // UPDATE / EDIT
+  async function handleSaveEdit(id: string) {
+    if (!editName.trim()) return;
 
     try {
-      const res = await fetch(`${API_URL}/api/subjects`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          name: newSubjectName.trim(),
-          class_id: selectedClassId,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to create subject');
-
-      const created = data.data;
-      setSubjectsMap((prev) => ({
-        ...prev,
-        [selectedClassId]: [...(prev[selectedClassId] || []), created],
-      }));
-      setChaptersMap((prev) => ({ ...prev, [created.id]: [] }));
-      setSelectedSubjectId(created.id);
-      setNewSubjectName('');
-      setIsAddingSubject(false);
-      toast.success(`Subject "${created.name}" added!`);
-    } catch (err: any) {
-      toast.error(err.message || 'Error creating subject');
-    }
-  }
-
-  // 4. Delete Subject
-  async function handleDeleteSubject(subjectId: string, subjectName: string) {
-    if (!confirm(`Delete subject "${subjectName}" and all its chapters?`)) return;
-
-    try {
-      const res = await fetch(`${API_URL}/api/subjects/${subjectId}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error('Failed to delete subject');
-
-      setSubjectsMap((prev) => ({
-        ...prev,
-        [selectedClassId]: (prev[selectedClassId] || []).filter((s) => s.id !== subjectId),
-      }));
-
-      if (selectedSubjectId === subjectId) {
-        const remaining = (subjectsMap[selectedClassId] || []).filter((s) => s.id !== subjectId);
-        setSelectedSubjectId(remaining.length > 0 ? remaining[0].id : '');
+      if (currentLevel === 'classes') {
+        const res = await fetch(`${API_URL}/api/classes/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ name: editName.trim() }),
+        });
+        if (!res.ok) throw new Error('Failed to update class');
+        setClasses((prev) => prev.map((c) => (c.id === id ? { ...c, name: editName.trim() } : c)));
+        if (selectedClass?.id === id) setSelectedClass((prev) => (prev ? { ...prev, name: editName.trim() } : null));
+        toast.success('Class updated');
+      } else if (currentLevel === 'subjects') {
+        const res = await fetch(`${API_URL}/api/subjects/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ name: editName.trim() }),
+        });
+        if (!res.ok) throw new Error('Failed to update subject');
+        setSubjects((prev) => prev.map((s) => (s.id === id ? { ...s, name: editName.trim() } : s)));
+        if (selectedSubject?.id === id) setSelectedSubject((prev) => (prev ? { ...prev, name: editName.trim() } : null));
+        toast.success('Subject updated');
+      } else if (currentLevel === 'chapters') {
+        const res = await fetch(`${API_URL}/api/chapters/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ title: editName.trim() }),
+        });
+        if (!res.ok) throw new Error('Failed to update chapter');
+        setChapters((prev) => prev.map((c) => (c.id === id ? { ...c, title: editName.trim() } : c)));
+        toast.success('Chapter updated');
       }
-      toast.success(`Subject "${subjectName}" deleted`);
+
+      setEditingId(null);
+      setEditName('');
     } catch (err: any) {
-      toast.error(err.message || 'Error deleting subject');
+      toast.error(err.message || 'Error updating item');
     }
   }
 
-  // 5. Create Chapter
-  async function handleCreateChapter(e: React.FormEvent) {
-    e.preventDefault();
-    if (!newChapterName.trim() || !selectedSubjectId) return;
+  // DELETE
+  async function handleDelete(id: string, name: string) {
+    if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
 
     try {
-      const res = await fetch(`${API_URL}/api/chapters`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          title: newChapterName.trim(),
-          subject_id: selectedSubjectId,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to create chapter');
-
-      const created = data.data;
-      setChaptersMap((prev) => ({
-        ...prev,
-        [selectedSubjectId]: [...(prev[selectedSubjectId] || []), created],
-      }));
-      setNewChapterName('');
-      setIsAddingChapter(false);
-      toast.success(`Chapter "${created.title}" added!`);
+      if (currentLevel === 'classes') {
+        const res = await fetch(`${API_URL}/api/classes/${id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error('Failed to delete class');
+        setClasses((prev) => prev.filter((c) => c.id !== id));
+        toast.success(`Class "${name}" deleted`);
+      } else if (currentLevel === 'subjects') {
+        const res = await fetch(`${API_URL}/api/subjects/${id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error('Failed to delete subject');
+        setSubjects((prev) => prev.filter((s) => s.id !== id));
+        toast.success(`Subject "${name}" deleted`);
+      } else if (currentLevel === 'chapters') {
+        const res = await fetch(`${API_URL}/api/chapters/${id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error('Failed to delete chapter');
+        setChapters((prev) => prev.filter((c) => c.id !== id));
+        toast.success(`Chapter "${name}" deleted`);
+      }
     } catch (err: any) {
-      toast.error(err.message || 'Error creating chapter');
+      toast.error(err.message || 'Error deleting item');
     }
   }
 
-  // 6. Delete Chapter
-  async function handleDeleteChapter(chapterId: string, chapterTitle: string) {
-    if (!confirm(`Delete chapter "${chapterTitle}"?`)) return;
-
-    try {
-      const res = await fetch(`${API_URL}/api/chapters/${chapterId}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error('Failed to delete chapter');
-
-      setChaptersMap((prev) => ({
-        ...prev,
-        [selectedSubjectId]: (prev[selectedSubjectId] || []).filter((c) => c.id !== chapterId),
-      }));
-      toast.success(`Chapter "${chapterTitle}" deleted`);
-    } catch (err: any) {
-      toast.error(err.message || 'Error deleting chapter');
-    }
-  }
-
-  // Active items helpers
-  const selectedClass = classes.find((c) => c.id === selectedClassId);
-  const currentSubjects = selectedClassId ? subjectsMap[selectedClassId] || [] : [];
-  const selectedSubject = currentSubjects.find((s) => s.id === selectedSubjectId);
-  const currentChapters = selectedSubjectId ? chaptersMap[selectedSubjectId] || [] : [];
-
-  // Summary counts
-  const totalClasses = classes.length;
-  const totalSubjects = Object.values(subjectsMap).reduce((acc, list) => acc + list.length, 0);
-  const totalChapters = Object.values(chaptersMap).reduce((acc, list) => acc + list.length, 0);
+  // Filtered Lists
+  const filteredClasses = classes.filter((c) =>
+    c.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  const filteredSubjects = subjects.filter((s) =>
+    s.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  const filteredChapters = chapters.filter((c) =>
+    c.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
-      {/* Header */}
+    <div className="p-4 sm:p-6 lg:p-10 max-w-6xl mx-auto space-y-6 animate-fade-in">
+      {/* ========================================================================= */}
+      {/* TOP BREADCRUMB & NAVIGATION BAR                                           */}
+      {/* ========================================================================= */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-indigo-600 uppercase tracking-wider mb-1">
-            <FolderTree className="w-3.5 h-3.5" /> Academic Hierarchy Manager
+        <div className="space-y-1">
+          {/* Breadcrumb Path */}
+          <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+            <button
+              onClick={handleBackToClasses}
+              className={`hover:text-indigo-600 transition-colors flex items-center gap-1 ${
+                currentLevel === 'classes' ? 'text-indigo-600 font-bold' : ''
+              }`}
+            >
+              <GraduationCap className="w-3.5 h-3.5" /> Classes
+            </button>
+
+            {selectedClass && (
+              <>
+                <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
+                <button
+                  onClick={handleBackToSubjects}
+                  className={`hover:text-indigo-600 transition-colors flex items-center gap-1 ${
+                    currentLevel === 'subjects' ? 'text-indigo-600 font-bold' : ''
+                  }`}
+                >
+                  <BookOpen className="w-3.5 h-3.5" /> {selectedClass.name}
+                </button>
+              </>
+            )}
+
+            {selectedSubject && (
+              <>
+                <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
+                <span className="text-indigo-600 font-bold flex items-center gap-1">
+                  <Bookmark className="w-3.5 h-3.5" /> {selectedSubject.name}
+                </span>
+              </>
+            )}
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
-            Curriculum Structure
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Easily organize Classes, Subjects, and Chapters for your school exams & notes
-          </p>
+
+          {/* Heading */}
+          <div className="flex items-center gap-3">
+            {currentLevel !== 'classes' && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={currentLevel === 'chapters' ? handleBackToSubjects : handleBackToClasses}
+                className="h-8 px-2.5 rounded-xl border-slate-300 text-slate-700 hover:bg-slate-100"
+              >
+                <ArrowLeft className="w-4 h-4 mr-1 text-slate-600" /> Back
+              </Button>
+            )}
+
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
+              {currentLevel === 'classes' && 'All Classes / Grades'}
+              {currentLevel === 'subjects' && `${selectedClass?.name} — Subjects`}
+              {currentLevel === 'chapters' && `${selectedSubject?.name} — Chapters`}
+            </h1>
+          </div>
         </div>
 
-        {/* Stats summary pill */}
-        <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-4 py-2 rounded-2xl shadow-2xs">
-          <span className="text-xs font-semibold text-slate-700">
-            <strong className="text-indigo-600 font-bold">{totalClasses}</strong> Classes
-          </span>
-          <span className="text-slate-300">•</span>
-          <span className="text-xs font-semibold text-slate-700">
-            <strong className="text-indigo-600 font-bold">{totalSubjects}</strong> Subjects
-          </span>
-          <span className="text-slate-300">•</span>
-          <span className="text-xs font-semibold text-slate-700">
-            <strong className="text-indigo-600 font-bold">{totalChapters}</strong> Chapters
-          </span>
+        {/* Action Header Button */}
+        <div className="flex items-center gap-3">
+          <Button
+            onClick={() => {
+              setIsAdding(!isAdding);
+              setItemName('');
+            }}
+            className="h-9 px-4 rounded-xl gradient-brand text-white font-bold text-xs shadow-sm hover:opacity-95 cursor-pointer"
+          >
+            <Plus className="w-4 h-4 mr-1.5" />
+            {currentLevel === 'classes' && 'Add New Class'}
+            {currentLevel === 'subjects' && 'Add New Subject'}
+            {currentLevel === 'chapters' && 'Add New Chapter'}
+          </Button>
         </div>
       </div>
 
-      {isLoading ? (
-        <div className="h-96 flex flex-col items-center justify-center space-y-3">
-          <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
-          <p className="text-sm text-slate-500 font-medium">Loading academic structure...</p>
-        </div>
-      ) : (
-        /* 3-Column Miller Column Deck */
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {/* ========================================================= */}
-          {/* COLUMN 1: CLASSES / GRADES                                */}
-          {/* ========================================================= */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs flex flex-col h-[650px] overflow-hidden">
-            {/* Header */}
-            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs">
-                  1
-                </div>
-                <div>
-                  <h2 className="text-sm font-bold text-slate-900">Classes / Grades</h2>
-                  <p className="text-[11px] text-slate-500">{classes.length} grades defined</p>
-                </div>
-              </div>
-
-              <Button
-                size="sm"
-                variant={isAddingClass ? 'secondary' : 'outline'}
-                onClick={() => setIsAddingClass(!isAddingClass)}
-                className="h-7 text-xs font-bold rounded-lg border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+      {/* ========================================================================= */}
+      {/* QUICK ADD MODAL / INLINE CARD                                             */}
+      {/* ========================================================================= */}
+      {isAdding && (
+        <Card className="rounded-2xl border-indigo-200 bg-gradient-to-br from-indigo-50/60 to-white shadow-sm p-4 sm:p-5 animate-slide-down">
+          <form onSubmit={handleCreateItem} className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-indigo-950 flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-indigo-600" />
+                {currentLevel === 'classes' && 'Create a New Class / Grade'}
+                {currentLevel === 'subjects' && `Add a Subject to ${selectedClass?.name}`}
+                {currentLevel === 'chapters' && `Add a Chapter / Topic to ${selectedSubject?.name}`}
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsAdding(false)}
+                className="text-slate-400 hover:text-slate-600 p-1"
               >
-                <Plus className="w-3.5 h-3.5 mr-1" />
-                Add Class
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex gap-2">
+              <Input
+                value={itemName}
+                onChange={(e) => setItemName(e.target.value)}
+                placeholder={
+                  currentLevel === 'classes'
+                    ? 'e.g. Class 10, Grade 8, Nursery...'
+                    : currentLevel === 'subjects'
+                    ? 'e.g. Mathematics, Science, Social Studies...'
+                    : 'e.g. Chapter 1 - Real Numbers, Quadratic Equations...'
+                }
+                className="h-10 text-sm bg-white rounded-xl border-indigo-200 focus:ring-2 focus:ring-indigo-500"
+                autoFocus
+              />
+              <Button type="submit" className="h-10 px-5 rounded-xl gradient-brand text-white font-bold text-xs shrink-0">
+                Save
               </Button>
             </div>
+          </form>
+        </Card>
+      )}
 
-            {/* Quick Add Form */}
-            {isAddingClass && (
-              <form onSubmit={handleCreateClass} className="p-3 bg-indigo-50/50 border-b border-indigo-100 space-y-2">
-                <div className="text-[11px] font-bold text-indigo-900">New Class / Grade Name:</div>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="e.g. Class 9, Grade 10..."
-                    value={newClassName}
-                    onChange={(e) => setNewClassName(e.target.value)}
-                    className="h-8 text-xs bg-white rounded-lg"
-                    autoFocus
-                  />
-                  <Button type="submit" size="sm" className="h-8 text-xs gradient-brand text-white rounded-lg">
-                    Save
-                  </Button>
-                </div>
-              </form>
-            )}
+      {/* Search Bar */}
+      <div className="relative max-w-md">
+        <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
+        <Input
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder={`Search ${currentLevel}...`}
+          className="h-10 pl-10 rounded-xl bg-white border-slate-200 text-xs text-slate-800"
+        />
+      </div>
 
-            {/* List of Classes */}
-            <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
-              {classes.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-center p-4 text-slate-400">
-                  <GraduationCap className="w-8 h-8 mb-2 opacity-40 text-slate-500" />
-                  <p className="text-xs font-medium">No classes added yet.</p>
-                  <p className="text-[11px]">Click &ldquo;Add Class&rdquo; above to get started.</p>
-                </div>
-              ) : (
-                classes.map((cls) => {
-                  const isSelected = cls.id === selectedClassId;
-                  const countSubs = (subjectsMap[cls.id] || []).length;
-
-                  return (
-                    <div
-                      key={cls.id}
-                      onClick={() => {
-                        setSelectedClassId(cls.id);
-                        const firstSub = (subjectsMap[cls.id] || [])[0];
-                        setSelectedSubjectId(firstSub ? firstSub.id : '');
-                      }}
-                      className={`group flex items-center justify-between p-3 rounded-xl text-xs font-semibold cursor-pointer transition-all ${
-                        isSelected
-                          ? 'bg-indigo-600 text-white shadow-sm'
-                          : 'bg-slate-50/80 hover:bg-slate-100 text-slate-800'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5 truncate">
-                        <GraduationCap className={`w-4 h-4 shrink-0 ${isSelected ? 'text-indigo-200' : 'text-indigo-600'}`} />
-                        <span className="truncate">{cls.name}</span>
-                      </div>
-
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <span
-                          className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                            isSelected ? 'bg-indigo-700/80 text-indigo-100' : 'bg-white border border-slate-200 text-slate-600'
-                          }`}
-                        >
-                          {countSubs} {countSubs === 1 ? 'Subject' : 'Subjects'}
-                        </span>
-
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteClass(cls.id, cls.name);
-                          }}
-                          className={`p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity ${
-                            isSelected ? 'hover:bg-indigo-700 text-indigo-200 hover:text-white' : 'hover:bg-red-50 text-slate-400 hover:text-red-600'
-                          }`}
-                          title="Delete class"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-
-                        <ChevronRight className={`w-4 h-4 ${isSelected ? 'text-white' : 'text-slate-300'}`} />
-                      </div>
-                    </div>
-                  );
-                })
-              )}
+      {/* ========================================================================= */}
+      {/* LEVEL 1: CLASSES VIEW                                                     */}
+      {/* ========================================================================= */}
+      {currentLevel === 'classes' && (
+        <div>
+          {isLoading ? (
+            <div className="h-72 flex flex-col items-center justify-center space-y-3">
+              <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+              <p className="text-xs text-slate-500 font-medium">Loading classes...</p>
             </div>
-          </div>
-
-          {/* ========================================================= */}
-          {/* COLUMN 2: SUBJECTS (For Selected Class)                   */}
-          {/* ========================================================= */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs flex flex-col h-[650px] overflow-hidden">
-            {/* Header */}
-            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs">
-                  2
-                </div>
-                <div>
-                  <h2 className="text-sm font-bold text-slate-900">
-                    {selectedClass ? `Subjects in ${selectedClass.name}` : 'Subjects'}
-                  </h2>
-                  <p className="text-[11px] text-slate-500">
-                    {currentSubjects.length} subjects found
-                  </p>
-                </div>
+          ) : filteredClasses.length === 0 ? (
+            <div className="h-72 flex flex-col items-center justify-center text-center p-6 border-2 border-dashed border-slate-200 rounded-2xl bg-white space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center">
+                <GraduationCap className="w-6 h-6 text-indigo-600" />
               </div>
-
-              {selectedClassId && (
-                <Button
-                  size="sm"
-                  variant={isAddingSubject ? 'secondary' : 'outline'}
-                  onClick={() => setIsAddingSubject(!isAddingSubject)}
-                  className="h-7 text-xs font-bold rounded-lg border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-                >
-                  <Plus className="w-3.5 h-3.5 mr-1" />
-                  Add Subject
-                </Button>
-              )}
+              <h3 className="font-bold text-slate-800 text-base">No Classes Found</h3>
+              <p className="text-xs text-slate-500 max-w-sm">
+                Get started by adding your first school grade or class.
+              </p>
+              <Button
+                onClick={() => setIsAdding(true)}
+                className="h-8 text-xs gradient-brand text-white rounded-xl font-bold"
+              >
+                <Plus className="w-3.5 h-3.5 mr-1" /> Add Class
+              </Button>
             </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {filteredClasses.map((cls) => {
+                const isEditing = editingId === cls.id;
 
-            {/* Quick Add Form */}
-            {isAddingSubject && selectedClassId && (
-              <form onSubmit={handleCreateSubject} className="p-3 bg-emerald-50/50 border-b border-emerald-100 space-y-2">
-                <div className="text-[11px] font-bold text-emerald-900">
-                  New Subject for {selectedClass?.name}:
-                </div>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="e.g. Mathematics, Science, English..."
-                    value={newSubjectName}
-                    onChange={(e) => setNewSubjectName(e.target.value)}
-                    className="h-8 text-xs bg-white rounded-lg"
-                    autoFocus
-                  />
-                  <Button type="submit" size="sm" className="h-8 text-xs gradient-brand text-white rounded-lg">
-                    Save
-                  </Button>
-                </div>
-              </form>
-            )}
+                return (
+                  <div
+                    key={cls.id}
+                    onClick={() => {
+                      if (!isEditing) handleSelectClass(cls);
+                    }}
+                    className="group relative bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all duration-200 cursor-pointer hover:-translate-y-0.5 flex flex-col justify-between h-36"
+                  >
+                    <div>
+                      <div className="flex items-start justify-between">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 text-white flex items-center justify-center font-bold text-base shadow-xs">
+                          {cls.name.charAt(0).toUpperCase()}
+                        </div>
 
-            {/* List of Subjects */}
-            <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
-              {!selectedClassId ? (
-                <div className="h-full flex flex-col items-center justify-center text-center p-4 text-slate-400">
-                  <BookOpen className="w-8 h-8 mb-2 opacity-40 text-slate-500" />
-                  <p className="text-xs font-medium">Select a Class on the left to view subjects.</p>
-                </div>
-              ) : currentSubjects.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-center p-4 text-slate-400">
-                  <BookOpen className="w-8 h-8 mb-2 opacity-40 text-slate-500" />
-                  <p className="text-xs font-medium">No subjects in {selectedClass?.name}.</p>
-                  <p className="text-[11px]">Click &ldquo;Add Subject&rdquo; above to create one.</p>
-                </div>
-              ) : (
-                currentSubjects.map((sub) => {
-                  const isSelected = sub.id === selectedSubjectId;
-                  const countChaps = (chaptersMap[sub.id] || []).length;
-
-                  return (
-                    <div
-                      key={sub.id}
-                      onClick={() => setSelectedSubjectId(sub.id)}
-                      className={`group flex items-center justify-between p-3 rounded-xl text-xs font-semibold cursor-pointer transition-all ${
-                        isSelected
-                          ? 'bg-emerald-600 text-white shadow-sm'
-                          : 'bg-slate-50/80 hover:bg-slate-100 text-slate-800'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5 truncate">
-                        <BookOpen className={`w-4 h-4 shrink-0 ${isSelected ? 'text-emerald-200' : 'text-emerald-600'}`} />
-                        <span className="truncate">{sub.name}</span>
+                        {/* Actions */}
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            onClick={() => {
+                              setEditingId(cls.id);
+                              setEditName(cls.name);
+                            }}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                            title="Edit name"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(cls.id, cls.name)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                            title="Delete class"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
 
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <span
-                          className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                            isSelected ? 'bg-emerald-700/80 text-emerald-100' : 'bg-white border border-slate-200 text-slate-600'
-                          }`}
-                        >
-                          {countChaps} {countChaps === 1 ? 'Chapter' : 'Chapters'}
-                        </span>
-
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteSubject(sub.id, sub.name);
-                          }}
-                          className={`p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity ${
-                            isSelected ? 'hover:bg-emerald-700 text-emerald-200 hover:text-white' : 'hover:bg-red-50 text-slate-400 hover:text-red-600'
-                          }`}
-                          title="Delete subject"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-
-                        <ChevronRight className={`w-4 h-4 ${isSelected ? 'text-white' : 'text-slate-300'}`} />
-                      </div>
+                      {/* Name / Edit Form */}
+                      {isEditing ? (
+                        <div className="mt-2 flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                          <Input
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                            className="h-7 text-xs bg-white rounded-lg"
+                            autoFocus
+                          />
+                          <Button size="sm" onClick={() => handleSaveEdit(cls.id)} className="h-7 px-2 gradient-brand text-white rounded-lg">
+                            <Check className="w-3 h-3" />
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => setEditingId(null)} className="h-7 px-2 rounded-lg text-slate-400">
+                            <X className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <h3 className="font-bold text-slate-900 text-base mt-3 tracking-tight group-hover:text-indigo-600 transition-colors truncate">
+                          {cls.name}
+                        </h3>
+                      )}
                     </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
 
-          {/* ========================================================= */}
-          {/* COLUMN 3: CHAPTERS (For Selected Subject)                 */}
-          {/* ========================================================= */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs flex flex-col h-[650px] overflow-hidden">
-            {/* Header */}
-            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-xs">
-                  3
-                </div>
-                <div>
-                  <h2 className="text-sm font-bold text-slate-900">
-                    {selectedSubject ? `Chapters in ${selectedSubject.name}` : 'Chapters'}
-                  </h2>
-                  <p className="text-[11px] text-slate-500">
-                    {currentChapters.length} chapters in syllabus
-                  </p>
-                </div>
+                    <div className="flex items-center justify-between text-xs font-semibold text-slate-500 pt-2 border-t border-slate-100 mt-2">
+                      <span className="text-[11px] text-indigo-600 font-bold group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5">
+                        View Subjects →
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* LEVEL 2: SUBJECTS VIEW (FOR SELECTED CLASS)                               */}
+      {/* ========================================================================= */}
+      {currentLevel === 'subjects' && selectedClass && (
+        <div>
+          {isLoading ? (
+            <div className="h-72 flex flex-col items-center justify-center space-y-3">
+              <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+              <p className="text-xs text-slate-500 font-medium">Loading subjects in {selectedClass.name}...</p>
+            </div>
+          ) : filteredSubjects.length === 0 ? (
+            <div className="h-72 flex flex-col items-center justify-center text-center p-6 border-2 border-dashed border-slate-200 rounded-2xl bg-white space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center">
+                <BookOpen className="w-6 h-6 text-emerald-600" />
               </div>
-
-              {selectedSubjectId && (
-                <Button
-                  size="sm"
-                  variant={isAddingChapter ? 'secondary' : 'outline'}
-                  onClick={() => setIsAddingChapter(!isAddingChapter)}
-                  className="h-7 text-xs font-bold rounded-lg border-amber-200 text-amber-800 hover:bg-amber-50"
-                >
-                  <Plus className="w-3.5 h-3.5 mr-1" />
-                  Add Chapter
-                </Button>
-              )}
+              <h3 className="font-bold text-slate-800 text-base">No Subjects in {selectedClass.name}</h3>
+              <p className="text-xs text-slate-500 max-w-sm">
+                Add subjects like Mathematics, English, or Science to this class.
+              </p>
+              <Button
+                onClick={() => setIsAdding(true)}
+                className="h-8 text-xs gradient-brand text-white rounded-xl font-bold"
+              >
+                <Plus className="w-3.5 h-3.5 mr-1" /> Add Subject
+              </Button>
             </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {filteredSubjects.map((sub) => {
+                const isEditing = editingId === sub.id;
 
-            {/* Quick Add Form */}
-            {isAddingChapter && selectedSubjectId && (
-              <form onSubmit={handleCreateChapter} className="p-3 bg-amber-50/50 border-b border-amber-100 space-y-2">
-                <div className="text-[11px] font-bold text-amber-900">
-                  New Chapter for {selectedSubject?.name}:
-                </div>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="e.g. Chapter 1 - Real Numbers..."
-                    value={newChapterName}
-                    onChange={(e) => setNewChapterName(e.target.value)}
-                    className="h-8 text-xs bg-white rounded-lg"
-                    autoFocus
-                  />
-                  <Button type="submit" size="sm" className="h-8 text-xs gradient-brand text-white rounded-lg">
-                    Save
-                  </Button>
-                </div>
-              </form>
-            )}
+                return (
+                  <div
+                    key={sub.id}
+                    onClick={() => {
+                      if (!isEditing) handleSelectSubject(sub);
+                    }}
+                    className="group relative bg-white border border-slate-200 hover:border-emerald-300 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all duration-200 cursor-pointer hover:-translate-y-0.5 flex flex-col justify-between h-36"
+                  >
+                    <div>
+                      <div className="flex items-start justify-between">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center font-bold text-base shadow-xs">
+                          {sub.name.charAt(0).toUpperCase()}
+                        </div>
 
-            {/* List of Chapters */}
-            <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
-              {!selectedSubjectId ? (
-                <div className="h-full flex flex-col items-center justify-center text-center p-4 text-slate-400">
-                  <Layers className="w-8 h-8 mb-2 opacity-40 text-slate-500" />
-                  <p className="text-xs font-medium">Select a Subject to view its chapters.</p>
-                </div>
-              ) : currentChapters.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-center p-4 text-slate-400">
-                  <Layers className="w-8 h-8 mb-2 opacity-40 text-slate-500" />
-                  <p className="text-xs font-medium">No chapters in {selectedSubject?.name} yet.</p>
-                  <p className="text-[11px]">Click &ldquo;Add Chapter&rdquo; above to add lessons.</p>
-                </div>
-              ) : (
-                currentChapters.map((chap, idx) => (
+                        {/* Actions */}
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            onClick={() => {
+                              setEditingId(sub.id);
+                              setEditName(sub.name);
+                            }}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
+                            title="Edit name"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(sub.id, sub.name)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                            title="Delete subject"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Name / Edit Form */}
+                      {isEditing ? (
+                        <div className="mt-2 flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                          <Input
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                            className="h-7 text-xs bg-white rounded-lg"
+                            autoFocus
+                          />
+                          <Button size="sm" onClick={() => handleSaveEdit(sub.id)} className="h-7 px-2 gradient-brand text-white rounded-lg">
+                            <Check className="w-3 h-3" />
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => setEditingId(null)} className="h-7 px-2 rounded-lg text-slate-400">
+                            <X className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <h3 className="font-bold text-slate-900 text-base mt-3 tracking-tight group-hover:text-emerald-600 transition-colors truncate">
+                          {sub.name}
+                        </h3>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs font-semibold text-slate-500 pt-2 border-t border-slate-100 mt-2">
+                      <span className="text-[11px] text-emerald-600 font-bold group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5">
+                        Manage Chapters →
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* LEVEL 3: CHAPTERS VIEW (FOR SELECTED SUBJECT)                             */}
+      {/* ========================================================================= */}
+      {currentLevel === 'chapters' && selectedSubject && (
+        <div>
+          {isLoading ? (
+            <div className="h-72 flex flex-col items-center justify-center space-y-3">
+              <Loader2 className="w-8 h-8 animate-spin text-amber-600" />
+              <p className="text-xs text-slate-500 font-medium">Loading chapters in {selectedSubject.name}...</p>
+            </div>
+          ) : filteredChapters.length === 0 ? (
+            <div className="h-72 flex flex-col items-center justify-center text-center p-6 border-2 border-dashed border-slate-200 rounded-2xl bg-white space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center">
+                <Bookmark className="w-6 h-6 text-amber-600" />
+              </div>
+              <h3 className="font-bold text-slate-800 text-base">No Chapters in {selectedSubject.name}</h3>
+              <p className="text-xs text-slate-500 max-w-sm">
+                Add textbook chapters or lessons for this subject syllabus.
+              </p>
+              <Button
+                onClick={() => setIsAdding(true)}
+                className="h-8 text-xs gradient-brand text-white rounded-xl font-bold"
+              >
+                <Plus className="w-3.5 h-3.5 mr-1" /> Add Chapter
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              {filteredChapters.map((chap, idx) => {
+                const isEditing = editingId === chap.id;
+
+                return (
                   <div
                     key={chap.id}
-                    className="group flex items-center justify-between p-3 rounded-xl bg-slate-50/80 hover:bg-slate-100 text-xs text-slate-800 transition-colors border border-slate-100"
+                    className="group bg-white border border-slate-200 hover:border-amber-300 rounded-2xl p-4 shadow-2xs hover:shadow-xs transition-all flex items-center justify-between"
                   >
-                    <div className="flex items-center gap-2.5 truncate">
-                      <span className="w-5 h-5 rounded-full bg-white border border-slate-200 flex items-center justify-center font-bold text-[10px] text-slate-600 shrink-0">
+                    <div className="flex items-center gap-3 flex-1 mr-4 truncate">
+                      <span className="w-7 h-7 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 font-bold text-xs flex items-center justify-center shrink-0">
                         {idx + 1}
                       </span>
-                      <span className="font-semibold text-slate-800 truncate">{chap.title}</span>
+
+                      {isEditing ? (
+                        <div className="flex items-center gap-2 flex-1 max-w-md">
+                          <Input
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                            className="h-8 text-xs bg-white rounded-lg"
+                            autoFocus
+                          />
+                          <Button size="sm" onClick={() => handleSaveEdit(chap.id)} className="h-8 px-2.5 gradient-brand text-white rounded-lg">
+                            <Check className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => setEditingId(null)} className="h-8 px-2 rounded-lg text-slate-400">
+                            <X className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <span className="font-bold text-slate-800 text-sm truncate">
+                          {chap.title}
+                        </span>
+                      )}
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteChapter(chap.id, chap.title)}
-                      className="p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 text-slate-400 hover:text-red-600 cursor-pointer shrink-0"
-                      title="Delete chapter"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => {
+                          setEditingId(chap.id);
+                          setEditName(chap.title);
+                        }}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-amber-700 hover:bg-amber-50 transition-colors"
+                        title="Edit title"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(chap.id, chap.title)}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                        title="Delete chapter"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
-                ))
-              )}
+                );
+              })}
             </div>
-          </div>
+          )}
         </div>
       )}
     </div>
