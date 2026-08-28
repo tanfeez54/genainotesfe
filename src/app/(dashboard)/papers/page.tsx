@@ -29,6 +29,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { API_URL } from '@/lib/api';
 import { toast } from 'sonner';
+import { printExamPaper } from '@/lib/paperPrinter';
 
 interface QuestionPaper {
   id: string;
@@ -114,95 +115,17 @@ export default function SavedPapersPage() {
     const paper = selectedPaperForPreview;
     const blueprint = paper.blueprint || {};
     const questions = blueprint.selected_questions || [];
-    const schoolName = blueprint.schoolName || 'Examination';
-    const timeAllowed = blueprint.timeAllowed || `${paper.duration_minutes || 120} Mins`;
-    const className = paper.classes?.name || 'All';
-    const subjectName = paper.subjects?.name || 'General';
 
-    const cleanDocTitle = `${schoolName}_${paper.title}_${subjectName}`.replace(/[^a-zA-Z0-9_-]/g, '_');
-
-    const iframe = document.createElement('iframe');
-    iframe.style.position = 'fixed';
-    iframe.style.right = '0';
-    iframe.style.bottom = '0';
-    iframe.style.width = '0';
-    iframe.style.height = '0';
-    iframe.style.border = 'none';
-    iframe.style.zIndex = '-9999';
-    document.body.appendChild(iframe);
-
-    const doc = iframe.contentWindow?.document;
-    if (!doc) {
-      window.print();
-      return;
-    }
-
-    doc.open();
-    doc.write(`
-      <!DOCTYPE html>
-      <html lang="en">
-        <head>
-          <meta charset="utf-8" />
-          <title>${cleanDocTitle}</title>
-          <style>
-            @page { size: A4 portrait; margin: 10mm 12mm 10mm 12mm; }
-            * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 10pt; line-height: 1.35; margin: 0; color: #000; }
-            .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 6px; margin-bottom: 8px; }
-            .header h2 { font-size: 15pt; font-weight: 900; text-transform: uppercase; margin: 0 0 2px 0; }
-            .header h3 { font-size: 10.5pt; font-weight: 700; margin: 0 0 4px 0; }
-            .meta-row { display: flex; justify-content: space-between; font-size: 8.5pt; font-weight: 700; border-top: 1px solid #ccc; padding-top: 4px; }
-            .candidate { display: flex; justify-content: space-between; font-size: 8.5pt; font-weight: 600; border-bottom: 1px solid #ddd; padding-bottom: 4px; margin-bottom: 8px; }
-            .q-item { margin-bottom: 10px; break-inside: avoid; page-break-inside: avoid; }
-            .q-num { font-weight: 700; }
-            .mcq-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px 10px; padding-left: 12px; margin-top: 3px; font-size: 9pt; }
-            .match-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: flex-start; padding: 2px 0; font-size: 9pt; }
-            .instructions { padding: 5px 8px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 8pt; font-style: italic; margin-bottom: 10px; }
-            .sec-hdr { font-size: 10pt; font-weight: 800; text-transform: uppercase; border-bottom: 1.5px solid #000; padding-bottom: 2px; margin: 12px 0 6px 0; break-after: avoid; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h2>${schoolName}</h2>
-            <h3>${paper.title}</h3>
-            <div class="meta-row">
-              <span>CLASS: ${className}</span>
-              <span>SUBJECT: ${subjectName}</span>
-              <span>TIME: ${timeAllowed}</span>
-              <span>MAX MARKS: ${paper.total_marks}</span>
-            </div>
-          </div>
-          <div class="candidate">
-            <div>Name: _______________________________</div>
-            <div>Roll No: ____________ Section: ____</div>
-          </div>
-          ${blueprint.instructions ? `<div class="instructions"><strong>Instructions:</strong><br/>${blueprint.instructions}</div>` : ''}
-          <div class="questions">
-            ${questions.map((q: any, i: number) => `
-              <div class="q-item">
-                <div><span class="q-num">Q${i + 1}. </span><span>${q.question_text || ''}</span></div>
-                ${q.type === 'mcq' && Array.isArray(q.options) ? `
-                  <div class="mcq-grid">
-                    ${q.options.map((opt: any, oIdx: number) => `
-                      <div><strong>(${String.fromCharCode(65 + oIdx)})</strong> ${typeof opt === 'string' ? opt : opt.text || ''}</div>
-                    `).join('')}
-                  </div>
-                ` : ''}
-              </div>
-            `).join('')}
-          </div>
-        </body>
-      </html>
-    `);
-    doc.close();
-
-    setTimeout(() => {
-      iframe.contentWindow?.focus();
-      iframe.contentWindow?.print();
-      setTimeout(() => {
-        document.body.removeChild(iframe);
-      }, 2000);
-    }, 300);
+    printExamPaper({
+      schoolName: blueprint.schoolName || 'Modern Public School',
+      title: paper.title,
+      className: paper.classes?.name || 'N/A',
+      subjectName: paper.subjects?.name || 'N/A',
+      timeAllowed: blueprint.timeAllowed || `${paper.duration_minutes || 120} Mins`,
+      totalMarks: paper.total_marks,
+      instructions: blueprint.instructions,
+      questions,
+    });
   };
 
   // Filter papers

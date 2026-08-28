@@ -44,6 +44,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { API_URL } from '@/lib/api';
 import { toast } from 'sonner';
+import { printExamPaper } from '@/lib/paperPrinter';
 
 export type QuestionType =
   | 'mcq'
@@ -601,161 +602,17 @@ export default function GeneratePaperPage() {
   };
 
   const handlePrint = () => {
-    const paperEl = document.getElementById('printable-exam-paper');
-    if (!paperEl) {
-      window.print();
-      return;
-    }
-
-    const cleanDocTitle = `${schoolName || 'Examination'}_${examTitle || 'Paper'}_${selectedSubjectName || 'Subject'}`
-      .replace(/[^a-zA-Z0-9_-]/g, '_');
-
-    // Create an isolated hidden iframe to guarantee clean multi-page A4 rendering without dashboard CSS interference
-    const iframe = document.createElement('iframe');
-    iframe.style.position = 'fixed';
-    iframe.style.right = '0';
-    iframe.style.bottom = '0';
-    iframe.style.width = '0';
-    iframe.style.height = '0';
-    iframe.style.border = 'none';
-    iframe.style.zIndex = '-9999';
-    document.body.appendChild(iframe);
-
-    const doc = iframe.contentWindow?.document;
-    if (!doc) {
-      window.print();
-      return;
-    }
-
-    // Clone paper content and strip any action buttons
-    const clonedPaper = paperEl.cloneNode(true) as HTMLElement;
-    clonedPaper.querySelectorAll('.print\\:hidden, button').forEach((el) => el.remove());
-
-    doc.open();
-    doc.write(`
-      <!DOCTYPE html>
-      <html lang="en">
-        <head>
-          <meta charset="utf-8" />
-          <title>${cleanDocTitle}</title>
-          <style>
-            @page {
-              size: A4 portrait;
-              margin: 10mm 12mm 10mm 12mm;
-            }
-            * {
-              box-sizing: border-box;
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
-            }
-            html, body {
-              margin: 0;
-              padding: 0;
-              background: #ffffff !important;
-              color: #000000 !important;
-              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-              font-size: 10pt;
-              line-height: 1.35;
-            }
-            #printable-exam-paper {
-              width: 100% !important;
-              max-width: 100% !important;
-              margin: 0 !important;
-              padding: 0 !important;
-              border: none !important;
-              box-shadow: none !important;
-              background: transparent !important;
-            }
-            .print-header {
-              text-align: center;
-              border-bottom: 2px solid #000000;
-              padding-bottom: 6px;
-              margin-bottom: 8px;
-              page-break-inside: avoid;
-              break-inside: avoid;
-            }
-            .print-header h2 {
-              font-size: 15pt;
-              font-weight: 900;
-              text-transform: uppercase;
-              letter-spacing: 0.5px;
-              margin: 0 0 2px 0;
-            }
-            .print-header h3 {
-              font-size: 10.5pt;
-              font-weight: 700;
-              color: #222222;
-              margin: 0 0 6px 0;
-            }
-            .meta-row {
-              display: flex;
-              justify-content: space-between;
-              font-size: 8.5pt;
-              font-weight: 700;
-              border-top: 1px solid #cccccc;
-              padding-top: 4px;
-              margin-top: 4px;
-            }
-            .print-section {
-              margin-top: 12px;
-              margin-bottom: 6px;
-            }
-            .print-section h4 {
-              font-size: 10pt;
-              font-weight: 800;
-              text-transform: uppercase;
-              border-bottom: 1.5px solid #000000;
-              padding-bottom: 2px;
-              margin: 0 0 2px 0;
-              break-after: avoid;
-              page-break-after: avoid;
-            }
-            .print-question {
-              margin-bottom: 10px;
-              page-break-inside: avoid;
-              break-inside: avoid;
-              font-size: 9.5pt;
-            }
-            .grid-cols-4 {
-              display: grid;
-              grid-template-columns: repeat(4, 1fr);
-              gap: 4px 10px;
-            }
-            .grid-cols-2 {
-              display: grid;
-              grid-template-columns: repeat(2, 1fr);
-              gap: 4px 16px;
-            }
-            .match-row {
-              display: grid;
-              grid-template-columns: 1fr 1fr;
-              gap: 20px;
-              align-items: flex-start;
-              padding: 2px 0;
-            }
-            img {
-              max-height: 160px;
-              max-width: 320px;
-              display: block;
-              margin: 6px auto;
-            }
-          </style>
-        </head>
-        <body>
-          ${clonedPaper.outerHTML}
-        </body>
-      </html>
-    `);
-    doc.close();
-
-    // Wait for fonts & images then trigger print
-    setTimeout(() => {
-      iframe.contentWindow?.focus();
-      iframe.contentWindow?.print();
-      setTimeout(() => {
-        document.body.removeChild(iframe);
-      }, 2000);
-    }, 300);
+    if (paperQuestions.length === 0) return;
+    printExamPaper({
+      schoolName,
+      title: examTitle,
+      className: selectedClassName,
+      subjectName: selectedSubjectName,
+      timeAllowed,
+      totalMarks,
+      instructions,
+      questions: paperQuestions,
+    });
   };
 
   const selectedClassName = classes.find((c) => c.id === selectedClassId)?.name || '';
