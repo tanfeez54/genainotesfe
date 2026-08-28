@@ -402,106 +402,165 @@ export default function SavedPapersPage() {
         </div>
       )}
 
-      {/* Full Screen Paper Preview & Print Modal */}
+      {/* Full Screen Dedicated Paper Preview & Export Workspace */}
       {selectedPaperForPreview && (
-        <div
-          onClick={() => setSelectedPaperForPreview(null)}
-          className="fixed inset-0 z-70 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-6"
-        >
-          <div
-            className="relative w-full max-w-4xl max-h-[90vh] bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col border border-slate-200 animate-scale-up"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Top Modal Header */}
-            <div className="h-16 px-6 bg-slate-900 text-white flex items-center justify-between shrink-0 select-none">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-xl gradient-brand flex items-center justify-center text-white font-bold text-xs">
-                  <FileText className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-sm text-slate-100 flex items-center gap-2">
-                    {selectedPaperForPreview.title}
-                  </h3>
-                  <p className="text-[11px] text-slate-400">
-                    {selectedPaperForPreview.classes?.name} • {selectedPaperForPreview.subjects?.name} • Max Marks: {selectedPaperForPreview.total_marks}
-                  </p>
-                </div>
+        <div className="fixed inset-0 z-80 w-screen h-screen bg-slate-950/95 flex flex-col overflow-hidden animate-fade-in">
+          {/* Top Fixed Header Bar */}
+          <div className="h-16 px-4 sm:px-8 bg-slate-900 border-b border-slate-800 text-white flex items-center justify-between shrink-0 shadow-xl select-none z-10">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl gradient-brand flex items-center justify-center text-white font-bold text-sm shadow-md">
+                <FileText className="w-5 h-5" />
               </div>
-
-              <div className="flex items-center gap-2">
-                <Button
-                  onClick={handlePrintModalPaper}
-                  className="h-8 px-3.5 gradient-brand text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-sm hover:opacity-90 cursor-pointer"
-                >
-                  <Printer className="w-3.5 h-3.5" />
-                  Print / Save PDF
-                </Button>
-
-                <button
-                  onClick={() => setSelectedPaperForPreview(null)}
-                  className="w-8 h-8 rounded-xl bg-slate-800 hover:bg-red-600 text-slate-300 hover:text-white flex items-center justify-center transition-colors cursor-pointer border border-slate-700 ml-2"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+              <div>
+                <h3 className="font-extrabold text-sm sm:text-base text-slate-100 flex items-center gap-2">
+                  {selectedPaperForPreview.title}
+                </h3>
+                <p className="text-[11px] text-slate-400">
+                  {selectedPaperForPreview.classes?.name || 'Class N/A'} • {selectedPaperForPreview.subjects?.name || 'Subject N/A'} • Max Marks: {selectedPaperForPreview.total_marks} • Time: {selectedPaperForPreview.blueprint?.timeAllowed || `${selectedPaperForPreview.duration_minutes || 120} Mins`}
+                </p>
               </div>
             </div>
 
-            {/* Modal Body - Paper Canvas */}
-            <div className="flex-1 p-6 sm:p-10 overflow-y-auto bg-slate-100">
-              <div className="bg-white border border-slate-300 rounded-2xl p-8 sm:p-12 shadow-sm max-w-3xl mx-auto space-y-6 text-slate-900">
-                {/* Paper Header */}
-                <div className="text-center border-b-2 border-slate-900 pb-4 space-y-1">
-                  <h2 className="text-xl sm:text-2xl font-black uppercase tracking-wide">
-                    {selectedPaperForPreview.blueprint?.schoolName || 'Examination'}
-                  </h2>
-                  <h3 className="text-sm sm:text-base font-bold text-slate-700">
-                    {selectedPaperForPreview.title}
-                  </h3>
-                  <div className="flex flex-wrap items-center justify-between text-xs font-semibold pt-2 text-slate-800 border-t border-slate-200 mt-2">
-                    <span>CLASS: {selectedPaperForPreview.classes?.name || 'N/A'}</span>
-                    <span>SUBJECT: {selectedPaperForPreview.subjects?.name || 'N/A'}</span>
-                    <span>TIME: {selectedPaperForPreview.blueprint?.timeAllowed || `${selectedPaperForPreview.duration_minutes || 120} Mins`}</span>
-                    <span>MAX MARKS: {selectedPaperForPreview.total_marks}</span>
-                  </div>
+            <div className="flex items-center gap-2 sm:gap-3">
+              <Button
+                onClick={handlePrintModalPaper}
+                className="h-9 px-4 gradient-brand text-white font-bold rounded-xl text-xs flex items-center gap-2 shadow-md hover:opacity-90 cursor-pointer"
+                title="Download or Print PDF directly"
+              >
+                <Printer className="w-4 h-4" />
+                <span className="hidden sm:inline">Print / Download PDF</span>
+                <span className="sm:hidden">Print / PDF</span>
+              </Button>
+
+              <button
+                onClick={() => setSelectedPaperForPreview(null)}
+                className="h-9 w-9 rounded-xl bg-slate-800 hover:bg-red-600 text-slate-300 hover:text-white flex items-center justify-center transition-colors cursor-pointer border border-slate-700 shadow-sm"
+                title="Close Fullscreen Preview (Esc)"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Scrollable Document Canvas Viewport */}
+          <div className="flex-1 overflow-y-auto bg-slate-950/80 p-4 sm:p-8 flex justify-center">
+            <div className="w-full max-w-4xl bg-white rounded-2xl shadow-2xl p-8 sm:p-14 my-auto sm:my-4 space-y-6 text-slate-900 border border-slate-200">
+              {/* Paper Header */}
+              <div className="text-center border-b-2 border-slate-900 pb-4 space-y-1">
+                <h2 className="text-xl sm:text-2xl font-black uppercase tracking-wide">
+                  {selectedPaperForPreview.blueprint?.schoolName || 'Examination'}
+                </h2>
+                <h3 className="text-sm sm:text-base font-bold text-slate-700">
+                  {selectedPaperForPreview.title}
+                </h3>
+                <div className="flex flex-wrap items-center justify-between text-xs font-semibold pt-2 text-slate-800 border-t border-slate-200 mt-2">
+                  <span>CLASS: {selectedPaperForPreview.classes?.name || 'N/A'}</span>
+                  <span>SUBJECT: {selectedPaperForPreview.subjects?.name || 'N/A'}</span>
+                  <span>TIME: {selectedPaperForPreview.blueprint?.timeAllowed || `${selectedPaperForPreview.duration_minutes || 120} Mins`}</span>
+                  <span>MAX MARKS: {selectedPaperForPreview.total_marks}</span>
                 </div>
+              </div>
 
-                {/* Candidate Info Box */}
-                <div className="grid grid-cols-2 gap-4 text-xs font-medium border-b border-slate-200 pb-3">
-                  <div>Name: _______________________________</div>
-                  <div className="text-right">Roll No: ____________ Section: ____</div>
+              {/* Candidate Info Line */}
+              <div className="grid grid-cols-2 gap-4 text-xs font-medium border-b border-slate-200 pb-3">
+                <div>Name: _______________________________</div>
+                <div className="text-right">Roll No: ____________ Section: ____</div>
+              </div>
+
+              {/* Instructions */}
+              {selectedPaperForPreview.blueprint?.instructions && (
+                <div className="p-3.5 bg-slate-50 rounded-xl text-xs text-slate-700 italic border border-slate-200">
+                  <p className="font-bold not-italic mb-0.5">Instructions:</p>
+                  <p className="whitespace-pre-line">{selectedPaperForPreview.blueprint.instructions}</p>
                 </div>
+              )}
 
-                {/* Instructions */}
-                {selectedPaperForPreview.blueprint?.instructions && (
-                  <div className="p-3 bg-slate-50 rounded-lg text-xs text-slate-700 italic border border-slate-200">
-                    <p className="font-bold not-italic mb-0.5">Instructions:</p>
-                    <p className="whitespace-pre-line">{selectedPaperForPreview.blueprint.instructions}</p>
-                  </div>
-                )}
-
-                {/* Questions List */}
-                <div className="space-y-4 pt-2">
-                  {(selectedPaperForPreview.blueprint?.selected_questions || []).map((q: any, qIdx: number) => (
-                    <div key={q.id || qIdx} className="text-xs space-y-1.5 border-b border-slate-100 pb-3 last:border-none">
-                      <div className="flex items-start justify-between font-medium">
-                        <div className="flex-1 leading-relaxed">
-                          <span className="font-bold">Q{qIdx + 1}. </span>
-                          <span>{q.question_text || q.text}</span>
-                        </div>
+              {/* Dynamic Questions List */}
+              <div className="space-y-5 pt-2">
+                {(selectedPaperForPreview.blueprint?.selected_questions || []).map((q: any, qIdx: number) => (
+                  <div key={q.id || qIdx} className="text-xs space-y-2 border-b border-slate-100 pb-3.5 last:border-none">
+                    <div className="flex items-start justify-between font-medium">
+                      <div className="flex-1 leading-relaxed">
+                        <span className="font-bold text-slate-900">Q{qIdx + 1}. </span>
+                        <span>{q.question_text || q.text}</span>
                       </div>
-
-                      {q.type === 'mcq' && Array.isArray(q.options) && (
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pl-4 pt-1 text-slate-700">
-                          {q.options.map((opt: any, oIdx: number) => (
-                            <div key={oIdx}>
-                              <span className="font-semibold">({String.fromCharCode(65 + oIdx)})</span> {typeof opt === 'string' ? opt : opt.text}
-                            </div>
-                          ))}
-                        </div>
-                      )}
                     </div>
-                  ))}
-                </div>
+
+                    {/* Attached Image Diagram */}
+                    {q.image_url && (
+                      <div className="my-2 border border-slate-200 rounded-lg p-1 inline-block bg-white shadow-xs">
+                        <img
+                          src={q.image_url}
+                          alt={`Figure Q${qIdx + 1}`}
+                          className="max-h-48 max-w-sm object-contain rounded"
+                        />
+                      </div>
+                    )}
+
+                    {/* MCQ Options */}
+                    {q.type === 'mcq' && Array.isArray(q.options) && (
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pl-4 pt-1 text-slate-700">
+                        {q.options.map((opt: any, oIdx: number) => (
+                          <div key={oIdx}>
+                            <span className="font-bold text-slate-900">({String.fromCharCode(65 + oIdx)})</span> {typeof opt === 'string' ? opt : opt.text}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* True False */}
+                    {q.type === 'true_false' && (
+                      <div className="pl-4 pt-1 flex items-center gap-6 text-slate-700 font-semibold text-[11px]">
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className="w-3.5 h-3.5 rounded border border-slate-400 inline-block"></span>
+                          True
+                        </span>
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className="w-3.5 h-3.5 rounded border border-slate-400 inline-block"></span>
+                          False
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Match the Following */}
+                    {q.type === 'match_the_following' && q.options && typeof q.options === 'object' && (
+                      <div className="pl-4 pt-1 space-y-1 max-w-xl">
+                        <div className="grid grid-cols-2 gap-6 font-bold text-xs text-slate-900 border-b border-slate-300 pb-1">
+                          <div>Column A</div>
+                          <div>Column B</div>
+                        </div>
+                        {(() => {
+                          const cA = q.options.column_a || q.options.columnA || [];
+                          const cB = q.options.column_b || q.options.columnB || [];
+                          return Array.from({ length: Math.max(cA.length, cB.length, 1) }).map((_, rIdx) => {
+                            const itA = cA[rIdx];
+                            const itB = cB[rIdx];
+                            return (
+                              <div key={rIdx} className="grid grid-cols-2 gap-6 items-start py-0.5 text-xs text-slate-800">
+                                <div>
+                                  {itA ? (
+                                    <span>
+                                      <strong className="font-bold text-slate-900">{rIdx + 1}. </strong>
+                                      {typeof itA === 'string' ? itA : itA.text}
+                                    </span>
+                                  ) : ''}
+                                </div>
+                                <div>
+                                  {itB ? (
+                                    <span>
+                                      <strong className="font-bold text-slate-900">{String.fromCharCode(65 + rIdx)}. </strong>
+                                      {typeof itB === 'string' ? itB : itB.text}
+                                    </span>
+                                  ) : ''}
+                                </div>
+                              </div>
+                            );
+                          });
+                        })()}
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
           </div>
