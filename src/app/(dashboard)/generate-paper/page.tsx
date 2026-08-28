@@ -1490,11 +1490,12 @@ export default function GeneratePaperPage() {
             </div>
           </div>
 
-          {/* Printable Exam Paper Canvas */}
-          <div
-            id="printable-exam-paper"
-            className="print-page bg-white border border-slate-300 rounded-2xl p-8 sm:p-12 shadow-md min-h-[650px] text-slate-900 print:shadow-none print:border-none print:p-0 print:m-0"
-          >
+          {/* Centered A4 Exam Paper Canvas Wrapper */}
+          <div className="w-full flex justify-center py-2 print:p-0">
+            <div
+              id="printable-exam-paper"
+              className="print-page w-full max-w-[800px] bg-white border border-slate-300 rounded-lg p-8 sm:p-12 shadow-xl min-h-[1050px] text-slate-900 print:shadow-none print:border-none print:p-0 print:m-0 print:max-w-none"
+            >
             {paperQuestions.length === 0 ? (
               <div className="h-[450px] flex flex-col items-center justify-center text-center p-6 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50 print:hidden space-y-3">
                 <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center">
@@ -1741,12 +1742,13 @@ export default function GeneratePaperPage() {
                   })}
                 </div>
 
-                {/* Footer */}
-                <div className="text-center pt-8 border-t border-slate-200 text-[11px] text-slate-400">
-                  *** End of Examination Paper ***
+                  {/* Footer */}
+                  <div className="text-center pt-8 border-t border-slate-200 text-[11px] text-slate-400">
+                    *** End of Examination Paper ***
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       )}
