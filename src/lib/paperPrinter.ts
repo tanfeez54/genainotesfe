@@ -13,9 +13,11 @@ export interface ExamPaperData {
   totalMarks?: number | string;
   instructions?: string;
   questions: any[];
+  isTwoColumn?: boolean;
 }
 
 export function printExamPaper(data: ExamPaperData) {
+  const isTwoColumn = Boolean(data.isTwoColumn);
   const schoolName = (data.schoolName || 'Modern Public School').trim();
   const examTitle = (data.title || 'Annual Examination - 2026').trim();
   const className = (data.className || 'N/A').trim();
@@ -359,14 +361,33 @@ export function printExamPaper(data: ExamPaperData) {
             margin-right: 4px;
           }
 
-          /* MCQ Options in 4 Columns */
+          /* MCQ Options */
           .mcq-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: ${isTwoColumn ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)'};
             gap: 4px 10px;
             padding-left: 14px;
             margin-top: 3px;
             font-size: 9pt;
+          }
+
+          ${
+            isTwoColumn
+              ? `
+          .sec-questions {
+            column-count: 2;
+            column-gap: 22px;
+            column-rule: 1px solid #cbd5e1;
+          }
+          .question-block {
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+            display: inline-block;
+            width: 100%;
+            margin-bottom: 12px;
+          }
+          `
+              : ''
           }
 
           .mcq-col {

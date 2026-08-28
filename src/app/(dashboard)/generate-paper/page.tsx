@@ -612,6 +612,7 @@ export default function GeneratePaperPage() {
       totalMarks,
       instructions,
       questions: paperQuestions,
+      isTwoColumn,
     });
   };
 
@@ -1504,11 +1505,13 @@ export default function GeneratePaperPage() {
                                   </div>
                                 )}
 
-                                {/* Specific Type Renderers */}
-
                                 {/* 1. MCQ Options */}
                                 {q.type === 'mcq' && Array.isArray(q.options) && q.options.length > 0 && (
-                                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pl-4 pt-1 text-slate-700">
+                                  <div
+                                    className={`grid gap-2 pl-4 pt-1 text-slate-700 ${
+                                      isTwoColumn ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-4'
+                                    }`}
+                                  >
                                     {q.options.map((opt: any, oIdx: number) => {
                                       const label =
                                         typeof opt === 'string'
