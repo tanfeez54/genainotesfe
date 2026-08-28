@@ -443,8 +443,8 @@ export default function SavedPapersPage() {
           </div>
 
           {/* Scrollable Document Canvas Viewport */}
-          <div className="flex-1 overflow-y-auto bg-slate-950/80 p-4 sm:p-8 flex justify-center">
-            <div className="w-full max-w-4xl bg-white rounded-2xl shadow-2xl p-8 sm:p-14 my-auto sm:my-4 space-y-6 text-slate-900 border border-slate-200">
+          <div className="flex-1 overflow-y-auto bg-slate-950 py-8 px-4 sm:px-8">
+            <div className="w-full max-w-4xl bg-white rounded-2xl shadow-2xl p-8 sm:p-14 mx-auto space-y-6 text-slate-900 border border-slate-200">
               {/* Paper Header */}
               <div className="text-center border-b-2 border-slate-900 pb-4 space-y-1">
                 <h2 className="text-xl sm:text-2xl font-black uppercase tracking-wide">
