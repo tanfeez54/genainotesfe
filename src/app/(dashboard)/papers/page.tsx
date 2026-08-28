@@ -19,7 +19,9 @@ import {
   ArrowRight,
   Eye,
   X,
-  FileCheck2
+  FileCheck2,
+  Edit3,
+  Download
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -101,7 +103,12 @@ export default function SavedPapersPage() {
     }
   };
 
-  // Print paper directly from preview modal
+  const handleEditPaper = (paper: QuestionPaper) => {
+    sessionStorage.setItem('edit_paper_data', JSON.stringify(paper));
+    router.push('/generate-paper');
+  };
+
+  // Print / Download paper directly from preview modal
   const handlePrintModalPaper = () => {
     if (!selectedPaperForPreview) return;
     const paper = selectedPaperForPreview;
@@ -375,7 +382,7 @@ export default function SavedPapersPage() {
                     <span>{new Date(paper.created_at).toLocaleDateString()}</span>
                   </div>
 
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1.5">
                     <Button
                       size="sm"
                       variant="ghost"
@@ -385,6 +392,20 @@ export default function SavedPapersPage() {
                       title="Delete Paper"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEditPaper(paper);
+                      }}
+                      className="h-7 px-2 border-slate-200 text-slate-700 hover:text-indigo-600 hover:bg-indigo-50/50 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer"
+                      title="Edit this paper in generator"
+                    >
+                      <Edit3 className="w-3 h-3" />
+                      Edit
                     </Button>
 
                     <Button
@@ -421,20 +442,41 @@ export default function SavedPapersPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex items-center gap-2 sm:gap-2.5">
+              <Button
+                onClick={() => handleEditPaper(selectedPaperForPreview)}
+                variant="outline"
+                className="h-9 px-3.5 bg-slate-800 text-indigo-300 border-indigo-500/50 hover:bg-slate-700 hover:text-white font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer shadow-sm"
+                title="Edit this paper in generator"
+              >
+                <Edit3 className="w-3.5 h-3.5 text-indigo-400" />
+                <span className="hidden sm:inline">Edit in Generator</span>
+                <span className="sm:hidden">Edit</span>
+              </Button>
+
               <Button
                 onClick={handlePrintModalPaper}
-                className="h-9 px-4 gradient-brand text-white font-bold rounded-xl text-xs flex items-center gap-2 shadow-md hover:opacity-90 cursor-pointer"
-                title="Download or Print PDF directly"
+                variant="outline"
+                className="h-9 px-3.5 bg-slate-800 text-slate-200 border-slate-700 hover:bg-slate-700 hover:text-white font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer shadow-sm"
+                title="Print Paper"
               >
-                <Printer className="w-4 h-4" />
-                <span className="hidden sm:inline">Print / Download PDF</span>
-                <span className="sm:hidden">Print / PDF</span>
+                <Printer className="w-3.5 h-3.5 text-slate-300" />
+                <span>Print</span>
+              </Button>
+
+              <Button
+                onClick={handlePrintModalPaper}
+                className="h-9 px-4 gradient-brand text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-md hover:opacity-90 cursor-pointer"
+                title="Download as PDF"
+              >
+                <Download className="w-4 h-4" />
+                <span className="hidden sm:inline">Download PDF</span>
+                <span className="sm:hidden">PDF</span>
               </Button>
 
               <button
                 onClick={() => setSelectedPaperForPreview(null)}
-                className="h-9 w-9 rounded-xl bg-slate-800 hover:bg-red-600 text-slate-300 hover:text-white flex items-center justify-center transition-colors cursor-pointer border border-slate-700 shadow-sm"
+                className="h-9 w-9 rounded-xl bg-slate-800 hover:bg-red-600 text-slate-300 hover:text-white flex items-center justify-center transition-colors cursor-pointer border border-slate-700 shadow-sm ml-1"
                 title="Close Fullscreen Preview (Esc)"
               >
                 <X className="w-4 h-4" />

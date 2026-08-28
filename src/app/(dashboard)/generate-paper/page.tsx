@@ -246,6 +246,39 @@ export default function GeneratePaperPage() {
       fetchClasses(tokenStr);
       fetchSchoolInfo(tokenStr);
     }
+
+    // Check if user clicked Edit from Saved Papers
+    try {
+      const savedPaperJson = sessionStorage.getItem('edit_paper_data');
+      if (savedPaperJson) {
+        sessionStorage.removeItem('edit_paper_data');
+        const p = JSON.parse(savedPaperJson);
+        if (p.title) setExamTitle(p.title);
+        if (p.total_marks) setTotalMarks(p.total_marks);
+        if (p.duration_minutes) setTimeAllowed(`${p.duration_minutes} Mins`);
+        if (p.class_id) {
+          setSelectedClassId(p.class_id);
+          if (tokenStr) fetchSubjects(p.class_id, tokenStr);
+        }
+        if (p.subject_id) {
+          setSelectedSubjectId(p.subject_id);
+          if (tokenStr) fetchChapters(p.subject_id, tokenStr);
+        }
+        const bp = p.blueprint || {};
+        if (bp.schoolName) setSchoolName(bp.schoolName);
+        if (bp.timeAllowed) setTimeAllowed(bp.timeAllowed);
+        if (bp.instructions) setInstructions(bp.instructions);
+        if (bp.selectedChapterIds) setSelectedChapterIds(bp.selectedChapterIds);
+        if (bp.sections && Array.isArray(bp.sections)) setSections(bp.sections);
+        if (bp.selected_questions && Array.isArray(bp.selected_questions) && bp.selected_questions.length > 0) {
+          setPaperQuestions(bp.selected_questions);
+          setViewMode('preview');
+        }
+        toast.success(`Loaded "${p.title}" for editing!`);
+      }
+    } catch (e) {
+      console.error('Failed to load edit_paper_data', e);
+    }
   }, []);
 
   async function fetchSchoolInfo(authToken: string) {
