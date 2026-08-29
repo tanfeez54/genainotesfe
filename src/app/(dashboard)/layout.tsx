@@ -27,7 +27,7 @@ const navItems = [
   { href: '/scan', label: 'Scan Papers', icon: Sparkles },
   { href: '/question-bank', label: 'Question Bank', icon: FileText },
   { href: '/settings/school', label: 'School Settings', icon: Settings },
-  { href: '/dashboard', label: 'Legacy AI Notes', icon: LayoutDashboard },
+  { href: '/dashboard', label: 'Legacy AI Papers', icon: LayoutDashboard },
 ];
 
 function SidebarContent({
@@ -48,7 +48,7 @@ function SidebarContent({
         <div className="w-8 h-8 rounded-lg gradient-brand flex items-center justify-center shadow-sm">
           <BookOpen className="w-4 h-4 text-white" />
         </div>
-        <span className="text-base font-bold gradient-brand-text">SchoolPapers AI</span>
+        <span className="text-base font-bold gradient-brand-text">ExamPrep AI</span>
       </div>
 
       {/* Generate Paper CTA */}
@@ -265,7 +265,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <div className="w-6 h-6 rounded-md gradient-brand flex items-center justify-center">
                   <BookOpen className="w-3.5 h-3.5 text-white" />
                 </div>
-                <span className="font-bold text-sm gradient-brand-text">SchoolPapers AI</span>
+                <span className="font-bold text-sm gradient-brand-text">ExamPrep AI</span>
               </div>
             </div>
 

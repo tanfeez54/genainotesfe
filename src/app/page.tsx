@@ -19,43 +19,43 @@ import {
 const features = [
   {
     icon: Globe,
-    title: 'Any URL, Instantly',
-    description: 'Paste any article, blog, documentation, or research page. Works on JS-heavy sites too.',
+    title: 'Any Topic, Instantly',
+    description: 'Paste any syllabus, textbook extract, or topic list. Works on any subject.',
     color: 'text-blue-500',
     bg: 'bg-blue-50 dark:bg-blue-950/40',
   },
   {
     icon: Brain,
-    title: 'AI-Powered Structure',
-    description: 'Gemini 1.5 Pro analyzes, structures, and creates comprehensive study notes tailored to your level.',
+    title: 'AI-Powered Question Generation',
+    description: 'Gemini 1.5 Pro creates MCQs, short, and long answer questions tailored to your level.',
     color: 'text-purple-500',
     bg: 'bg-purple-50 dark:bg-purple-950/40',
   },
   {
     icon: FileText,
-    title: 'Edit & Organize',
-    description: 'Edit notes inline, organize by subject, search across all your notes with powerful filters.',
+    title: 'Edit & Perfect',
+    description: 'Edit papers inline, organize by subject, print directly in professional A4 format.',
     color: 'text-teal-500',
     bg: 'bg-teal-50 dark:bg-teal-950/40',
   },
   {
     icon: Zap,
-    title: 'Multiple Modes',
-    description: 'Exam prep, revision, beginner learning, or deep understanding — each generates different note styles.',
+    title: 'Multiple Subjects',
+    description: 'Math, Science, History, or Literature — generates context-aware questions.',
     color: 'text-amber-500',
     bg: 'bg-amber-50 dark:bg-amber-950/40',
   },
   {
     icon: Shield,
     title: 'Private & Secure',
-    description: 'Your notes are private by default. Row-level security ensures only you can access your data.',
+    description: 'Your test papers are private by default. Row-level security ensures only you can access your data.',
     color: 'text-green-500',
     bg: 'bg-green-50 dark:bg-green-950/40',
   },
   {
     icon: Download,
-    title: 'Export Anywhere',
-    description: 'Export your notes as Markdown or PDF — take them to any platform.',
+    title: 'Print & PDF Ready',
+    description: 'Print directly with perfect page breaks or export as PDF — take them anywhere.',
     color: 'text-rose-500',
     bg: 'bg-rose-50 dark:bg-rose-950/40',
   },
@@ -64,28 +64,28 @@ const features = [
 const steps = [
   {
     step: '01',
-    title: 'Paste a URL',
-    description: 'Copy any URL — article, documentation, blog post, Wikipedia — and paste it in.',
+    title: 'Provide Topics',
+    description: 'Enter the subjects, topics, or paste a syllabus to base the exam on.',
   },
   {
     step: '02',
-    title: 'Choose Your Settings',
-    description: 'Select purpose, level, language, and what sections to include. Customize to your learning style.',
+    title: 'Choose Settings',
+    description: 'Select difficulty level, total marks, and paper structure (MCQs, Short answers, etc).',
   },
   {
     step: '03',
-    title: 'Get Structured Notes',
-    description: 'AI generates organized, editable study notes in seconds. View, edit, and save them to your dashboard.',
+    title: 'Get Exam Paper',
+    description: 'AI generates an organized, printable exam paper in seconds. Edit and print it directly.',
   },
 ];
 
 const plans = [
-  'Summary & Key Points',
-  'Examples & Formulas',
-  'Common Mistakes',
-  'Quick Revision Bullets',
-  'Practice Questions',
-  'Multiple Languages',
+  'Multiple Choice Questions',
+  'Short & Long Answers',
+  'Match the Following',
+  'True/False',
+  'Auto-Formatting for Print',
+  'Subject-Specific Focus',
 ];
 
 export default function LandingPage() {
@@ -99,7 +99,7 @@ export default function LandingPage() {
               <div className="w-8 h-8 rounded-lg gradient-brand flex items-center justify-center">
                 <BookOpen className="w-4 h-4 text-white" />
               </div>
-              <span className="text-lg font-bold gradient-brand-text">NoteGen AI</span>
+              <span className="text-lg font-bold gradient-brand-text">ExamPrep AI</span>
             </div>
             <div className="flex items-center gap-3">
               <Link href="/login">
@@ -131,13 +131,12 @@ export default function LandingPage() {
             </Badge>
 
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-foreground mb-6 leading-tight">
-              Turn any URL into{' '}
-              <span className="gradient-brand-text">perfect study notes</span>
+              Turn any curriculum into{' '}
+              <span className="gradient-brand-text">perfect exam papers</span>
             </h1>
 
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
-              Paste a link from any article, documentation, or blog post. Our AI reads it,
-              structures it, and generates editable study notes — exam-ready in seconds.
+              Upload a syllabus or topics. Our AI reads it, structures it, and generates professional, ready-to-print examination papers in seconds.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
@@ -175,27 +174,27 @@ export default function LandingPage() {
                 <div className="w-3 h-3 rounded-full bg-amber-400" />
                 <div className="w-3 h-3 rounded-full bg-green-400" />
                 <div className="flex-1 ml-4 h-6 rounded-md bg-background border border-border px-3 text-xs text-muted-foreground flex items-center">
-                  notegen.ai/notes/new
+                  examprep.ai/generate-paper
                 </div>
               </div>
               <div className="p-6 text-left">
                 <div className="flex gap-3 mb-4">
                   <div className="flex-1 h-10 rounded-lg bg-muted/60 border border-border flex items-center px-3">
-                    <span className="text-sm text-muted-foreground">https://en.wikipedia.org/wiki/Machine_learning</span>
+                    <span className="text-sm text-muted-foreground">Class 10 Science - Periodic Classification</span>
                   </div>
                   <div className="w-24 h-10 rounded-lg gradient-brand flex items-center justify-center">
                     <span className="text-white text-sm font-medium">Generate</span>
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-2 mb-4">
-                  {['Exam Prep', 'Intermediate', 'English'].map((v) => (
+                  {['Final Exam', 'Hard', '50 Marks'].map((v) => (
                     <div key={v} className="h-8 rounded-md bg-muted/60 border border-border flex items-center justify-center">
                       <span className="text-xs text-muted-foreground">{v}</span>
                     </div>
                   ))}
                 </div>
                 <div className="space-y-2">
-                  {['Introduction to Machine Learning', 'Core Concepts', 'Key Algorithms', 'Applications'].map((s, i) => (
+                  {['Section A: Multiple Choice', 'Section B: Short Answer', 'Section C: Long Answer'].map((s, i) => (
                     <div key={s} className={`h-12 rounded-lg border border-border p-3 flex items-center gap-3 animate-fade-in`} style={{ animationDelay: `${i * 100}ms` }}>
                       <div className="w-2 h-2 rounded-full bg-primary" />
                       <span className="text-sm font-medium">{s}</span>
@@ -214,7 +213,7 @@ export default function LandingPage() {
           <div className="text-center mb-16">
             <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">How it works</Badge>
             <h2 className="text-4xl font-bold text-foreground">
-              Study smarter in 3 steps
+              Prepare papers smarter in 3 steps
             </h2>
           </div>
 
@@ -245,7 +244,7 @@ export default function LandingPage() {
           <div className="text-center mb-16">
             <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">Features</Badge>
             <h2 className="text-4xl font-bold text-foreground">
-              Everything you need to study effectively
+              Everything you need to create exams
             </h2>
           </div>
 
@@ -270,9 +269,9 @@ export default function LandingPage() {
       {/* What's included */}
       <section className="py-24 bg-muted/30">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center">
-          <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">Included in every note</Badge>
+          <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">Included in every paper</Badge>
           <h2 className="text-4xl font-bold text-foreground mb-12">
-            Rich, structured notes — every time
+            Rich, structured exams — every time
           </h2>
           <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
             {plans.map((plan) => (
@@ -290,10 +289,10 @@ export default function LandingPage() {
         <div className="absolute inset-0 gradient-brand opacity-5" />
         <div className="relative max-w-3xl mx-auto px-4 sm:px-6 text-center">
           <h2 className="text-4xl sm:text-5xl font-bold text-foreground mb-6">
-            Ready to study smarter?
+            Ready to prepare exams faster?
           </h2>
           <p className="text-xl text-muted-foreground mb-10">
-            Join thousands of students using NoteGen AI to turn any article into perfect study notes.
+            Join thousands of teachers using ExamPrep AI to turn any syllabus into perfect exam papers.
           </p>
           <Link href="/login">
             <Button
@@ -314,10 +313,10 @@ export default function LandingPage() {
             <div className="w-6 h-6 rounded-md gradient-brand flex items-center justify-center">
               <BookOpen className="w-3 h-3 text-white" />
             </div>
-            <span className="text-sm font-semibold text-foreground">NoteGen AI</span>
+            <span className="text-sm font-semibold text-foreground">ExamPrep AI</span>
           </div>
           <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} NoteGen AI. Built with Gemini 1.5 Pro.
+            © {new Date().getFullYear()} ExamPrep AI. Built with Gemini 1.5 Pro.
           </p>
         </div>
       </footer>

@@ -63,11 +63,11 @@ export default function SignupPage() {
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-sm animate-fade-in">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 mb-10 group">
+          <Link href="/" className="inline-flex items-center gap-2 mb-8 group">
             <div className="w-9 h-9 rounded-xl gradient-brand flex items-center justify-center shadow-md group-hover:shadow-primary/30 transition-shadow">
               <BookOpen className="w-5 h-5 text-white" />
             </div>
-            <span className="text-xl font-bold gradient-brand-text">NoteGen AI</span>
+            <span className="text-xl font-bold gradient-brand-text">ExamPrep AI</span>
           </Link>
 
           <h1 className="text-3xl font-bold text-foreground mb-2">Create an account</h1>

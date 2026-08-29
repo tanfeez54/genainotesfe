@@ -137,10 +137,10 @@ export default function VerifyPage() {
       <div className="w-full max-w-sm animate-fade-in">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2 mb-10 group">
-          <div className="w-9 h-9 rounded-xl gradient-brand flex items-center justify-center shadow-md">
-            <BookOpen className="w-5 h-5 text-white" />
+          <div className="w-12 h-12 rounded-2xl gradient-brand flex items-center justify-center shadow-lg shadow-primary/20 mb-6 group-hover:scale-105 transition-transform">
+            <BookOpen className="w-6 h-6 text-white" />
           </div>
-          <span className="text-xl font-bold gradient-brand-text">NoteGen AI</span>
+          <span className="text-xl font-bold gradient-brand-text">ExamPrep AI</span>
         </Link>
 
         <Link href="/login">

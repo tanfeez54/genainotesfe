@@ -10,15 +10,15 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: 'NoteGen AI — Turn Any URL into Study Notes',
-    template: '%s | NoteGen AI',
+    default: 'ExamPrep AI — Turn Any Curriculum into Exam Papers',
+    template: '%s | ExamPrep AI',
   },
   description:
-    'Paste a URL, choose your settings, and get structured AI-powered study notes in seconds. Perfect for exam prep, revision, and deep learning.',
-  keywords: ['AI notes', 'study notes generator', 'URL to notes', 'AI study tool'],
+    'Paste a curriculum, choose your settings, and get structured AI-powered examination papers in seconds. Perfect for teachers and schools.',
+  keywords: ['AI exam papers', 'exam generator', 'test paper generator', 'AI school tool'],
   openGraph: {
-    title: 'NoteGen AI — Turn Any URL into Study Notes',
-    description: 'AI-powered study notes from any web page',
+    title: 'ExamPrep AI — Turn Any Curriculum into Exam Papers',
+    description: 'AI-powered examination papers from any syllabus',
     type: 'website',
   },
 };

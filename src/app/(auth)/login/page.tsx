@@ -65,7 +65,7 @@ export default function LoginPage() {
             <div className="w-9 h-9 rounded-xl gradient-brand flex items-center justify-center shadow-md group-hover:shadow-primary/30 transition-shadow">
               <BookOpen className="w-5 h-5 text-white" />
             </div>
-            <span className="text-xl font-bold gradient-brand-text">NoteGen AI</span>
+            <span className="text-xl font-bold gradient-brand-text">ExamPrep AI</span>
           </Link>
 
           <h1 className="text-3xl font-bold text-foreground mb-2">Welcome back</h1>

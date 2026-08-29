@@ -374,17 +374,24 @@ export function printExamPaper(data: ExamPaperData) {
           ${
             isTwoColumn
               ? `
-          .sec-questions {
-            column-count: 2;
-            column-gap: 22px;
-            column-rule: 1px solid #cbd5e1;
+          .sec-questions::after {
+            content: "";
+            display: table;
+            clear: both;
           }
           .question-block {
+            float: left;
+            width: 48%;
+            margin-right: 4%;
             break-inside: avoid !important;
             page-break-inside: avoid !important;
-            display: inline-block;
-            width: 100%;
             margin-bottom: 12px;
+          }
+          .question-block:nth-child(even) {
+            margin-right: 0;
+          }
+          .question-block:nth-child(odd) {
+            clear: left;
           }
           `
               : ''
