@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { BookOpen, Mail, User, Phone, Loader2, ArrowRight } from 'lucide-react';
+import { BookOpen, Mail, User, Phone, Loader2, ArrowRight, LayoutTemplate } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -41,7 +41,6 @@ export default function SignupPage() {
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || 'Failed to sign up');
 
-      // Store email in sessionStorage for verify page
       sessionStorage.setItem('otpEmail', data.email);
 
       toast.success('Check your inbox!', {
@@ -58,130 +57,129 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex">
-      {/* Left: Form */}
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="w-full max-w-sm animate-fade-in">
-          {/* Logo */}
-          <Link href="/" className="inline-flex items-center gap-2 mb-8 group">
-            <div className="w-9 h-9 rounded-xl gradient-brand flex items-center justify-center shadow-md group-hover:shadow-primary/30 transition-shadow">
-              <BookOpen className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-xl font-bold gradient-brand-text">ExamPrep AI</span>
-          </Link>
-
-          <h1 className="text-3xl font-bold text-foreground mb-2">Create an account</h1>
-          <p className="text-muted-foreground mb-8">
-            Join us to start generating smart AI notes instantly.
-          </p>
-
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="full_name" className="text-sm font-medium">
-                Full Name
-              </Label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  id="full_name"
-                  type="text"
-                  placeholder="John Doe"
-                  className="pl-10 h-11"
-                  autoComplete="name"
-                  {...register('full_name')}
-                />
+    <div className="min-h-screen bg-muted/20 flex items-center justify-center p-4 sm:p-8">
+      <div className="w-full max-w-5xl flex rounded-2xl overflow-hidden border border-border bg-card shadow-xl">
+        {/* Left: Form */}
+        <div className="flex-1 flex items-center justify-center p-8 lg:p-16 bg-card">
+          <div className="w-full max-w-sm animate-fade-in">
+            {/* Logo */}
+            <Link href="/" className="inline-flex items-center gap-3 mb-10 group">
+              <div className="w-9 h-9 rounded-md bg-primary flex items-center justify-center">
+                <BookOpen className="w-5 h-5 text-primary-foreground" />
               </div>
-              {errors.full_name && (
-                <p className="text-sm text-destructive">{errors.full_name.message}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-medium">
-                Email address
-              </Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="you@example.com"
-                  className="pl-10 h-11"
-                  autoComplete="email"
-                  {...register('email')}
-                />
-              </div>
-              {errors.email && (
-                <p className="text-sm text-destructive">{errors.email.message}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="mobile" className="text-sm font-medium">
-                Mobile Number <span className="text-muted-foreground font-normal">(Optional)</span>
-              </Label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  id="mobile"
-                  type="tel"
-                  placeholder="+1 (555) 000-0000"
-                  className="pl-10 h-11"
-                  autoComplete="tel"
-                  {...register('mobile')}
-                />
-              </div>
-            </div>
-
-            <Button
-              type="submit"
-              className="w-full h-11 gradient-brand text-white hover:opacity-90 transition-opacity font-semibold shadow-md mt-2"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 w-4 h-4 animate-spin" />
-                  Creating account...
-                </>
-              ) : (
-                <>
-                  Continue
-                  <ArrowRight className="ml-2 w-4 h-4" />
-                </>
-              )}
-            </Button>
-          </form>
-
-          <p className="mt-8 text-sm text-center text-muted-foreground">
-            Already have an account?{' '}
-            <Link href="/login" className="text-primary font-semibold hover:underline">
-              Log in
+              <span className="text-xl font-heading font-bold text-foreground">ExamPrep AI</span>
             </Link>
-          </p>
-        </div>
-      </div>
 
-      {/* Right: Brand panel */}
-      <div className="hidden lg:flex flex-1 gradient-brand items-center justify-center p-12 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-10 left-10 w-40 h-40 rounded-full bg-white blur-3xl" />
-          <div className="absolute bottom-10 right-10 w-60 h-60 rounded-full bg-white blur-3xl" />
-        </div>
-        <div className="relative text-white text-center max-w-sm">
-          <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center mx-auto mb-6 backdrop-blur-sm">
-            <BookOpen className="w-8 h-8 text-white" />
-          </div>
-          <h2 className="text-3xl font-bold mb-4">Study smarter, not harder</h2>
-          <p className="text-white/80 leading-relaxed">
-            Turn any URL into structured, editable study notes using Gemini AI. 
-            Perfect for exams, revisions, and deep learning.
-          </p>
-          <div className="mt-8 grid grid-cols-2 gap-3 text-sm">
-            {['AI-Powered Notes', 'Any Language', 'Edit Inline', 'Export Anywhere'].map((f) => (
-              <div key={f} className="bg-white/15 rounded-xl px-3 py-2 backdrop-blur-sm">
-                {f}
+            <h1 className="text-3xl font-heading font-bold text-foreground mb-2">Request Access</h1>
+            <p className="text-muted-foreground mb-8 text-sm">
+              Create an enterprise account to generate smart exam papers.
+            </p>
+
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="full_name" className="text-sm font-medium">
+                  Full Name
+                </Label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    id="full_name"
+                    type="text"
+                    placeholder="John Doe"
+                    className="pl-10 h-11 bg-background"
+                    autoComplete="name"
+                    {...register('full_name')}
+                  />
+                </div>
+                {errors.full_name && (
+                  <p className="text-sm text-destructive font-medium">{errors.full_name.message}</p>
+                )}
               </div>
-            ))}
+
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-sm font-medium">
+                  Work Email
+                </Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="name@school.edu"
+                    className="pl-10 h-11 bg-background"
+                    autoComplete="email"
+                    {...register('email')}
+                  />
+                </div>
+                {errors.email && (
+                  <p className="text-sm text-destructive font-medium">{errors.email.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="mobile" className="text-sm font-medium">
+                  Phone Number <span className="text-muted-foreground font-normal">(Optional)</span>
+                </Label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    id="mobile"
+                    type="tel"
+                    placeholder="+1 (555) 000-0000"
+                    className="pl-10 h-11 bg-background"
+                    autoComplete="tel"
+                    {...register('mobile')}
+                  />
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full h-11 bg-primary text-primary-foreground hover:opacity-90 font-medium rounded-md mt-4"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 w-4 h-4 animate-spin" />
+                    Creating account...
+                  </>
+                ) : (
+                  <>
+                    Continue
+                    <ArrowRight className="ml-2 w-4 h-4" />
+                  </>
+                )}
+              </Button>
+            </form>
+
+            <p className="mt-8 text-sm text-center text-muted-foreground">
+              Already have an account?{' '}
+              <Link href="/login" className="text-primary font-medium hover:underline">
+                Log in
+              </Link>
+            </p>
+          </div>
+        </div>
+
+        {/* Right: Info panel */}
+        <div className="hidden lg:flex flex-1 bg-muted/40 items-center justify-center p-12 border-l border-border relative">
+          <div className="absolute inset-0 dotted-bg opacity-50"></div>
+          
+          <div className="relative z-10 text-center max-w-sm">
+            <div className="w-16 h-16 rounded-xl bg-background border border-border flex items-center justify-center mx-auto mb-8 shadow-sm">
+              <LayoutTemplate className="w-8 h-8 text-primary" />
+            </div>
+            <h2 className="text-2xl font-heading font-bold mb-4 text-foreground">Standardize Assessments</h2>
+            <p className="text-muted-foreground leading-relaxed text-sm mb-8">
+              Generate consistent, high-quality examination papers aligned with your institutional standards.
+            </p>
+            <div className="grid grid-cols-2 gap-3 text-sm font-medium">
+              {['Auto-Formatting', 'Syllabus Alignment', 'Secure Storage', 'Print Ready'].map((f) => (
+                <div key={f} className="bg-background rounded-md px-3 py-2 border border-border text-foreground">
+                  {f}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>

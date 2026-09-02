@@ -118,11 +118,6 @@ export default function VerifyPage() {
     if (cooldown > 0) return;
     setIsResending(true);
     try {
-      // NOTE: Resend logic for signup could be different, but for now we'll assume they just go through signup again or we can have a generic resend.
-      // Since this is just for signup, hitting signup again might fail if user already exists but we'll try hitting a resend or just show error.
-      // We will skip actual resend endpoint for this scope or rely on hitting /api/auth/signup again.
-      // For now, let's hit /api/auth/signup again to resend OTP. This requires full name which we don't have here.
-      // I'll just show a toast to ask them to signup again.
       toast.error('Resend not supported yet. Please go back and signup again.');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to resend';
@@ -133,32 +128,32 @@ export default function VerifyPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-8">
-      <div className="w-full max-w-sm animate-fade-in">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 mb-10 group">
-          <div className="w-12 h-12 rounded-2xl gradient-brand flex items-center justify-center shadow-lg shadow-primary/20 mb-6 group-hover:scale-105 transition-transform">
-            <BookOpen className="w-6 h-6 text-white" />
+    <div className="min-h-screen bg-muted/20 flex items-center justify-center p-4">
+      <div className="w-full max-w-md animate-fade-in bg-card border border-border p-10 lg:p-12 shadow-xl rounded-2xl relative overflow-hidden">
+        
+        <Link href="/" className="inline-flex items-center gap-3 mb-8 group">
+          <div className="w-9 h-9 rounded-md bg-primary flex items-center justify-center">
+            <BookOpen className="w-5 h-5 text-primary-foreground" />
           </div>
-          <span className="text-xl font-bold gradient-brand-text">ExamPrep AI</span>
+          <span className="text-xl font-heading font-bold text-foreground">ExamPrep AI</span>
         </Link>
 
         <Link href="/login">
-          <Button variant="ghost" size="sm" className="mb-6 -ml-1 text-muted-foreground">
-            <ArrowLeft className="w-4 h-4 mr-1" />
+          <Button variant="ghost" size="sm" className="mb-6 -ml-2 text-muted-foreground hover:text-foreground">
+            <ArrowLeft className="w-4 h-4 mr-1.5" />
             Back
           </Button>
         </Link>
 
-        <h1 className="text-3xl font-bold text-foreground mb-2">Check your email</h1>
-        <p className="text-muted-foreground mb-8">
+        <h1 className="text-2xl font-heading font-bold text-foreground mb-3">Check your email</h1>
+        <p className="text-muted-foreground mb-8 text-sm">
           We sent a 6-digit code to{' '}
           <span className="font-medium text-foreground">{email}</span>.
-          Enter it below to sign in.
+          Enter it below to verify.
         </p>
 
         {/* OTP Input boxes */}
-        <div className="flex gap-2.5 mb-6" role="group" aria-label="OTP input">
+        <div className="flex gap-3 mb-8 justify-between" role="group" aria-label="OTP input">
           {Array.from({ length: OTP_LENGTH }).map((_, i) => (
             <input
               key={i}
@@ -175,13 +170,13 @@ export default function VerifyPage() {
               }}
               aria-label={`Digit ${i + 1}`}
               className={`
-                w-12 h-14 text-center text-2xl font-bold rounded-xl border-2 bg-card
-                text-foreground outline-none transition-all
+                w-12 h-14 sm:w-14 sm:h-16 text-center text-xl font-bold rounded-md border bg-background
+                text-foreground outline-none transition-all focus:ring-2 focus:ring-primary/20
                 ${error
                   ? 'border-destructive bg-destructive/5'
                   : otp[i]
-                  ? 'border-primary bg-primary/5 animate-pulse-glow'
-                  : 'border-border hover:border-primary/50 focus:border-primary focus:bg-primary/5'
+                  ? 'border-primary shadow-sm'
+                  : 'border-border hover:border-primary/50 focus:border-primary'
                 }
               `}
             />
@@ -190,13 +185,13 @@ export default function VerifyPage() {
 
         {/* Error */}
         {error && (
-          <p className="text-sm text-destructive mb-4 animate-fade-in">{error}</p>
+          <p className="text-sm text-destructive mb-6 animate-fade-in font-medium">{error}</p>
         )}
 
         <Button
           id="verify-btn"
           onClick={handleVerify}
-          className="w-full h-11 gradient-brand text-white hover:opacity-90 transition-opacity font-semibold shadow-md mb-4"
+          className="w-full h-11 bg-primary text-primary-foreground hover:opacity-90 font-medium rounded-md mb-6"
           disabled={isVerifying || otp.join('').length !== OTP_LENGTH}
         >
           {isVerifying ? (
@@ -205,31 +200,31 @@ export default function VerifyPage() {
               Verifying...
             </>
           ) : (
-            'Verify & Sign in'
+            'Verify & Continue'
           )}
         </Button>
 
         {/* Resend */}
         <div className="text-center">
-          <p className="text-sm text-muted-foreground mb-2">Didn&apos;t receive a code?</p>
+          <p className="text-sm text-muted-foreground mb-3">Didn&apos;t receive a code?</p>
           <Button
             id="resend-btn"
             variant="ghost"
             size="sm"
             onClick={handleResend}
             disabled={cooldown > 0 || isResending}
-            className="text-primary hover:text-primary/80"
+            className="text-primary hover:text-primary/80 font-medium"
           >
             {isResending ? (
-              <Loader2 className="mr-1.5 w-3.5 h-3.5 animate-spin" />
+              <Loader2 className="mr-2 w-4 h-4 animate-spin" />
             ) : (
-              <RefreshCw className="mr-1.5 w-3.5 h-3.5" />
+              <RefreshCw className="mr-2 w-4 h-4" />
             )}
             {cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend code'}
           </Button>
         </div>
 
-        <p className="mt-8 text-xs text-center text-muted-foreground">
+        <p className="mt-8 text-xs text-center text-muted-foreground/80 font-medium">
           Code expires in 10 minutes. Check your spam folder if you don&apos;t see it.
         </p>
       </div>

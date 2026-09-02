@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { Loader2, Building, UploadCloud, ChevronRight, ChevronLeft, CheckCircle2, School } from 'lucide-react';
 
@@ -213,7 +214,24 @@ export default function OnboardingPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Classes Range</Label>
-                  <Input placeholder="e.g. Nursery - 10th" value={classesRange} onChange={e => setClassesRange(e.target.value)} />
+                  <Select value={classesRange} onValueChange={setClassesRange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select classes range" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Nursery - 5">Nursery - 5</SelectItem>
+                      <SelectItem value="Nursery - 8">Nursery - 8</SelectItem>
+                      <SelectItem value="Nursery - 10">Nursery - 10</SelectItem>
+                      <SelectItem value="Nursery - 12">Nursery - 12</SelectItem>
+                      <SelectItem value="1 - 5">1 - 5</SelectItem>
+                      <SelectItem value="1 - 8">1 - 8</SelectItem>
+                      <SelectItem value="1 - 10">1 - 10</SelectItem>
+                      <SelectItem value="1 - 12">1 - 12</SelectItem>
+                      <SelectItem value="6 - 10">6 - 10</SelectItem>
+                      <SelectItem value="6 - 12">6 - 12</SelectItem>
+                      <SelectItem value="9 - 12">9 - 12</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">

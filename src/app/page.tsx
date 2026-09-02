@@ -8,106 +8,86 @@ import {
   Zap,
   Shield,
   Globe,
-  Sparkles,
   ArrowRight,
-  CheckCircle,
   Brain,
   FileText,
   Download,
+  CheckSquare,
+  ListOrdered,
+  LayoutTemplate
 } from 'lucide-react';
 
 const features = [
   {
     icon: Globe,
-    title: 'Any Topic, Instantly',
-    description: 'Paste any syllabus, textbook extract, or topic list. Works on any subject.',
-    color: 'text-blue-500',
-    bg: 'bg-blue-50 dark:bg-blue-950/40',
+    title: 'Any Subject, Any Topic',
+    description: 'Paste any curriculum, textbook extract, or topic list. Works seamlessly across all educational subjects.',
   },
   {
     icon: Brain,
-    title: 'AI-Powered Question Generation',
-    description: 'Gemini 1.5 Pro creates MCQs, short, and long answer questions tailored to your level.',
-    color: 'text-purple-500',
-    bg: 'bg-purple-50 dark:bg-purple-950/40',
+    title: 'Intelligent Generation',
+    description: 'Automatically creates well-structured examination papers tailored to your specified difficulty level and total marks.',
   },
   {
     icon: FileText,
     title: 'Edit & Perfect',
-    description: 'Edit papers inline, organize by subject, print directly in professional A4 format.',
-    color: 'text-teal-500',
-    bg: 'bg-teal-50 dark:bg-teal-950/40',
+    description: 'Edit generated questions inline, organize by section, and make adjustments directly in the browser.',
   },
   {
-    icon: Zap,
-    title: 'Multiple Subjects',
-    description: 'Math, Science, History, or Literature — generates context-aware questions.',
-    color: 'text-amber-500',
-    bg: 'bg-amber-50 dark:bg-amber-950/40',
+    icon: CheckSquare,
+    title: 'Diverse Question Types',
+    description: 'Supports Multiple Choice (MCQs), Short & Long Answers, True/False, and Match the Following.',
   },
   {
-    icon: Shield,
-    title: 'Private & Secure',
-    description: 'Your test papers are private by default. Row-level security ensures only you can access your data.',
-    color: 'text-green-500',
-    bg: 'bg-green-50 dark:bg-green-950/40',
+    icon: LayoutTemplate,
+    title: 'Professional Layout',
+    description: 'Generated papers are automatically formatted with proper sections, headings, and marking schemes.',
   },
   {
     icon: Download,
-    title: 'Print & PDF Ready',
-    description: 'Print directly with perfect page breaks or export as PDF — take them anywhere.',
-    color: 'text-rose-500',
-    bg: 'bg-rose-50 dark:bg-rose-950/40',
-  },
+    title: 'Print & PDF Export',
+    description: 'Print directly with precise page breaks and A4 formatting, or export as a clean PDF document.',
+  }
 ];
 
 const steps = [
   {
     step: '01',
-    title: 'Provide Topics',
-    description: 'Enter the subjects, topics, or paste a syllabus to base the exam on.',
+    title: 'Input Curriculum',
+    description: 'Provide the topics, syllabus, or paste text to base the examination on.',
   },
   {
     step: '02',
-    title: 'Choose Settings',
-    description: 'Select difficulty level, total marks, and paper structure (MCQs, Short answers, etc).',
+    title: 'Configure Exam',
+    description: 'Select difficulty, total marks, and the desired mix of question types.',
   },
   {
     step: '03',
-    title: 'Get Exam Paper',
-    description: 'AI generates an organized, printable exam paper in seconds. Edit and print it directly.',
+    title: 'Generate & Print',
+    description: 'Review the generated paper, make inline edits, and print or export to PDF.',
   },
-];
-
-const plans = [
-  'Multiple Choice Questions',
-  'Short & Long Answers',
-  'Match the Following',
-  'True/False',
-  'Auto-Formatting for Print',
-  'Subject-Specific Focus',
 ];
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background selection:bg-primary/20">
       {/* Navigation */}
-      <nav className="sticky top-0 z-50 border-b border-border/60 glass">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <nav className="fixed top-0 w-full z-50 bg-background/90 backdrop-blur-md border-b border-border">
+        <div className="max-w-7xl mx-auto px-6 sm:px-8">
           <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg gradient-brand flex items-center justify-center">
-                <BookOpen className="w-4 h-4 text-white" />
-              </div>
-              <span className="text-lg font-bold gradient-brand-text">ExamPrep AI</span>
-            </div>
             <div className="flex items-center gap-3">
-              <Link href="/login">
-                <Button variant="ghost" size="sm">Sign in</Button>
+              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+                <BookOpen className="w-4 h-4 text-primary-foreground" />
+              </div>
+              <span className="text-xl font-heading font-bold text-foreground tracking-tight">ExamPrep AI</span>
+            </div>
+            <div className="flex items-center gap-4">
+              <Link href="/login" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors hidden sm:block">
+                Sign in
               </Link>
               <Link href="/login">
-                <Button size="sm" className="gradient-brand text-white hover:opacity-90 transition-opacity shadow-sm">
-                  Get Started Free
+                <Button size="sm" className="bg-primary text-primary-foreground hover:opacity-90 rounded-md px-5 h-9 font-medium shadow-sm">
+                  Get Started
                 </Button>
               </Link>
             </div>
@@ -116,90 +96,84 @@ export default function LandingPage() {
       </nav>
 
       {/* Hero */}
-      <section className="relative overflow-hidden pt-20 pb-24">
-        {/* Background blobs */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute -top-40 -right-40 w-[600px] h-[600px] rounded-full bg-primary/8 blur-3xl" />
-          <div className="absolute -bottom-40 -left-40 w-[500px] h-[500px] rounded-full bg-chart-2/8 blur-3xl" />
-        </div>
-
-        <div className="relative max-w-5xl mx-auto px-4 sm:px-6 text-center">
+      <section className="relative pt-32 pb-20 sm:pt-40 sm:pb-32 overflow-hidden bg-muted/30">
+        <div className="absolute inset-0 grid-bg opacity-40"></div>
+        
+        <div className="relative max-w-5xl mx-auto px-6 sm:px-8 text-center">
           <div className="animate-fade-in">
-            <Badge className="mb-6 px-3 py-1 text-sm font-medium border-primary/30 bg-primary/10 text-primary">
-              <Sparkles className="w-3 h-3 mr-1.5" />
-              Powered by Gemini 1.5 Pro
+            <Badge variant="outline" className="mb-6 px-3 py-1 text-xs font-semibold rounded-full border-border bg-background text-muted-foreground">
+              <Shield className="w-3.5 h-3.5 mr-1.5" />
+              Enterprise-Grade Assessment Platform
             </Badge>
 
-            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-foreground mb-6 leading-tight">
-              Turn any curriculum into{' '}
-              <span className="gradient-brand-text">perfect exam papers</span>
+            <h1 className="text-4xl sm:text-6xl lg:text-7xl font-heading font-extrabold text-foreground mb-6 leading-tight tracking-tight">
+              Professional examination papers <br className="hidden sm:block" />
+              <span className="text-primary">generated in seconds.</span>
             </h1>
 
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
-              Upload a syllabus or topics. Our AI reads it, structures it, and generates professional, ready-to-print examination papers in seconds.
+            <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
+              Transform any curriculum into highly structured, ready-to-print assessments. Support for MCQs, short answers, long answers, and automated formatting.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <Link href="/login">
                 <Button
                   size="lg"
-                  className="gradient-brand text-white hover:opacity-90 transition-all shadow-lg hover:shadow-primary/30 hover:shadow-xl px-8 h-12 text-base font-semibold"
+                  className="bg-primary text-primary-foreground hover:opacity-90 shadow-sm rounded-md px-8 h-12 text-base font-medium transition-all group"
                 >
-                  Start for Free
-                  <ArrowRight className="ml-2 w-4 h-4" />
+                  Start Creating
+                  <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </Link>
-              <Link href="#how-it-works">
-                <Button variant="outline" size="lg" className="h-12 px-8 text-base">
-                  See how it works
+              <Link href="#features">
+                <Button variant="outline" size="lg" className="h-12 px-8 text-base rounded-md bg-background hover:bg-muted">
+                  View Features
                 </Button>
               </Link>
-            </div>
-
-            <div className="mt-8 flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
-              {['No credit card required', 'Free to start', 'Powered by Gemini AI'].map((t) => (
-                <span key={t} className="flex items-center gap-1.5">
-                  <CheckCircle className="w-3.5 h-3.5 text-green-500" />
-                  {t}
-                </span>
-              ))}
             </div>
           </div>
 
           {/* Hero preview card */}
-          <div className="mt-16 animate-fade-in delay-200">
-            <div className="relative mx-auto max-w-3xl rounded-2xl border border-border shadow-2xl bg-card overflow-hidden">
+          <div className="mt-16 sm:mt-24 animate-fade-in delay-200">
+            <div className="relative mx-auto max-w-4xl rounded-xl border border-border shadow-2xl overflow-hidden bg-background">
               <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/50">
-                <div className="w-3 h-3 rounded-full bg-red-400" />
-                <div className="w-3 h-3 rounded-full bg-amber-400" />
-                <div className="w-3 h-3 rounded-full bg-green-400" />
-                <div className="flex-1 ml-4 h-6 rounded-md bg-background border border-border px-3 text-xs text-muted-foreground flex items-center">
-                  examprep.ai/generate-paper
+                <div className="flex gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-border" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-border" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-border" />
+                </div>
+                <div className="flex-1 ml-4 h-6 rounded-md bg-background border border-border/50 px-3 text-[11px] text-muted-foreground flex items-center justify-center font-medium max-w-sm mx-auto">
+                  examprep.ai/workspace
                 </div>
               </div>
-              <div className="p-6 text-left">
-                <div className="flex gap-3 mb-4">
-                  <div className="flex-1 h-10 rounded-lg bg-muted/60 border border-border flex items-center px-3">
-                    <span className="text-sm text-muted-foreground">Class 10 Science - Periodic Classification</span>
+              <div className="p-8 text-left bg-background">
+                <div className="flex flex-col sm:flex-row gap-4 mb-8">
+                  <div className="flex-1 h-10 rounded-md bg-muted/50 border border-border flex items-center px-4">
+                    <span className="text-sm font-medium text-foreground">Subject: Computer Science - Data Structures</span>
                   </div>
-                  <div className="w-24 h-10 rounded-lg gradient-brand flex items-center justify-center">
-                    <span className="text-white text-sm font-medium">Generate</span>
+                  <div className="w-full sm:w-32 h-10 rounded-md bg-primary flex items-center justify-center shadow-sm">
+                    <span className="text-primary-foreground text-sm font-medium">Generate</span>
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-2 mb-4">
-                  {['Final Exam', 'Hard', '50 Marks'].map((v) => (
-                    <div key={v} className="h-8 rounded-md bg-muted/60 border border-border flex items-center justify-center">
-                      <span className="text-xs text-muted-foreground">{v}</span>
+                
+                <div className="border border-border rounded-md overflow-hidden">
+                  <div className="bg-muted/50 px-4 py-3 border-b border-border flex justify-between items-center">
+                    <span className="text-sm font-semibold text-foreground">Generated Paper Preview</span>
+                    <Badge variant="secondary" className="text-xs">50 Marks</Badge>
+                  </div>
+                  <div className="p-6 space-y-6 bg-background">
+                    <div>
+                      <h4 className="text-sm font-bold text-foreground mb-2">Section A: Multiple Choice Questions (10 Marks)</h4>
+                      <div className="space-y-2">
+                        <div className="text-sm text-muted-foreground">1. Which data structure uses LIFO?</div>
+                        <div className="text-sm text-muted-foreground pl-4 text-xs">A) Queue &nbsp; B) Stack &nbsp; C) Tree &nbsp; D) Graph</div>
+                      </div>
                     </div>
-                  ))}
-                </div>
-                <div className="space-y-2">
-                  {['Section A: Multiple Choice', 'Section B: Short Answer', 'Section C: Long Answer'].map((s, i) => (
-                    <div key={s} className={`h-12 rounded-lg border border-border p-3 flex items-center gap-3 animate-fade-in`} style={{ animationDelay: `${i * 100}ms` }}>
-                      <div className="w-2 h-2 rounded-full bg-primary" />
-                      <span className="text-sm font-medium">{s}</span>
+                    <div>
+                      <h4 className="text-sm font-bold text-foreground mb-2">Section B: Short Answer Questions (20 Marks)</h4>
+                      <div className="text-sm text-muted-foreground">1. Explain the time complexity of Binary Search.</div>
                     </div>
-                  ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -208,30 +182,26 @@ export default function LandingPage() {
       </section>
 
       {/* How it works */}
-      <section id="how-it-works" className="py-24 bg-muted/30">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+      <section className="py-20 sm:py-28 bg-background">
+        <div className="max-w-7xl mx-auto px-6 sm:px-8">
           <div className="text-center mb-16">
-            <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">How it works</Badge>
-            <h2 className="text-4xl font-bold text-foreground">
-              Prepare papers smarter in 3 steps
+            <h2 className="text-3xl sm:text-4xl font-heading font-bold text-foreground">
+              Streamlined Creation Process
             </h2>
+            <p className="mt-4 text-muted-foreground text-lg">From syllabus to printed paper in three simple steps.</p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-3 gap-8 relative">
             {steps.map((step, i) => (
               <div
                 key={step.step}
-                className={`relative p-8 rounded-2xl bg-card border border-border hover:border-primary/40 transition-all hover:shadow-lg group animate-fade-in`}
-                style={{ animationDelay: `${i * 150}ms` }}
+                className="relative p-8 rounded-xl border border-border bg-card shadow-sm group hover:border-primary/50 transition-colors"
               >
-                <div className="text-6xl font-black gradient-brand-text mb-4 opacity-30 group-hover:opacity-50 transition-opacity">
+                <div className="text-4xl font-heading font-bold text-muted-foreground/20 mb-4 group-hover:text-primary/20 transition-colors">
                   {step.step}
                 </div>
-                <h3 className="text-xl font-semibold mb-3 text-foreground">{step.title}</h3>
-                <p className="text-muted-foreground leading-relaxed">{step.description}</p>
-                {i < steps.length - 1 && (
-                  <ArrowRight className="absolute -right-5 top-1/2 -translate-y-1/2 hidden md:block text-border w-10 h-10" />
-                )}
+                <h3 className="text-xl font-heading font-bold mb-3 text-foreground">{step.title}</h3>
+                <p className="text-muted-foreground leading-relaxed text-sm">{step.description}</p>
               </div>
             ))}
           </div>
@@ -239,26 +209,27 @@ export default function LandingPage() {
       </section>
 
       {/* Features */}
-      <section className="py-24">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+      <section id="features" className="py-20 sm:py-28 bg-muted/30 border-y border-border">
+        <div className="max-w-7xl mx-auto px-6 sm:px-8">
           <div className="text-center mb-16">
-            <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">Features</Badge>
-            <h2 className="text-4xl font-bold text-foreground">
-              Everything you need to create exams
+            <h2 className="text-3xl sm:text-4xl font-heading font-bold text-foreground">
+              Comprehensive Feature Set
             </h2>
+            <p className="mt-4 text-muted-foreground text-lg max-w-2xl mx-auto">
+              Everything you need to manage, generate, and distribute professional examination papers.
+            </p>
           </div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {features.map((feature, i) => (
               <div
                 key={feature.title}
-                className={`p-6 rounded-2xl bg-card border border-border hover:border-primary/30 hover:shadow-md transition-all group animate-fade-in`}
-                style={{ animationDelay: `${i * 80}ms` }}
+                className="p-6 rounded-xl border border-border bg-card hover:shadow-md transition-shadow"
               >
-                <div className={`w-11 h-11 rounded-xl ${feature.bg} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
-                  <feature.icon className={`w-5 h-5 ${feature.color}`} />
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-5">
+                  <feature.icon className="w-5 h-5 text-primary" />
                 </div>
-                <h3 className="text-lg font-semibold mb-2 text-foreground">{feature.title}</h3>
+                <h3 className="text-lg font-heading font-bold mb-2 text-foreground">{feature.title}</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">{feature.description}</p>
               </div>
             ))}
@@ -266,57 +237,37 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* What's included */}
-      <section className="py-24 bg-muted/30">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center">
-          <Badge className="mb-4 bg-primary/10 text-primary border-primary/20">Included in every paper</Badge>
-          <h2 className="text-4xl font-bold text-foreground mb-12">
-            Rich, structured exams — every time
-          </h2>
-          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {plans.map((plan) => (
-              <div key={plan} className="flex items-center gap-3 p-4 rounded-xl bg-card border border-border">
-                <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-                <span className="text-sm font-medium text-foreground">{plan}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* CTA */}
-      <section className="py-24 relative overflow-hidden">
-        <div className="absolute inset-0 gradient-brand opacity-5" />
-        <div className="relative max-w-3xl mx-auto px-4 sm:px-6 text-center">
-          <h2 className="text-4xl sm:text-5xl font-bold text-foreground mb-6">
-            Ready to prepare exams faster?
+      <section className="py-24 bg-background text-center border-b border-border">
+        <div className="max-w-3xl mx-auto px-6 sm:px-8">
+          <h2 className="text-3xl sm:text-5xl font-heading font-bold text-foreground mb-6">
+            Ready to upgrade your assessments?
           </h2>
-          <p className="text-xl text-muted-foreground mb-10">
-            Join thousands of teachers using ExamPrep AI to turn any syllabus into perfect exam papers.
+          <p className="text-lg text-muted-foreground mb-10 max-w-xl mx-auto">
+            Join educational institutions worldwide using ExamPrep AI to standardize and accelerate their examination process.
           </p>
           <Link href="/login">
             <Button
               size="lg"
-              className="gradient-brand text-white hover:opacity-90 transition-all shadow-lg hover:shadow-primary/30 hover:shadow-xl px-10 h-14 text-lg font-semibold"
+              className="bg-primary text-primary-foreground hover:opacity-90 rounded-md px-10 h-12 text-base font-medium transition-all shadow-sm"
             >
-              Get Started for Free
-              <ArrowRight className="ml-2 w-5 h-5" />
+              Start Creating Free
             </Button>
           </Link>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <footer className="py-10 bg-background">
+        <div className="max-w-7xl mx-auto px-6 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md gradient-brand flex items-center justify-center">
-              <BookOpen className="w-3 h-3 text-white" />
+            <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center">
+              <BookOpen className="w-3 h-3 text-primary-foreground" />
             </div>
-            <span className="text-sm font-semibold text-foreground">ExamPrep AI</span>
+            <span className="text-sm font-heading font-bold text-foreground">ExamPrep AI</span>
           </div>
           <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} ExamPrep AI. Built with Gemini 1.5 Pro.
+            © {new Date().getFullYear()} ExamPrep AI. All rights reserved.
           </p>
         </div>
       </footer>
