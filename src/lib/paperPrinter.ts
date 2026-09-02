@@ -224,7 +224,7 @@ export function printExamPaper(data: ExamPaperData) {
         <style>
           @page {
             size: A4 portrait;
-            margin: 14mm 14mm 14mm 14mm;
+            margin: 15mm 15mm 20mm 15mm; /* Professional A4 Margins */
           }
 
           * {
@@ -238,13 +238,14 @@ export function printExamPaper(data: ExamPaperData) {
             padding: 0;
             background: #ffffff !important;
             color: #000000 !important;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            font-size: 10pt;
-            line-height: 1.35;
+            font-family: "Times New Roman", Times, serif; /* Classic Exam Font */
+            font-size: 11pt; /* Optimal readability */
+            line-height: 1.4;
           }
 
           .paper-wrapper {
             width: 100%;
+            max-width: 210mm; /* A4 Width */
             margin: 0 auto;
           }
 
@@ -252,237 +253,227 @@ export function printExamPaper(data: ExamPaperData) {
           .paper-header {
             text-align: center;
             border-bottom: 2px solid #000000;
-            padding-bottom: 5px;
-            margin-bottom: 6px;
+            padding-bottom: 8px;
+            margin-bottom: 12px;
             break-after: avoid;
             page-break-after: avoid;
           }
 
           .school-name {
-            font-size: 16pt;
-            font-weight: 900;
+            font-size: 20pt;
+            font-weight: bold;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin: 0 0 2px 0;
+            letter-spacing: 1px;
+            margin: 0 0 4px 0;
           }
 
           .exam-title {
-            font-size: 11pt;
-            font-weight: 700;
-            color: #111111;
-            margin: 0 0 4px 0;
+            font-size: 14pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin: 0 0 8px 0;
           }
 
           .meta-table {
             width: 100%;
-            border-top: 1px solid #cccccc;
-            margin-top: 4px;
-            padding-top: 4px;
-            font-size: 8.5pt;
-            font-weight: 700;
+            border-top: 1.5px solid #000;
+            border-bottom: 1.5px solid #000;
+            margin-top: 8px;
+            padding: 4px 0;
+            font-size: 10.5pt;
+            font-weight: bold;
+            text-transform: uppercase;
           }
 
           .meta-table td {
-            padding: 2px 0;
+            padding: 4px 8px;
           }
 
           /* Candidate Box */
           .candidate-row {
             width: 100%;
-            border-bottom: 1px solid #dddddd;
-            padding-bottom: 4px;
-            margin-bottom: 8px;
-            font-size: 8.5pt;
-            font-weight: 600;
+            margin-bottom: 15px;
+            font-size: 11pt;
+            font-weight: bold;
             break-after: avoid;
             page-break-after: avoid;
+          }
+          
+          .candidate-row td {
+            padding: 4px 0;
           }
 
           /* Instructions */
           .instructions-box {
-            padding: 6px 10px;
-            background: #f8fafc;
-            border: 1px solid #cbd5e1;
-            border-radius: 4px;
-            font-size: 8pt;
-            font-style: italic;
-            margin-bottom: 10px;
+            padding: 10px 14px;
+            border: 1px solid #000;
+            background: #fff;
+            font-size: 10.5pt;
+            margin-bottom: 20px;
             break-inside: avoid;
             page-break-inside: avoid;
           }
 
           .instructions-box strong {
-            font-style: normal;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 11pt;
           }
 
           /* Section Container */
           .section-container {
-            margin-top: 14px;
-            margin-bottom: 8px;
+            margin-top: 20px;
+            margin-bottom: 15px;
           }
 
           .sec-title {
-            font-size: 9.5pt;
-            font-weight: 900;
+            font-size: 12pt;
+            font-weight: bold;
             text-transform: uppercase;
-            border-bottom: 1.5px solid #000000;
-            padding-bottom: 2px;
-            margin: 0 0 2px 0;
+            text-align: center;
+            margin: 0 0 6px 0;
             break-after: avoid !important;
             page-break-after: avoid !important;
           }
 
           .sec-inst {
-            font-size: 8.5pt;
+            font-size: 11pt;
             font-style: italic;
-            color: #333333;
-            margin: 2px 0 6px 0;
+            font-weight: bold;
+            margin: 0 0 12px 0;
             break-after: avoid !important;
             page-break-after: avoid !important;
           }
 
-          /* Individual Question Block: NEVER break in the middle */
+          /* Multi-column layout for two-column setting */
+          ${
+            isTwoColumn
+              ? \`
+          .sec-questions {
+            column-count: 2;
+            column-gap: 25px;
+            column-rule: 1px solid #ccc;
+          }
+          \`
+              : ''
+          }
+
+          /* Individual Question Block */
           .question-block {
-            margin-bottom: 10px;
+            margin-bottom: 14px;
             break-inside: avoid !important;
             page-break-inside: avoid !important;
-            page-break-before: auto;
-            page-break-after: auto;
           }
 
           .q-head {
-            font-weight: 600;
-            font-size: 9.5pt;
-            line-height: 1.35;
+            display: flex;
+            align-items: flex-start;
+            font-weight: normal;
+            font-size: 11pt;
+            line-height: 1.4;
           }
 
           .q-num {
-            font-weight: 800;
-            margin-right: 4px;
+            font-weight: bold;
+            min-width: 28px;
+            flex-shrink: 0;
+          }
+
+          .q-body {
+            flex-grow: 1;
           }
 
           /* MCQ Options */
           .mcq-grid {
-            display: grid;
-            grid-template-columns: ${isTwoColumn ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)'};
-            gap: 4px 10px;
-            padding-left: 14px;
-            margin-top: 3px;
-            font-size: 9pt;
-          }
-
-          ${
-            isTwoColumn
-              ? `
-          .sec-questions::after {
-            content: "";
-            display: table;
-            clear: both;
-          }
-          .question-block {
-            float: left;
-            width: 48%;
-            margin-right: 4%;
-            break-inside: avoid !important;
-            page-break-inside: avoid !important;
-            margin-bottom: 12px;
-          }
-          .question-block:nth-child(even) {
-            margin-right: 0;
-          }
-          .question-block:nth-child(odd) {
-            clear: left;
-          }
-          `
-              : ''
+            display: flex;
+            flex-wrap: wrap;
+            padding-left: 28px;
+            margin-top: 6px;
+            font-size: 10.5pt;
           }
 
           .mcq-col {
-            font-weight: normal;
+            width: ${isTwoColumn ? '100%' : '50%'};
+            margin-bottom: 6px;
+            padding-right: 10px;
           }
 
           /* True False */
           .tf-row {
             display: flex;
-            gap: 24px;
-            padding-left: 14px;
-            margin-top: 3px;
-            font-size: 9pt;
-            font-weight: 600;
+            gap: 40px;
+            padding-left: 28px;
+            margin-top: 6px;
+            font-size: 10.5pt;
           }
 
           .box {
             display: inline-block;
-            width: 11px;
-            height: 11px;
-            border: 1px solid #555;
-            margin-right: 4px;
-            vertical-align: middle;
+            width: 14px;
+            height: 14px;
+            border: 1px solid #000;
+            margin-right: 6px;
+            vertical-align: text-bottom;
           }
 
           /* Match the Following 2-Column Table */
           .match-table {
-            width: 100%;
-            max-width: 550px;
-            margin-left: 14px;
-            margin-top: 4px;
+            width: 90%;
+            margin-left: 28px;
+            margin-top: 8px;
             border-collapse: collapse;
-            font-size: 9pt;
+            font-size: 10.5pt;
           }
 
           .match-table th {
             text-align: left;
-            font-weight: 800;
-            border-bottom: 1px solid #555;
-            padding: 2px 4px;
+            font-weight: bold;
+            padding: 4px;
+            border-bottom: 1px solid #000;
           }
 
           .match-table td {
             vertical-align: top;
-            padding: 3px 4px;
-            line-height: 1.3;
+            padding: 6px 4px;
           }
 
           .match-left {
             width: 50%;
-            padding-right: 12px;
+            padding-right: 15px;
           }
 
           .match-right {
             width: 50%;
-            padding-left: 12px;
+            padding-left: 15px;
           }
 
           /* Figure Images */
           .figure-box {
             text-align: center;
-            margin: 6px auto;
+            margin: 10px auto;
           }
 
           .figure-box img {
-            max-height: 150px;
-            max-width: 300px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
+            max-height: 180px;
+            max-width: 100%;
+            border: 1px solid #000;
             padding: 2px;
             display: inline-block;
           }
 
           .fig-caption {
-            font-size: 8pt;
-            color: #555;
+            font-size: 9pt;
             font-style: italic;
-            margin-top: 2px;
+            margin-top: 4px;
           }
 
           /* Footer */
           .paper-footer {
             text-align: center;
-            margin-top: 20px;
-            padding-top: 8px;
-            border-top: 1px solid #ddd;
-            font-size: 8pt;
-            color: #777;
+            margin-top: 30px;
+            font-size: 10pt;
+            font-weight: bold;
+            text-transform: uppercase;
             break-inside: avoid;
             page-break-inside: avoid;
           }
@@ -499,7 +490,7 @@ export function printExamPaper(data: ExamPaperData) {
                 <td style="text-align: left;">CLASS: ${className}</td>
                 <td style="text-align: center;">SUBJECT: ${subjectName}</td>
                 <td style="text-align: center;">TIME: ${timeAllowed}</td>
-                <td style="text-align: right;">MAX MARKS: ${totalMarks}</td>
+                <td style="text-align: right;">MAX. MARKS: ${totalMarks}</td>
               </tr>
             </table>
           </div>
@@ -507,15 +498,15 @@ export function printExamPaper(data: ExamPaperData) {
           <!-- Candidate Details -->
           <table class="candidate-row">
             <tr>
-              <td style="text-align: left;">Name: _______________________________</td>
-              <td style="text-align: right;">Roll No: ____________ Section: ____</td>
+              <td style="text-align: left;">Name of Candidate: ___________________________________</td>
+              <td style="text-align: right;">Roll No: _______________ &nbsp;&nbsp;&nbsp; Section: _______</td>
             </tr>
           </table>
 
           <!-- Instructions -->
           ${
             instructions
-              ? `<div class="instructions-box"><strong>Instructions:</strong><br/>${instructions.replace(/\n/g, '<br/>')}</div>`
+              ? \`<div class="instructions-box"><strong>General Instructions:</strong><br/><br/>\${instructions.replace(/\\n/g, '<br/>')}</div>\`
               : ''
           }
 
@@ -523,11 +514,11 @@ export function printExamPaper(data: ExamPaperData) {
           ${sectionsHtml}
 
           <!-- End of Paper -->
-          <div class="paper-footer">*** End of Examination Paper ***</div>
+          <div class="paper-footer">*** END OF PAPER ***</div>
         </div>
       </body>
     </html>
-  `);
+  \`);
   doc.close();
 
   // Wait for images and render before triggering print
