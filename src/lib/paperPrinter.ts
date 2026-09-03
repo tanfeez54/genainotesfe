@@ -4,8 +4,49 @@
  * with mathematical line alignment and zero page-boundary clipping.
  */
 
+import katex from 'katex';
+import 'katex/dist/katex.min.css';
+
+export const autoFormatMath = (text: string) => {
+  if (!text) return '';
+  try {
+    const parts = text.split('$');
+    for (let i = 0; i < parts.length; i++) {
+      if (i % 2 === 0) {
+        // Text mode: Wrap standalone fractions in LaTeX math mode
+        parts[i] = parts[i].replace(/(?<![\w\.\/])([-+]?\d+)\/(\d+)(?![\w\.\/])/g, '$\\frac{$1}{$2}$');
+      } else {
+        // Math mode: Convert slash fractions to \frac
+        parts[i] = parts[i].replace(/(?<![\w\.\/])([-+]?\d+)\/(\d+)(?![\w\.\/])/g, '\\frac{$1}{$2}');
+      }
+    }
+    return parts.join('$');
+  } catch (e) {
+    return text;
+  }
+};
+
+const renderLatex = (str: string) => {
+  if (!str) return '';
+  try {
+    const formatted = autoFormatMath(str);
+    const parts = formatted.split('$');
+    for (let i = 1; i < parts.length; i += 2) {
+      parts[i] = katex.renderToString(parts[i], {
+        throwOnError: false,
+        displayMode: false
+      });
+    }
+    return parts.join('');
+  } catch (e) {
+    return str;
+  }
+};
+
 export interface ExamPaperData {
   schoolName?: string;
+  schoolLogo?: string;
+  schoolAddress?: string;
   title: string;
   className?: string;
   subjectName?: string;
@@ -19,6 +60,8 @@ export interface ExamPaperData {
 export function printExamPaper(data: ExamPaperData) {
   const isTwoColumn = Boolean(data.isTwoColumn);
   const schoolName = (data.schoolName || 'Modern Public School').trim();
+  const schoolLogo = data.schoolLogo;
+  const schoolAddress = data.schoolAddress;
   const examTitle = (data.title || 'Annual Examination - 2026').trim();
   const className = (data.className || 'N/A').trim();
   const subjectName = (data.subjectName || 'N/A').trim();
@@ -93,28 +136,58 @@ export function printExamPaper(data: ExamPaperData) {
     return { colA, colB };
   };
 
-  let globalQuestionCounter = 1;
+  const toRoman = (num: number): string => {
+    const lookup: any = {M:1000,CM:900,D:500,CD:400,C:100,XC:90,L:50,XL:40,X:10,IX:9,V:5,IV:4,I:1};
+    let roman = '';
+    for (let i in lookup ) {
+      while ( num >= lookup[i] ) {
+        roman += i;
+        num -= lookup[i];
+      }
+    }
+    return roman;
+  };
+
+  const formatQuestionNumber = (secIdx: number, qIdx: number): string => {
+    const n = qIdx + 1;
+    const style = secIdx % 5;
+    const alphaChar = String.fromCharCode(97 + ((n - 1) % 26));
+    switch (style) {
+      case 0: return `${n}`; // 1, 2, 3
+      case 1: return alphaChar; // a, b, c
+      case 2: return toRoman(n); // I, II, III
+      case 3: return alphaChar.toUpperCase(); // A, B, C
+      case 4: return toRoman(n).toLowerCase(); // i, ii, iii
+      default: return `${n}`;
+    }
+  };
 
   // Build pure HTML
   const sectionsHtml = sectionGroups
-    .map((sec) => {
+    .map((sec, secIdx) => {
       const qHtml = sec.questions
-        .map((q) => {
-          const qNum = globalQuestionCounter++;
+        .map((q, qIdx) => {
+          const qNum = formatQuestionNumber(secIdx, qIdx);
           const qText = q.question_text || q.text || '';
 
           let detailsHtml = '';
 
           // 1. MCQ
           if (sec.type === 'mcq' && Array.isArray(q.options) && q.options.length > 0) {
+            const maxOptLen = Math.max(0, ...q.options.map((o: any) => (typeof o === 'string' ? o : o.text || '').length));
+            let cols = maxOptLen < 20 ? 4 : maxOptLen < 50 ? 2 : 1;
+            if (isTwoColumn) {
+              cols = maxOptLen < 8 ? 4 : maxOptLen < 25 ? 2 : 1;
+            }
+
             const optItems = q.options
               .map((opt: any, oIdx: number) => {
                 const label = String.fromCharCode(65 + oIdx);
                 const text = typeof opt === 'string' ? opt : opt.text || '';
-                return `<div class="mcq-col"><strong>(${label})</strong> ${text}</div>`;
+                return `<div class="mcq-col"><strong>(${label})</strong> ${renderLatex(text)}</div>`;
               })
               .join('');
-            detailsHtml = `<div class="mcq-grid">${optItems}</div>`;
+            detailsHtml = `<div class="mcq-grid" style="grid-template-columns: repeat(${cols}, 1fr);">${optItems}</div>`;
           }
 
           // 2. True False
@@ -133,14 +206,17 @@ export function printExamPaper(data: ExamPaperData) {
             const maxRows = Math.max(colA.length, colB.length, 1);
             const rowsHtml = Array.from({ length: maxRows })
               .map((_, rIdx) => {
-                const textA = colA[rIdx] || '';
-                const textB = colB[rIdx] || '';
-                const labelA = `${rIdx + 1}.`;
-                const labelB = `${String.fromCharCode(65 + rIdx)}.`;
+                const itemA = colA[rIdx];
+                const itemB = colB[rIdx];
+                const romanNumerals = ['i', 'ii', 'iii', 'iv', 'v', 'vi', 'vii', 'viii', 'ix', 'x'];
+                const labelA = romanNumerals[rIdx] ? `(${romanNumerals[rIdx]})` : `${rIdx + 1}.`;
+                const labelB = `(${String.fromCharCode(65 + rIdx)})`;
+                const textA = typeof itemA === 'string' ? itemA : itemA?.text || '';
+                const textB = typeof itemB === 'string' ? itemB : itemB?.text || '';
                 return `
                   <tr>
-                    <td class="match-left"><strong>${labelA}</strong> ${textA}</td>
-                    <td class="match-right"><strong>${labelB}</strong> ${textB}</td>
+                    <td class="match-left"><strong>${labelA}</strong> ${itemA ? renderLatex(textA) : ''}</td>
+                    <td class="match-right"><strong>${labelB}</strong> ${itemB ? renderLatex(textB) : ''}</td>
                   </tr>
                 `;
               })
@@ -160,6 +236,16 @@ export function printExamPaper(data: ExamPaperData) {
               </table>
             `;
           }
+          
+          // 4. Short Answer Space
+          else if (sec.type === 'short_answer') {
+             detailsHtml = '';
+          }
+
+          // 5. Long Answer Space
+          else if (sec.type === 'long_answer') {
+             detailsHtml = '';
+          }
 
           // Attached Diagram Image
           let imageHtml = '';
@@ -167,16 +253,20 @@ export function printExamPaper(data: ExamPaperData) {
             imageHtml = `
               <div class="figure-box">
                 <img src="${q.image_url}" alt="Figure Q${qNum}" />
-                <div class="fig-caption">[Fig. Q${qNum}]</div>
+                <div class="fig-caption">[Fig. ${qNum}]</div>
               </div>
             `;
           }
+          
+          // Question marks if available
+          const marksHtml = q.marks ? `<span class="q-marks">[${q.marks}]</span>` : '';
 
           return `
             <div class="question-block">
               <div class="q-head">
-                <span class="q-num">Q${qNum}.</span>
-                <span class="q-body">${qText}</span>
+                <span class="q-num">${qNum}.</span>
+                <span class="q-text">${renderLatex(qText)}</span>
+                ${marksHtml}
               </div>
               ${imageHtml}
               ${detailsHtml}
@@ -219,8 +309,9 @@ export function printExamPaper(data: ExamPaperData) {
     <!DOCTYPE html>
     <html lang="en">
       <head>
-        <meta charset="utf-8" />
+        <meta charset="UTF-8" />
         <title>${cleanDocTitle}</title>
+        <link href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css" rel="stylesheet">
         <style>
           @page {
             size: A4 portrait;
@@ -251,7 +342,6 @@ export function printExamPaper(data: ExamPaperData) {
 
           /* Header Styling */
           .paper-header {
-            text-align: center;
             border-bottom: 2px solid #000000;
             padding-bottom: 8px;
             margin-bottom: 12px;
@@ -259,11 +349,50 @@ export function printExamPaper(data: ExamPaperData) {
             page-break-after: avoid;
           }
 
+          .header-top {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            margin-bottom: 8px;
+          }
+
+          .logo-box {
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 96px;
+            max-height: 96px;
+            display: flex;
+            align-items: center;
+          }
+
+          .logo-box img {
+            max-width: 100%;
+            max-height: 96px;
+            object-fit: contain;
+          }
+
+          .header-titles {
+            text-align: center;
+            max-width: calc(100% - 220px);
+            margin: 0 auto;
+          }
+
           .school-name {
             font-size: 20pt;
             font-weight: bold;
             text-transform: uppercase;
             letter-spacing: 1px;
+            margin: 0 0 2px 0;
+          }
+
+          .school-address {
+            font-size: 10pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            color: #444;
             margin: 0 0 4px 0;
           }
 
@@ -324,6 +453,8 @@ export function printExamPaper(data: ExamPaperData) {
           .section-container {
             margin-top: 20px;
             margin-bottom: 15px;
+            break-inside: avoid;
+            page-break-inside: avoid;
           }
 
           .sec-title {
@@ -348,13 +479,13 @@ export function printExamPaper(data: ExamPaperData) {
           /* Multi-column layout for two-column setting */
           ${
             isTwoColumn
-              ? \`
+              ? `
           .sec-questions {
             column-count: 2;
             column-gap: 25px;
             column-rule: 1px solid #ccc;
           }
-          \`
+          `
               : ''
           }
 
@@ -385,17 +516,15 @@ export function printExamPaper(data: ExamPaperData) {
 
           /* MCQ Options */
           .mcq-grid {
-            display: flex;
-            flex-wrap: wrap;
+            display: grid;
             padding-left: 28px;
             margin-top: 6px;
-            font-size: 10.5pt;
+            font-size: 11pt; /* Increased text size for options */
+            gap: 6px 12px;
           }
 
           .mcq-col {
-            width: ${isTwoColumn ? '100%' : '50%'};
-            margin-bottom: 6px;
-            padding-right: 10px;
+            width: auto;
           }
 
           /* True False */
@@ -447,6 +576,27 @@ export function printExamPaper(data: ExamPaperData) {
             padding-left: 15px;
           }
 
+          /* Answer Lines for subjective questions */
+          .answer-lines {
+            margin-top: 10px;
+            margin-bottom: 5px;
+          }
+
+          .ans-line {
+            border-bottom: 1px dashed #666;
+            height: 24px;
+            margin-bottom: 8px;
+            width: 95%;
+          }
+
+          /* Question Marks */
+          .q-marks {
+            margin-left: auto;
+            font-weight: bold;
+            font-size: 10pt;
+            padding-left: 15px;
+          }
+
           /* Figure Images */
           .figure-box {
             text-align: center;
@@ -483,8 +633,14 @@ export function printExamPaper(data: ExamPaperData) {
         <div class="paper-wrapper">
           <!-- School Paper Header -->
           <div class="paper-header">
-            <div class="school-name">${schoolName}</div>
-            <div class="exam-title">${examTitle}</div>
+            <div class="header-top">
+              ${schoolLogo ? `<div class="logo-box"><img src="${schoolLogo}" alt="School Logo" /></div>` : ''}
+              <div class="header-titles">
+                <div class="school-name">${schoolName}</div>
+                ${schoolAddress ? `<div class="school-address">${schoolAddress}</div>` : ''}
+                <div class="exam-title">${examTitle}</div>
+              </div>
+            </div>
             <table class="meta-table">
               <tr>
                 <td style="text-align: left;">CLASS: ${className}</td>
@@ -506,7 +662,7 @@ export function printExamPaper(data: ExamPaperData) {
           <!-- Instructions -->
           ${
             instructions
-              ? \`<div class="instructions-box"><strong>General Instructions:</strong><br/><br/>\${instructions.replace(/\\n/g, '<br/>')}</div>\`
+              ? `<div class="instructions-box"><strong>General Instructions:</strong><br/><br/>${instructions.replace(/\n/g, '<br/>')}</div>`
               : ''
           }
 
@@ -518,15 +674,28 @@ export function printExamPaper(data: ExamPaperData) {
         </div>
       </body>
     </html>
-  \`);
+  `);
   doc.close();
 
-  // Wait for images and render before triggering print
+  // Wait briefly for KaTeX CSS and images to load
   setTimeout(() => {
-    iframe.contentWindow?.focus();
-    iframe.contentWindow?.print();
+    if (!iframe.contentWindow) return;
+    iframe.contentWindow.focus();
+    
+    // Clean up iframe only after printing is done or cancelled
+    iframe.contentWindow.onafterprint = () => {
+      if (document.body.contains(iframe)) {
+        document.body.removeChild(iframe);
+      }
+    };
+
+    iframe.contentWindow.print();
+
+    // Fallback cleanup just in case onafterprint doesn't fire (e.g. some browsers)
     setTimeout(() => {
-      document.body.removeChild(iframe);
-    }, 2000);
-  }, 300);
+      if (document.body.contains(iframe)) {
+        document.body.removeChild(iframe);
+      }
+    }, 60000); // 1 minute fallback
+  }, 500);
 }

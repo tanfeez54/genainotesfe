@@ -33,11 +33,15 @@ const navItems = [
 function SidebarContent({
   pathname,
   userEmail,
+  schoolName,
+  schoolLogo,
   handleLogout,
   onNavClick,
 }: {
   pathname: string;
   userEmail: string;
+  schoolName: string;
+  schoolLogo: string | null;
   handleLogout: () => void;
   onNavClick?: () => void;
 }) {
@@ -45,10 +49,14 @@ function SidebarContent({
     <aside className="flex flex-col h-full bg-sidebar border-r border-sidebar-border w-64 select-none">
       {/* Logo */}
       <div className="flex items-center gap-3 px-5 py-5 border-b border-sidebar-border">
-        <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center shadow-sm">
-          <BookOpen className="w-4 h-4 text-primary-foreground" />
-        </div>
-        <span className="text-lg font-heading font-bold tracking-tight text-foreground">ExamPrep AI</span>
+        {schoolLogo ? (
+          <img src={schoolLogo} alt="School Logo" className="w-8 h-8 rounded-md object-contain shadow-sm bg-white" />
+        ) : (
+          <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center shadow-sm">
+            <BookOpen className="w-4 h-4 text-primary-foreground" />
+          </div>
+        )}
+        <span className="text-lg font-heading font-bold tracking-tight text-foreground truncate" title={schoolName}>{schoolName}</span>
       </div>
 
       {/* Generate Paper CTA */}
@@ -120,6 +128,8 @@ function SidebarContent({
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userEmail, setUserEmail] = useState('');
+  const [schoolName, setSchoolName] = useState('ExamPrep AI');
+  const [schoolLogo, setSchoolLogo] = useState<string | null>(null);
   const [isVerifyingSchool, setIsVerifyingSchool] = useState(true);
   const [isImpersonating, setIsImpersonating] = useState(false);
   const pathname = usePathname();
@@ -171,6 +181,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           // No school found! Redirect to onboarding
           router.push('/onboarding');
           return;
+        }
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.school?.name) setSchoolName(data.school.name);
+          if (data.school?.logo_url) setSchoolLogo(data.school.logo_url);
         }
 
         setIsVerifyingSchool(false);
@@ -226,7 +242,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div className="flex flex-1 overflow-hidden">
         {/* Desktop Sidebar (Permanent) */}
         <div className="hidden lg:flex flex-col flex-shrink-0">
-          <SidebarContent pathname={pathname} userEmail={userEmail} handleLogout={handleLogout} />
+          <SidebarContent pathname={pathname} userEmail={userEmail} schoolName={schoolName} schoolLogo={schoolLogo} handleLogout={handleLogout} />
         </div>
 
         {/* Mobile Sidebar Overlay & Drawer */}
@@ -240,6 +256,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <SidebarContent
                 pathname={pathname}
                 userEmail={userEmail}
+                schoolName={schoolName}
+                schoolLogo={schoolLogo}
                 handleLogout={handleLogout}
                 onNavClick={() => setSidebarOpen(false)}
               />
@@ -261,11 +279,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               >
                 {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </Button>
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-md gradient-brand flex items-center justify-center">
-                  <BookOpen className="w-3.5 h-3.5 text-white" />
-                </div>
-                <span className="font-bold text-sm gradient-brand-text">ExamPrep AI</span>
+              <div className="flex items-center gap-2 max-w-[180px]">
+                {schoolLogo ? (
+                  <img src={schoolLogo} alt="School Logo" className="w-6 h-6 rounded-md object-contain bg-white shadow-xs" />
+                ) : (
+                  <div className="w-6 h-6 rounded-md gradient-brand flex items-center justify-center">
+                    <BookOpen className="w-3.5 h-3.5 text-white" />
+                  </div>
+                )}
+                <span className="font-bold text-sm text-slate-800 truncate" title={schoolName}>{schoolName}</span>
               </div>
             </div>
 
