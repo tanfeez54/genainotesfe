@@ -973,7 +973,7 @@ export default function GeneratePaperPage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <Label className="text-xs font-semibold text-slate-700">Time Allowed</Label>
                     <Input
@@ -1418,10 +1418,10 @@ export default function GeneratePaperPage() {
           </div>
 
           {/* Centered A4 Exam Paper Canvas Wrapper */}
-          <div className="w-full flex justify-center py-2 print:p-0">
+          <div className="w-full flex justify-center py-2 print:p-0 overflow-x-auto">
             <div
               id="printable-exam-paper"
-              className="print-page w-full max-w-[800px] bg-white border border-slate-300 rounded-lg p-8 sm:p-12 shadow-xl min-h-[1050px] text-slate-900 print:shadow-none print:border-none print:p-0 print:m-0 print:max-w-none"
+              className="print-page w-full min-w-[800px] max-w-[800px] bg-white border border-slate-300 rounded-lg p-8 sm:p-12 shadow-xl min-h-[1050px] text-slate-900 print:shadow-none print:border-none print:p-0 print:m-0 print:max-w-none print:min-w-0"
             >
             {paperQuestions.length === 0 ? (
               <div className="h-[450px] flex flex-col items-center justify-center text-center p-6 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50 print:hidden space-y-3">
