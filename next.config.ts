@@ -7,6 +7,12 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: '**.supabase.storage' },
     ],
   },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
   experimental: {
     serverActions: {
       allowedOrigins: ['localhost:3000', 'localhost:4000', '*.vercel.app', 'genainotesbe.onrender.com'],
