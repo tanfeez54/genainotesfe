@@ -34,7 +34,11 @@ import {
   AlignLeft,
   ListOrdered,
   Shuffle,
-  FileCheck2
+  FileCheck2,
+  GripVertical,
+  ChevronDown,
+  ChevronUp,
+  ChevronRight
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -264,6 +268,14 @@ export default function GeneratePaperPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [showAnswerKey, setShowAnswerKey] = useState(false);
   const [isTwoColumn, setIsTwoColumn] = useState(false);
+
+  // Mobile Accordion toggles for Cards 1, 2, 3
+  const [accordionOpenClassSubject, setAccordionOpenClassSubject] = useState(true);
+  const [accordionOpenPaperHeader, setAccordionOpenPaperHeader] = useState(true);
+  const [accordionOpenSections, setAccordionOpenSections] = useState(true);
+
+  // Mobile expanded section ID for inline editing
+  const [mobileExpandedSectionId, setMobileExpandedSectionId] = useState<string | null>(null);
 
   // Image Upload state for questions
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -771,59 +783,106 @@ export default function GeneratePaperPage() {
       />
 
       {/* Top Header & View Mode Switcher */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5 print:hidden">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-indigo-600 uppercase tracking-wider mb-1">
-            <Sparkles className="w-3.5 h-3.5" /> Paper Creator Suite
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
-            Automated Exam Paper Generator
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Create custom exam papers with Fill in the Blanks, Match the Following, MCQs, True/False, and Descriptive sections
-          </p>
-        </div>
-
-        {/* View Mode Switcher */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
-            <button
-              onClick={() => setViewMode('config')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                viewMode === 'config'
-                  ? 'bg-white text-indigo-600 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Sliders className="w-3.5 h-3.5" /> 1. Setup Form
-            </button>
-            <button
-              onClick={() => setViewMode('preview')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                viewMode === 'preview'
-                  ? 'bg-white text-indigo-600 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Eye className="w-3.5 h-3.5" /> 2. Paper Preview ({paperQuestions.length})
-            </button>
+      <div className="flex flex-col gap-4 border-b border-slate-200 pb-5 print:hidden">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wider text-indigo-600 bg-indigo-50/90 border border-indigo-100 uppercase mb-2">
+              <Sparkles className="w-3 h-3 text-indigo-500" /> Paper Creation Suite
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+              Automated Exam Paper Generator
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-2xl">
+              Create custom exam papers with Fill in the Blanks, Match the Following, MCQs, True/False, and Descriptive sections.
+            </p>
           </div>
 
-          <Link href="/papers">
-            <Button variant="outline" size="sm" className="cursor-pointer font-bold text-indigo-700 bg-indigo-50/70 border-indigo-200 hover:bg-indigo-100">
-              <FileCheck2 className="w-4 h-4 mr-1.5 text-indigo-600" /> Saved Papers
-            </Button>
-          </Link>
-          <Link href="/question-bank">
-            <Button variant="outline" size="sm" className="cursor-pointer">
-              <BookOpen className="w-4 h-4 mr-2 text-indigo-600" /> Bank
-            </Button>
-          </Link>
-          <Link href="/scan">
-            <Button variant="outline" size="sm" className="cursor-pointer">
-              <Plus className="w-4 h-4 mr-2 text-emerald-600" /> Scan
-            </Button>
-          </Link>
+          {/* Stepper Navigation & Actions */}
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            {/* Stepper Tabs */}
+            <div className="flex items-center bg-slate-100/90 p-1 rounded-xl border border-slate-200 shadow-2xs">
+              <button
+                type="button"
+                onClick={() => setViewMode('config')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  viewMode === 'config'
+                    ? 'bg-white text-indigo-600 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <span
+                  className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                    viewMode === 'config'
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-slate-200 text-slate-700'
+                  }`}
+                >
+                  1
+                </span>
+                <span>Setup Form</span>
+              </button>
+
+              <span className="text-slate-400 text-xs px-1">→</span>
+
+              <button
+                type="button"
+                onClick={() => setViewMode('preview')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  viewMode === 'preview'
+                    ? 'bg-white text-indigo-600 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <span
+                  className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                    viewMode === 'preview'
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-slate-200 text-slate-700'
+                  }`}
+                >
+                  2
+                </span>
+                <span className="hidden sm:inline">Paper Preview</span>
+                <span className="sm:hidden">Preview</span>
+                <span className="text-[11px] opacity-80">({paperQuestions.length})</span>
+              </button>
+            </div>
+
+            {/* Quick Action Links */}
+            <div className="flex items-center gap-1.5">
+              <Link href="/papers">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8.5 px-2.5 sm:px-3 text-xs font-semibold text-indigo-700 bg-white border-slate-200 hover:bg-slate-50 cursor-pointer shadow-2xs"
+                >
+                  <FileCheck2 className="w-3.5 h-3.5 mr-1 text-indigo-600" />
+                  <span className="hidden sm:inline">Saved Papers</span>
+                  <span className="sm:hidden">Saved</span>
+                </Button>
+              </Link>
+              <Link href="/question-bank">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8.5 px-2.5 sm:px-3 text-xs font-semibold text-slate-700 bg-white border-slate-200 hover:bg-slate-50 cursor-pointer shadow-2xs"
+                >
+                  <BookOpen className="w-3.5 h-3.5 mr-1 text-indigo-600" />
+                  <span>Bank</span>
+                </Button>
+              </Link>
+              <Link href="/scan">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8.5 px-2.5 sm:px-3 text-xs font-semibold text-emerald-700 bg-white border-slate-200 hover:bg-slate-50 cursor-pointer shadow-2xs"
+                >
+                  <Plus className="w-3.5 h-3.5 mr-1 text-emerald-600" />
+                  <span>Scan</span>
+                </Button>
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -833,518 +892,862 @@ export default function GeneratePaperPage() {
       {viewMode === 'config' && (
         <div className="max-w-5xl mx-auto space-y-6 animate-fade-in print:hidden">
           {/* Row 1: Academic Selection & Paper Header Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {/* 1. Target Selection & Chapter Equal Weightage */}
-            <Card className="rounded-2xl border-slate-200 shadow-xs">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base font-bold flex items-center gap-2">
-                  <GraduationCap className="w-4 h-4 text-indigo-600" /> 1. Class, Subject & Chapters
-                </CardTitle>
+            <Card className="rounded-2xl border-slate-200 shadow-xs overflow-hidden">
+              <CardHeader
+                className="pb-3 cursor-pointer md:cursor-default select-none hover:bg-slate-50/50 md:hover:bg-transparent transition-colors"
+                onClick={() => setAccordionOpenClassSubject(!accordionOpenClassSubject)}
+              >
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base font-bold flex items-center gap-2">
+                    <GraduationCap className="w-4 h-4 text-indigo-600" /> 1. Class, Subject & Chapters
+                  </CardTitle>
+                  <button
+                    type="button"
+                    className="p-1 text-slate-400 hover:text-slate-600 md:hidden cursor-pointer"
+                    aria-label="Toggle Class and Subject selection"
+                  >
+                    {accordionOpenClassSubject ? (
+                      <ChevronUp className="w-4 h-4" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
                 <CardDescription className="text-xs">
                   Select chapters to distribute questions with equal weightage.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label className="text-xs font-semibold text-slate-700">Class / Grade *</Label>
-                  <select
-                    value={selectedClassId}
-                    onChange={(e) => handleClassChange(e.target.value)}
-                    className="w-full mt-1.5 h-10 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                  >
-                    <option value="">Select a class...</option>
-                    {classes.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <Label className="text-xs font-semibold text-slate-700">Subject *</Label>
-                  <select
-                    value={selectedSubjectId}
-                    onChange={(e) => handleSubjectChange(e.target.value)}
-                    disabled={!selectedClassId}
-                    className="w-full mt-1.5 h-10 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none disabled:opacity-50"
-                  >
-                    <option value="">Select a subject...</option>
-                    {subjects.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {chapters.length > 0 && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-xs font-semibold text-slate-700">Included Chapters</Label>
-                      <button
-                        type="button"
-                        onClick={toggleSelectAllChapters}
-                        className="text-[11px] font-bold text-indigo-600 hover:underline cursor-pointer"
-                      >
-                        {selectedChapterIds.length === chapters.length ? 'Deselect All' : 'Select All'}
-                      </button>
-                    </div>
-
-                    {/* Equal Weightage Badge Indicator */}
-                    {selectedChapterIds.length > 0 && (
-                      <div className="flex items-center gap-1.5 p-2.5 bg-indigo-50/80 border border-indigo-100 rounded-xl text-xs text-indigo-900 font-semibold">
-                        <Scale className="w-4 h-4 text-indigo-600 shrink-0" />
-                        <span>
-                          {selectedChapterIds.length} Chapters Selected (~{approxPerChapterMarks} Marks / Chapter)
-                        </span>
-                      </div>
-                    )}
-
-                    <div className="max-h-56 overflow-y-auto space-y-1.5 p-2.5 bg-slate-50 rounded-xl border border-slate-200">
-                      {chapters.map((chap) => (
-                        <label
-                          key={chap.id}
-                          className="flex items-center gap-2.5 text-xs text-slate-700 hover:bg-white p-2 rounded-lg cursor-pointer transition-colors"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={selectedChapterIds.includes(chap.id)}
-                            onChange={() => toggleChapter(chap.id)}
-                            className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4"
-                          />
-                          <span className="font-medium">{chap.title}</span>
-                        </label>
+              <div className={`${accordionOpenClassSubject ? 'block' : 'hidden md:block'}`}>
+                <CardContent className="space-y-4 pt-1">
+                  <div>
+                    <Label className="text-xs font-semibold text-slate-700">Class / Grade *</Label>
+                    <select
+                      value={selectedClassId}
+                      onChange={(e) => handleClassChange(e.target.value)}
+                      className="w-full mt-1.5 h-10 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    >
+                      <option value="">Select a class...</option>
+                      {classes.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
                       ))}
-                    </div>
+                    </select>
                   </div>
-                )}
-              </CardContent>
+
+                  <div>
+                    <Label className="text-xs font-semibold text-slate-700">Subject *</Label>
+                    <select
+                      value={selectedSubjectId}
+                      onChange={(e) => handleSubjectChange(e.target.value)}
+                      disabled={!selectedClassId}
+                      className="w-full mt-1.5 h-10 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none disabled:opacity-50"
+                    >
+                      <option value="">Select a subject...</option>
+                      {subjects.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {chapters.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-semibold text-slate-700">Included Chapters</Label>
+                        <button
+                          type="button"
+                          onClick={toggleSelectAllChapters}
+                          className="text-[11px] font-bold text-indigo-600 hover:underline cursor-pointer"
+                        >
+                          {selectedChapterIds.length === chapters.length ? 'Deselect All' : 'Select All'}
+                        </button>
+                      </div>
+
+                      {/* Equal Weightage Badge Indicator */}
+                      {selectedChapterIds.length > 0 && (
+                        <div className="flex items-center gap-1.5 p-2.5 bg-indigo-50/80 border border-indigo-100 rounded-xl text-xs text-indigo-900 font-semibold">
+                          <Scale className="w-4 h-4 text-indigo-600 shrink-0" />
+                          <span>
+                            {selectedChapterIds.length} Chapters Selected (~{approxPerChapterMarks} Marks / Chapter)
+                          </span>
+                        </div>
+                      )}
+
+                      <div className="max-h-56 overflow-y-auto space-y-1.5 p-2.5 bg-slate-50 rounded-xl border border-slate-200">
+                        {chapters.map((chap) => (
+                          <label
+                            key={chap.id}
+                            className="flex items-center gap-2.5 text-xs text-slate-700 hover:bg-white p-2 rounded-lg cursor-pointer transition-colors"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedChapterIds.includes(chap.id)}
+                              onChange={() => toggleChapter(chap.id)}
+                              className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                            />
+                            <span className="font-medium">{chap.title}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </div>
             </Card>
 
             {/* 2. Paper Details */}
-            <Card className="rounded-2xl border-slate-200 shadow-xs">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base font-bold flex items-center gap-2">
-                  <School className="w-4 h-4 text-indigo-600" /> 2. Exam Paper Header
-                </CardTitle>
+            <Card className="rounded-2xl border-slate-200 shadow-xs overflow-hidden">
+              <CardHeader
+                className="pb-3 cursor-pointer md:cursor-default select-none hover:bg-slate-50/50 md:hover:bg-transparent transition-colors"
+                onClick={() => setAccordionOpenPaperHeader(!accordionOpenPaperHeader)}
+              >
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base font-bold flex items-center gap-2">
+                    <School className="w-4 h-4 text-indigo-600" /> 2. Exam Paper Header
+                  </CardTitle>
+                  <button
+                    type="button"
+                    className="p-1 text-slate-400 hover:text-slate-600 md:hidden cursor-pointer"
+                    aria-label="Toggle Exam Paper Header"
+                  >
+                    {accordionOpenPaperHeader ? (
+                      <ChevronUp className="w-4 h-4" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
                 <CardDescription className="text-xs">
                   Set school name, examination title, duration and rules.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3.5">
-                <div>
-                  <Label className="text-xs font-semibold text-slate-700">School Name</Label>
-                  <Input
-                    value={schoolName}
-                    onChange={(e) => setSchoolName(e.target.value)}
-                    className="mt-1 h-9 rounded-lg text-sm"
-                    placeholder="e.g. Modern Public School"
-                  />
-                </div>
-
-                <div>
-                  <Label className="text-xs font-semibold text-slate-700">School Logo (Image URL)</Label>
-                  <Input
-                    value={schoolLogo}
-                    onChange={(e) => setSchoolLogo(e.target.value)}
-                    className="mt-1 h-9 rounded-lg text-sm"
-                    placeholder="https://example.com/logo.png"
-                  />
-                </div>
-
-                <div>
-                  <Label className="text-xs font-semibold text-slate-700">School Address (Optional)</Label>
-                  <Input
-                    value={schoolAddress}
-                    onChange={(e) => setSchoolAddress(e.target.value)}
-                    className="mt-1 h-9 rounded-lg text-sm"
-                    placeholder="e.g. 123 Education Street, City"
-                  />
-                </div>
-
-                <div>
-                  <Label className="text-xs font-semibold text-slate-700">Exam Title</Label>
-                  <Input
-                    value={examTitle}
-                    onChange={(e) => setExamTitle(e.target.value)}
-                    className="mt-1 h-9 rounded-lg text-sm"
-                    placeholder="e.g. Mid-Term Examination 2026"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className={`${accordionOpenPaperHeader ? 'block' : 'hidden md:block'}`}>
+                <CardContent className="space-y-3.5 pt-1">
                   <div>
-                    <Label className="text-xs font-semibold text-slate-700">Time Allowed</Label>
+                    <Label className="text-xs font-semibold text-slate-700">School Name</Label>
                     <Input
-                      value={timeAllowed}
-                      onChange={(e) => setTimeAllowed(e.target.value)}
-                      className="mt-1 h-9 rounded-lg text-sm"
-                      placeholder="e.g. 2.5 Hours"
+                      value={schoolName}
+                      onChange={(e) => setSchoolName(e.target.value)}
+                      className="mt-1 h-9 rounded-lg text-sm bg-white"
+                      placeholder="e.g. Star Public School"
                     />
                   </div>
+
                   <div>
-                    <div className="flex items-center justify-between">
-                      <Label className="text-xs font-semibold text-slate-700">Total Marks</Label>
-                      {Number(totalMarks) !== totalConfiguredMarks && (
+                    <Label className="text-xs font-semibold text-slate-700">School Logo (Image URL)</Label>
+                    <Input
+                      value={schoolLogo}
+                      onChange={(e) => setSchoolLogo(e.target.value)}
+                      className="mt-1 h-9 rounded-lg text-sm bg-white"
+                      placeholder="https://example.com/logo.png"
+                    />
+                  </div>
+
+                  <div>
+                    <Label className="text-xs font-semibold text-slate-700">School Address (Optional)</Label>
+                    <Input
+                      value={schoolAddress}
+                      onChange={(e) => setSchoolAddress(e.target.value)}
+                      className="mt-1 h-9 rounded-lg text-sm bg-white"
+                      placeholder="e.g. Mograwal, Mathia Bazar - 845105"
+                    />
+                  </div>
+
+                  <div>
+                    <Label className="text-xs font-semibold text-slate-700">Exam Title</Label>
+                    <Input
+                      value={examTitle}
+                      onChange={(e) => setExamTitle(e.target.value)}
+                      className="mt-1 h-9 rounded-lg text-sm bg-white"
+                      placeholder="e.g. Annual Examination - 2026"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs font-semibold text-slate-700">Time Allowed</Label>
+                      <Input
+                        value={timeAllowed}
+                        onChange={(e) => setTimeAllowed(e.target.value)}
+                        className="mt-1 h-9 rounded-lg text-sm bg-white"
+                        placeholder="2.5 Hours"
+                      />
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-semibold text-slate-700">Total Marks</Label>
                         <button
                           type="button"
                           onClick={syncTotalMarks}
-                          className="text-[10px] text-indigo-600 font-bold hover:underline cursor-pointer"
+                          className="text-[11px] text-indigo-600 font-semibold hover:underline cursor-pointer"
                         >
-                          Sync ({totalConfiguredMarks}M)
+                          (Auto Calculate)
                         </button>
-                      )}
+                      </div>
+                      <Input
+                        value={totalMarks}
+                        onChange={(e) => setTotalMarks(e.target.value)}
+                        className="mt-1 h-9 rounded-lg text-sm bg-white"
+                        placeholder="50"
+                      />
                     </div>
-                    <Input
-                      value={totalMarks}
-                      onChange={(e) => setTotalMarks(e.target.value)}
-                      className="mt-1 h-9 rounded-lg text-sm"
-                      placeholder="e.g. 50"
+                  </div>
+
+                  <div>
+                    <Label className="text-xs font-semibold text-slate-700">General Instructions</Label>
+                    <Textarea
+                      value={instructions}
+                      onChange={(e) => setInstructions(e.target.value)}
+                      rows={3}
+                      className="mt-1 text-xs rounded-lg bg-white"
+                      placeholder="Instructions for students..."
                     />
                   </div>
-                </div>
-
-                <div>
-                  <Label className="text-xs font-semibold text-slate-700">General Instructions</Label>
-                  <Textarea
-                    value={instructions}
-                    onChange={(e) => setInstructions(e.target.value)}
-                    rows={3}
-                    className="mt-1 text-xs rounded-lg"
-                    placeholder="Instructions for students..."
-                  />
-                </div>
-              </CardContent>
+                </CardContent>
+              </div>
             </Card>
           </div>
 
           {/* Row 2: Dynamic Question Sections Builder */}
-          <Card className="rounded-2xl border-slate-200 shadow-xs">
-            <CardHeader className="pb-3 border-b border-slate-100">
+          <Card className="rounded-2xl border-slate-200 shadow-xs overflow-hidden">
+            <CardHeader
+              className="pb-3 border-b border-slate-100 cursor-pointer md:cursor-default select-none hover:bg-slate-50/50 md:hover:bg-transparent transition-colors"
+              onClick={() => setAccordionOpenSections(!accordionOpenSections)}
+            >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <CardTitle className="text-base font-bold flex items-center gap-2">
-                    <Layers className="w-4 h-4 text-indigo-600" /> 3. Question Sections & Mark Breakdown
-                  </CardTitle>
+                  <div className="flex items-center justify-between sm:justify-start gap-2">
+                    <CardTitle className="text-base font-bold flex items-center gap-2">
+                      <Layers className="w-4 h-4 text-indigo-600" /> 3. Question Sections & Mark Breakdown
+                    </CardTitle>
+                    <button
+                      type="button"
+                      className="p-1 text-slate-400 hover:text-slate-600 md:hidden cursor-pointer"
+                      aria-label="Toggle Question Sections"
+                    >
+                      {accordionOpenSections ? (
+                        <ChevronUp className="w-4 h-4" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
                   <CardDescription className="text-xs mt-0.5">
-                    Customize sections: Add Fill in the Blanks, Match the Following, MCQs, True/False & Descriptive questions.
+                    Customize sections, add questions in the banks, and set the following, MCQs, True/False & Descriptive questions.
                   </CardDescription>
                 </div>
 
-                {/* Live Section Summary Pills */}
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-xs font-bold bg-indigo-50 border-indigo-200 text-indigo-800">
-                    {activeSections.length} Active Sections
-                  </Badge>
-                  <Badge variant="outline" className="text-xs font-bold bg-emerald-50 border-emerald-200 text-emerald-800">
-                    {totalConfiguredQuestions} Qs = {totalConfiguredMarks} Marks
-                  </Badge>
+                {/* Live Section Summary Actions */}
+                <div
+                  className="flex items-center gap-2 shrink-0"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleAddSection('mcq')}
+                    className="h-8 text-xs font-bold text-indigo-700 border-indigo-200 bg-indigo-50/50 hover:bg-indigo-100 cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5 mr-1" /> Add Section
+                  </Button>
+                  <div className="px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold">
+                    Total: {totalConfiguredMarks} Marks
+                  </div>
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="space-y-4 pt-4">
-              {/* Sections List */}
-              <div className="space-y-3">
-                {sections.map((section, idx) => {
-                  const meta = SECTION_TYPE_METADATA[section.type] || SECTION_TYPE_METADATA.mcq;
-                  const Icon = meta.icon;
-                  const sectionMarksTotal = section.count * section.marks_per_question;
 
-                  return (
-                    <div
-                      key={section.id}
-                      className={`p-3.5 rounded-xl border transition-all ${
-                        section.enabled
-                          ? 'bg-white border-slate-200 shadow-xs hover:border-slate-300'
-                          : 'bg-slate-50 border-dashed border-slate-200 opacity-60'
-                      }`}
-                    >
-                      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-                        {/* Left: Enable toggle, Order buttons, Title & Type */}
-                        <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                          {/* Reorder Buttons */}
-                          <div className="flex flex-col gap-0.5">
-                            <button
-                              type="button"
-                              onClick={() => handleMoveSection(idx, 'up')}
-                              disabled={idx === 0}
-                              className="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-700 disabled:opacity-20 cursor-pointer"
-                              title="Move section up"
-                            >
-                              <ArrowUp className="w-3 h-3" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleMoveSection(idx, 'down')}
-                              disabled={idx === sections.length - 1}
-                              className="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-700 disabled:opacity-20 cursor-pointer"
-                              title="Move section down"
-                            >
-                              <ArrowDown className="w-3 h-3" />
-                            </button>
-                          </div>
+            <div className={`${accordionOpenSections ? 'block' : 'hidden md:block'}`}>
+              <CardContent className="space-y-4 pt-4">
+                {/* Desktop & Tablet Section Cards List (>= md) */}
+                <div className="hidden md:block space-y-3">
+                  {sections.map((section, idx) => {
+                    const sectionMarksTotal = section.count * section.marks_per_question;
 
-                          {/* Checkbox Toggle */}
-                          <input
-                            type="checkbox"
-                            checked={section.enabled}
-                            onChange={() => handleToggleSection(section.id)}
-                            className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                            title="Enable or disable section"
-                          />
+                    return (
+                      <div
+                        key={section.id}
+                        className={`p-3.5 rounded-xl border transition-all ${
+                          section.enabled
+                            ? 'bg-white border-slate-200 shadow-2xs hover:border-slate-300'
+                            : 'bg-slate-50/70 border-dashed border-slate-200 opacity-60'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          {/* Left: Drag grip, Reorder, Enable Checkbox, Title & Type */}
+                          <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                            {/* Reorder Buttons & Drag Handle */}
+                            <div className="flex items-center gap-0.5 text-slate-400">
+                              <GripVertical className="w-4 h-4 text-slate-300" />
+                              <div className="flex flex-col gap-0.5">
+                                <button
+                                  type="button"
+                                  onClick={() => handleMoveSection(idx, 'up')}
+                                  disabled={idx === 0}
+                                  className="p-0.5 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-700 disabled:opacity-20 cursor-pointer"
+                                  title="Move section up"
+                                >
+                                  <ArrowUp className="w-2.5 h-2.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleMoveSection(idx, 'down')}
+                                  disabled={idx === sections.length - 1}
+                                  className="p-0.5 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-700 disabled:opacity-20 cursor-pointer"
+                                  title="Move section down"
+                                >
+                                  <ArrowDown className="w-2.5 h-2.5" />
+                                </button>
+                              </div>
+                            </div>
 
-                          {/* Section Title Input */}
-                          <div className="flex-1 min-w-[200px]">
-                            <Input
-                              value={section.section_name}
+                            {/* Checkbox Toggle */}
+                            <input
+                              type="checkbox"
+                              checked={section.enabled}
+                              onChange={() => handleToggleSection(section.id)}
+                              className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer shrink-0"
+                              title="Enable or disable section"
+                            />
+
+                            {/* Section Title Input */}
+                            <div className="flex-1 min-w-[170px]">
+                              <Input
+                                value={section.section_name}
+                                onChange={(e) =>
+                                  handleUpdateSection(section.id, { section_name: e.target.value })
+                                }
+                                disabled={!section.enabled}
+                                className="h-8 text-xs font-semibold rounded-lg bg-white border-slate-200"
+                                placeholder="Section Name"
+                              />
+                            </div>
+
+                            {/* Question Type Selector */}
+                            <select
+                              value={section.type}
                               onChange={(e) =>
-                                handleUpdateSection(section.id, { section_name: e.target.value })
+                                handleUpdateSection(section.id, {
+                                  type: e.target.value as QuestionType,
+                                })
                               }
                               disabled={!section.enabled}
-                              className="h-8 text-xs font-semibold rounded-lg bg-slate-50/70 border-slate-200 focus:bg-white"
-                              placeholder="Section Name (e.g. Section A: Fill in the Blanks)"
-                            />
-                          </div>
-
-                          {/* Question Type Selector */}
-                          <select
-                            value={section.type}
-                            onChange={(e) =>
-                              handleUpdateSection(section.id, {
-                                type: e.target.value as QuestionType,
-                              })
-                            }
-                            disabled={!section.enabled}
-                            className="h-8 text-xs font-semibold rounded-lg border border-slate-200 bg-slate-50/70 px-2.5 focus:bg-white focus:outline-none cursor-pointer"
-                          >
-                            <option value="mcq">MCQ (Multiple Choice)</option>
-                            <option value="fill_blank">Fill in the Blanks</option>
-                            <option value="match_the_following">Match the Following</option>
-                            <option value="true_false">True / False</option>
-                            <option value="short_answer">Short Answer</option>
-                            <option value="long_answer">Long / Essay</option>
-                          </select>
-                        </div>
-
-                        {/* Right: Count, Marks Each, Difficulty, Total Badge, Delete */}
-                        <div className="flex items-center justify-between lg:justify-end gap-3 shrink-0">
-                          {/* Count */}
-                          <div className="flex items-center gap-1">
-                            <span className="text-[11px] text-slate-500 font-medium">Count:</span>
-                            <div className="flex items-center">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleUpdateSection(section.id, {
-                                    count: Math.max(1, section.count - 1),
-                                  })
-                                }
-                                disabled={!section.enabled || section.count <= 1}
-                                className="w-6 h-7 flex items-center justify-center bg-slate-100 hover:bg-slate-200 rounded-l border border-r-0 border-slate-200 text-xs font-bold disabled:opacity-40"
-                              >
-                                -
-                              </button>
-                              <Input
-                                type="number"
-                                min={1}
-                                max={50}
-                                value={section.count}
-                                onChange={(e) =>
-                                  handleUpdateSection(section.id, {
-                                    count: Math.max(1, Number(e.target.value) || 1),
-                                  })
-                                }
-                                disabled={!section.enabled}
-                                className="w-12 h-7 rounded-none text-center text-xs font-bold border-slate-200 p-0"
-                              />
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleUpdateSection(section.id, { count: section.count + 1 })
-                                }
-                                disabled={!section.enabled}
-                                className="w-6 h-7 flex items-center justify-center bg-slate-100 hover:bg-slate-200 rounded-r border border-l-0 border-slate-200 text-xs font-bold disabled:opacity-40"
-                              >
-                                +
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* Marks Each */}
-                          <div className="flex items-center gap-1">
-                            <span className="text-[11px] text-slate-500 font-medium">Marks:</span>
-                            <div className="flex items-center">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleUpdateSection(section.id, {
-                                    marks_per_question: Math.max(1, section.marks_per_question - 1),
-                                  })
-                                }
-                                disabled={!section.enabled || section.marks_per_question <= 1}
-                                className="w-6 h-7 flex items-center justify-center bg-slate-100 hover:bg-slate-200 rounded-l border border-r-0 border-slate-200 text-xs font-bold disabled:opacity-40"
-                              >
-                                -
-                              </button>
-                              <Input
-                                type="number"
-                                min={1}
-                                max={20}
-                                value={section.marks_per_question}
-                                onChange={(e) =>
-                                  handleUpdateSection(section.id, {
-                                    marks_per_question: Math.max(1, Number(e.target.value) || 1),
-                                  })
-                                }
-                                disabled={!section.enabled}
-                                className="w-10 h-7 rounded-none text-center text-xs font-bold border-slate-200 p-0"
-                              />
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleUpdateSection(section.id, {
-                                    marks_per_question: section.marks_per_question + 1,
-                                  })
-                                }
-                                disabled={!section.enabled}
-                                className="w-6 h-7 flex items-center justify-center bg-slate-100 hover:bg-slate-200 rounded-r border border-l-0 border-slate-200 text-xs font-bold disabled:opacity-40"
-                              >
-                                +
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* Difficulty */}
-                          <select
-                            value={section.difficulty}
-                            onChange={(e) =>
-                              handleUpdateSection(section.id, {
-                                difficulty: e.target.value as any,
-                              })
-                            }
-                            disabled={!section.enabled}
-                            className="h-7 text-[11px] font-semibold rounded border border-slate-200 bg-white px-2 focus:outline-none"
-                          >
-                            <option value="easy">Easy</option>
-                            <option value="medium">Medium</option>
-                            <option value="hard">Hard</option>
-                          </select>
-
-                          {/* Section Total Badge */}
-                          <div className="min-w-[45px] text-right">
-                            <span
-                              className={`text-xs font-bold ${
-                                section.enabled ? 'text-indigo-600' : 'text-slate-400'
-                              }`}
+                              className="h-8 text-xs font-medium rounded-lg border border-slate-200 bg-white px-2.5 focus:outline-none cursor-pointer shrink-0"
                             >
-                              ={sectionMarksTotal}M
-                            </span>
+                              <option value="mcq">MCQ (Multiple Choice)</option>
+                              <option value="fill_blank">Fill in the Blanks</option>
+                              <option value="match_the_following">Match the Following</option>
+                              <option value="true_false">True / False</option>
+                              <option value="short_answer">Short Answer</option>
+                              <option value="long_answer">Long / Essay</option>
+                            </select>
                           </div>
 
-                          {/* Delete Section */}
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteSection(section.id)}
-                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                            title="Delete this section"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          {/* Right: Count, Marks, Difficulty, Add, Delete */}
+                          <div className="flex items-center gap-3 shrink-0">
+                            {/* Count */}
+                            <div className="flex flex-col items-center">
+                              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-0.5">
+                                Count
+                              </span>
+                              <div className="flex items-center">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleUpdateSection(section.id, {
+                                      count: Math.max(1, section.count - 1),
+                                    })
+                                  }
+                                  disabled={!section.enabled || section.count <= 1}
+                                  className="w-6 h-7 flex items-center justify-center bg-slate-100 hover:bg-slate-200 rounded-l border border-r-0 border-slate-200 text-xs font-bold disabled:opacity-40 cursor-pointer"
+                                >
+                                  -
+                                </button>
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  max={50}
+                                  value={section.count}
+                                  onChange={(e) =>
+                                    handleUpdateSection(section.id, {
+                                      count: Math.max(1, Number(e.target.value) || 1),
+                                    })
+                                  }
+                                  disabled={!section.enabled}
+                                  className="w-10 h-7 rounded-none text-center text-xs font-bold border-slate-200 p-0"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleUpdateSection(section.id, { count: section.count + 1 })
+                                  }
+                                  disabled={!section.enabled}
+                                  className="w-6 h-7 flex items-center justify-center bg-slate-100 hover:bg-slate-200 rounded-r border border-l-0 border-slate-200 text-xs font-bold disabled:opacity-40 cursor-pointer"
+                                >
+                                  +
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Marks */}
+                            <div className="flex flex-col items-center">
+                              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-0.5">
+                                Marks
+                              </span>
+                              <div className="flex items-center">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleUpdateSection(section.id, {
+                                      marks_per_question: Math.max(1, section.marks_per_question - 1),
+                                    })
+                                  }
+                                  disabled={!section.enabled || section.marks_per_question <= 1}
+                                  className="w-6 h-7 flex items-center justify-center bg-slate-100 hover:bg-slate-200 rounded-l border border-r-0 border-slate-200 text-xs font-bold disabled:opacity-40 cursor-pointer"
+                                >
+                                  -
+                                </button>
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  max={20}
+                                  value={section.marks_per_question}
+                                  onChange={(e) =>
+                                    handleUpdateSection(section.id, {
+                                      marks_per_question: Math.max(1, Number(e.target.value) || 1),
+                                    })
+                                  }
+                                  disabled={!section.enabled}
+                                  className="w-9 h-7 rounded-none text-center text-xs font-bold border-slate-200 p-0"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleUpdateSection(section.id, {
+                                      marks_per_question: section.marks_per_question + 1,
+                                    })
+                                  }
+                                  disabled={!section.enabled}
+                                  className="w-6 h-7 flex items-center justify-center bg-slate-100 hover:bg-slate-200 rounded-r border border-l-0 border-slate-200 text-xs font-bold disabled:opacity-40 cursor-pointer"
+                                >
+                                  +
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Difficulty */}
+                            <div className="flex flex-col items-center">
+                              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-0.5">
+                                Difficulty
+                              </span>
+                              <select
+                                value={section.difficulty}
+                                onChange={(e) =>
+                                  handleUpdateSection(section.id, {
+                                    difficulty: e.target.value as any,
+                                  })
+                                }
+                                disabled={!section.enabled}
+                                className="h-7 text-[11px] font-semibold rounded-md border border-slate-200 bg-white px-2 focus:outline-none cursor-pointer"
+                              >
+                                <option value="easy">Easy</option>
+                                <option value="medium">Medium</option>
+                                <option value="hard">Hard</option>
+                              </select>
+                            </div>
+
+                            {/* Quick Add Button */}
+                            <button
+                              type="button"
+                              onClick={() => handleAddSection(section.type)}
+                              className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-0.5 cursor-pointer mt-3 px-1 py-1"
+                              title="Duplicate or add section of this type"
+                            >
+                              <Plus className="w-3 h-3" /> Add
+                            </button>
+
+                            {/* Delete Button */}
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteSection(section.id)}
+                              className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer mt-3"
+                              title="Delete this section"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Add New Section Action Buttons Bar */}
-              <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs font-semibold text-slate-600 mr-1">Quick Add Section:</span>
-                  <button
-                    type="button"
-                    onClick={() => handleAddSection('fill_blank')}
-                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors cursor-pointer"
-                  >
-                    <Plus className="w-3 h-3" /> + Fill in Blanks
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleAddSection('match_the_following')}
-                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 transition-colors cursor-pointer"
-                  >
-                    <Plus className="w-3 h-3" /> + Match the Following
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleAddSection('true_false')}
-                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-colors cursor-pointer"
-                  >
-                    <Plus className="w-3 h-3" /> + True / False
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleAddSection('mcq')}
-                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors cursor-pointer"
-                  >
-                    <Plus className="w-3 h-3" /> + MCQ
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleAddSection('short_answer')}
-                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-orange-50 text-orange-700 border border-orange-200 hover:bg-orange-100 transition-colors cursor-pointer"
-                  >
-                    <Plus className="w-3 h-3" /> + Short Qs
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleAddSection('long_answer')}
-                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 transition-colors cursor-pointer"
-                  >
-                    <Plus className="w-3 h-3" /> + Long Qs
-                  </button>
+                    );
+                  })}
                 </div>
 
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleAddSection('mcq')}
-                  className="text-xs font-bold text-indigo-700 border-indigo-200 hover:bg-indigo-50"
-                >
-                  <Plus className="w-3.5 h-3.5 mr-1" /> Custom Section
-                </Button>
-              </div>
+                {/* Mobile Section Summary Tiles (< md) */}
+                <div className="md:hidden space-y-2.5">
+                  {sections.map((section, idx) => {
+                    const isExpanded = mobileExpandedSectionId === section.id;
+                    const sectionMarksTotal = section.count * section.marks_per_question;
 
-              {/* Main Full-Width Action Button */}
-              <div className="pt-3">
-                <Button
-                  onClick={handleGeneratePaper}
-                  disabled={
-                    isGenerating ||
-                    !selectedClassId ||
-                    !selectedSubjectId ||
-                    selectedChapterIds.length === 0 ||
-                    activeSections.length === 0
-                  }
-                  className="w-full h-12 rounded-xl gradient-brand text-white font-bold text-sm shadow-md hover:opacity-95 transition-opacity flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                >
-                  {isGenerating ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      Generating {totalConfiguredQuestions} Questions across {activeSections.length} Sections with AI...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-4 h-4" />
-                      Generate Examination Paper ({totalConfiguredQuestions} Questions, {totalConfiguredMarks} Marks)
-                    </>
-                  )}
-                </Button>
-              </div>
-            </CardContent>
+                    return (
+                      <div
+                        key={section.id}
+                        className={`rounded-xl border transition-all overflow-hidden ${
+                          section.enabled
+                            ? 'bg-white border-slate-200 shadow-2xs'
+                            : 'bg-slate-50 border-dashed border-slate-200 opacity-60'
+                        }`}
+                      >
+                        {/* Mobile Summary Tile Header (Matches Mockup!) */}
+                        <div
+                          onClick={() =>
+                            setMobileExpandedSectionId(isExpanded ? null : section.id)
+                          }
+                          className="flex items-center justify-between p-3.5 cursor-pointer hover:bg-slate-50/60 select-none transition-colors"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <input
+                              type="checkbox"
+                              checked={section.enabled}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                handleToggleSection(section.id);
+                              }}
+                              className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer shrink-0"
+                            />
+                            <div className="font-bold text-xs text-slate-800 truncate">
+                              {section.section_name}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                              {section.count} Qs • {sectionMarksTotal} Marks
+                            </span>
+                            <ChevronRight
+                              className={`w-4 h-4 text-slate-400 transition-transform ${
+                                isExpanded ? 'rotate-90' : ''
+                              }`}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Mobile Expanded Details */}
+                        {isExpanded && (
+                          <div className="p-3.5 bg-slate-50/70 border-t border-slate-100 space-y-3 animate-in fade-in-50 duration-150">
+                            <div>
+                              <Label className="text-[11px] font-semibold text-slate-600">
+                                Section Name
+                              </Label>
+                              <Input
+                                value={section.section_name}
+                                onChange={(e) =>
+                                  handleUpdateSection(section.id, {
+                                    section_name: e.target.value,
+                                  })
+                                }
+                                className="mt-1 h-8 text-xs bg-white"
+                              />
+                            </div>
+
+                            <div>
+                              <Label className="text-[11px] font-semibold text-slate-600">
+                                Question Type
+                              </Label>
+                              <select
+                                value={section.type}
+                                onChange={(e) =>
+                                  handleUpdateSection(section.id, {
+                                    type: e.target.value as QuestionType,
+                                  })
+                                }
+                                className="w-full mt-1 h-8 text-xs font-medium rounded-lg border border-slate-200 bg-white px-2.5 focus:outline-none"
+                              >
+                                <option value="mcq">MCQ (Multiple Choice)</option>
+                                <option value="fill_blank">Fill in the Blanks</option>
+                                <option value="match_the_following">Match the Following</option>
+                                <option value="true_false">True / False</option>
+                                <option value="short_answer">Short Answer</option>
+                                <option value="long_answer">Long / Essay</option>
+                              </select>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-2 pt-1">
+                              {/* Count */}
+                              <div>
+                                <Label className="text-[10px] uppercase font-bold text-slate-500 block mb-1">
+                                  Count
+                                </Label>
+                                <div className="flex items-center">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleUpdateSection(section.id, {
+                                        count: Math.max(1, section.count - 1),
+                                      })
+                                    }
+                                    disabled={section.count <= 1}
+                                    className="w-6 h-7 flex items-center justify-center bg-white border border-r-0 border-slate-200 rounded-l text-xs font-bold"
+                                  >
+                                    -
+                                  </button>
+                                  <Input
+                                    type="number"
+                                    min={1}
+                                    max={50}
+                                    value={section.count}
+                                    onChange={(e) =>
+                                      handleUpdateSection(section.id, {
+                                        count: Math.max(1, Number(e.target.value) || 1),
+                                      })
+                                    }
+                                    className="w-full h-7 rounded-none text-center text-xs font-bold border-slate-200 p-0 bg-white"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleUpdateSection(section.id, { count: section.count + 1 })
+                                    }
+                                    className="w-6 h-7 flex items-center justify-center bg-white border border-l-0 border-slate-200 rounded-r text-xs font-bold"
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Marks */}
+                              <div>
+                                <Label className="text-[10px] uppercase font-bold text-slate-500 block mb-1">
+                                  Marks
+                                </Label>
+                                <div className="flex items-center">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleUpdateSection(section.id, {
+                                        marks_per_question: Math.max(
+                                          1,
+                                          section.marks_per_question - 1
+                                        ),
+                                      })
+                                    }
+                                    disabled={section.marks_per_question <= 1}
+                                    className="w-6 h-7 flex items-center justify-center bg-white border border-r-0 border-slate-200 rounded-l text-xs font-bold"
+                                  >
+                                    -
+                                  </button>
+                                  <Input
+                                    type="number"
+                                    min={1}
+                                    max={20}
+                                    value={section.marks_per_question}
+                                    onChange={(e) =>
+                                      handleUpdateSection(section.id, {
+                                        marks_per_question: Math.max(
+                                          1,
+                                          Number(e.target.value) || 1
+                                        ),
+                                      })
+                                    }
+                                    className="w-full h-7 rounded-none text-center text-xs font-bold border-slate-200 p-0 bg-white"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleUpdateSection(section.id, {
+                                        marks_per_question: section.marks_per_question + 1,
+                                      })
+                                    }
+                                    className="w-6 h-7 flex items-center justify-center bg-white border border-l-0 border-slate-200 rounded-r text-xs font-bold"
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Difficulty */}
+                              <div>
+                                <Label className="text-[10px] uppercase font-bold text-slate-500 block mb-1">
+                                  Difficulty
+                                </Label>
+                                <select
+                                  value={section.difficulty}
+                                  onChange={(e) =>
+                                    handleUpdateSection(section.id, {
+                                      difficulty: e.target.value as any,
+                                    })
+                                  }
+                                  className="w-full h-7 text-xs font-semibold rounded-md border border-slate-200 bg-white px-2 focus:outline-none"
+                                >
+                                  <option value="easy">Easy</option>
+                                  <option value="medium">Medium</option>
+                                  <option value="hard">Hard</option>
+                                </select>
+                              </div>
+                            </div>
+
+                            {/* Actions on Mobile */}
+                            <div className="flex items-center justify-between pt-2 border-t border-slate-200/60">
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => handleMoveSection(idx, 'up')}
+                                  disabled={idx === 0}
+                                  className="p-1 rounded bg-white border border-slate-200 text-slate-600 disabled:opacity-30 text-xs flex items-center gap-1"
+                                >
+                                  <ArrowUp className="w-3 h-3" /> Up
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleMoveSection(idx, 'down')}
+                                  disabled={idx === sections.length - 1}
+                                  className="p-1 rounded bg-white border border-slate-200 text-slate-600 disabled:opacity-30 text-xs flex items-center gap-1"
+                                >
+                                  <ArrowDown className="w-3 h-3" /> Down
+                                </button>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteSection(section.id)}
+                                className="text-red-600 text-xs font-bold flex items-center gap-1 px-2 py-1 rounded hover:bg-red-50"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" /> Delete
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Add New Section Action Buttons Bar */}
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100">
+                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                    <span className="text-xs font-semibold text-slate-600 mr-1 hidden sm:inline">
+                      Quick Add Section:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleAddSection('fill_blank')}
+                      className="flex items-center gap-1 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors cursor-pointer"
+                    >
+                      <Plus className="w-3 h-3" /> + Fill in Blanks
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAddSection('match_the_following')}
+                      className="flex items-center gap-1 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 transition-colors cursor-pointer"
+                    >
+                      <Plus className="w-3 h-3" /> + Match
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAddSection('true_false')}
+                      className="flex items-center gap-1 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-colors cursor-pointer"
+                    >
+                      <Plus className="w-3 h-3" /> + True/False
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAddSection('mcq')}
+                      className="flex items-center gap-1 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors cursor-pointer"
+                    >
+                      <Plus className="w-3 h-3" /> + MCQ
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAddSection('short_answer')}
+                      className="flex items-center gap-1 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold bg-orange-50 text-orange-700 border border-orange-200 hover:bg-orange-100 transition-colors cursor-pointer"
+                    >
+                      <Plus className="w-3 h-3" /> + Short Qs
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAddSection('long_answer')}
+                      className="flex items-center gap-1 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 transition-colors cursor-pointer"
+                    >
+                      <Plus className="w-3 h-3" /> + Long Qs
+                    </button>
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleAddSection('mcq')}
+                    className="text-xs font-bold text-indigo-700 border-indigo-200 hover:bg-indigo-50 cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5 mr-1" /> Custom Section
+                  </Button>
+                </div>
+
+                {/* Main Full-Width Action Button on Desktop */}
+                <div className="pt-3">
+                  <Button
+                    onClick={handleGeneratePaper}
+                    disabled={
+                      isGenerating ||
+                      !selectedClassId ||
+                      !selectedSubjectId ||
+                      selectedChapterIds.length === 0 ||
+                      activeSections.length === 0
+                    }
+                    className="w-full h-12 rounded-xl gradient-brand text-white font-bold text-sm shadow-md hover:opacity-95 transition-opacity flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    {isGenerating ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        Generating {totalConfiguredQuestions} Questions across {activeSections.length} Sections with AI...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4" />
+                        Generate Examination Paper ({totalConfiguredQuestions} Questions, {totalConfiguredMarks} Marks)
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </div>
           </Card>
+
+          {/* Sticky Bottom Action Bar for Mobile and Tablet (Matches Mockup!) */}
+          <div className="fixed bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-xl z-30 md:hidden print:hidden">
+            <Button
+              onClick={handleGeneratePaper}
+              disabled={
+                isGenerating ||
+                !selectedClassId ||
+                !selectedSubjectId ||
+                selectedChapterIds.length === 0 ||
+                activeSections.length === 0
+              }
+              className="w-full h-12 rounded-xl gradient-brand text-white font-bold text-sm shadow-md hover:opacity-95 transition-opacity flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+            >
+              {isGenerating ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  Generating Questions with AI...
+                </>
+              ) : paperQuestions.length > 0 ? (
+                <>
+                  Next: Paper Preview ({paperQuestions.length})
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              ) : (
+                <>
+                  Next: Paper Preview ({totalConfiguredMarks} Marks)
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       )}
 
@@ -1421,7 +1824,7 @@ export default function GeneratePaperPage() {
           <div className="w-full flex justify-center py-2 print:p-0 overflow-x-auto">
             <div
               id="printable-exam-paper"
-              className="print-page w-full min-w-[800px] max-w-[800px] bg-white border border-slate-300 rounded-lg p-8 sm:p-12 shadow-xl min-h-[1050px] text-slate-900 print:shadow-none print:border-none print:p-0 print:m-0 print:max-w-none print:min-w-0"
+              className="print-page w-full min-w-0 sm:min-w-[700px] max-w-[800px] bg-white border border-slate-300 rounded-xl p-4 sm:p-8 lg:p-12 shadow-xl min-h-[600px] sm:min-h-[1050px] text-slate-900 print:shadow-none print:border-none print:p-0 print:m-0 print:max-w-none print:min-w-0"
             >
             {paperQuestions.length === 0 ? (
               <div className="h-[450px] flex flex-col items-center justify-center text-center p-6 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50 print:hidden space-y-3">
@@ -1730,6 +2133,24 @@ export default function GeneratePaperPage() {
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Mobile Floating Bottom Bar for Preview Mode */}
+          <div className="fixed bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-xl z-30 md:hidden print:hidden flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setViewMode('config')}
+              className="flex-1 h-11 rounded-xl text-xs font-bold border-slate-300 text-slate-700 cursor-pointer"
+            >
+              <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Edit Setup
+            </Button>
+            <Button
+              onClick={handlePrint}
+              disabled={paperQuestions.length === 0}
+              className="flex-2 h-11 rounded-xl gradient-brand text-white font-bold text-xs shadow-md cursor-pointer"
+            >
+              <Printer className="w-3.5 h-3.5 mr-1" /> Print / Save PDF
+            </Button>
           </div>
         </div>
       )}
