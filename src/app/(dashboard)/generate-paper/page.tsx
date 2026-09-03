@@ -308,15 +308,15 @@ export default function GeneratePaperPage() {
           setSelectedSubjectId(p.subject_id);
           if (tokenStr) fetchChapters(p.subject_id, tokenStr);
         }
-        if (bp.schoolName) setSchoolName(bp.schoolName);
-        if (bp.schoolLogo) setSchoolLogo(bp.schoolLogo);
-        if (bp.schoolAddress) setSchoolAddress(bp.schoolAddress);
-        if (bp.timeAllowed) setTimeAllowed(bp.timeAllowed);
-        if (bp.instructions) setInstructions(bp.instructions);
-        if (bp.selectedChapterIds) setSelectedChapterIds(bp.selectedChapterIds);
-        if (bp.sections && Array.isArray(bp.sections)) setSections(bp.sections);
-        if (bp.selected_questions && Array.isArray(bp.selected_questions) && bp.selected_questions.length > 0) {
-          setPaperQuestions(bp.selected_questions);
+        if (p.schoolName) setSchoolName(p.schoolName);
+        if (p.schoolLogo) setSchoolLogo(p.schoolLogo);
+        if (p.schoolAddress) setSchoolAddress(p.schoolAddress);
+        if (p.timeAllowed) setTimeAllowed(p.timeAllowed);
+        if (p.instructions) setInstructions(p.instructions);
+        if (p.selectedChapterIds) setSelectedChapterIds(p.selectedChapterIds);
+        if (p.sections && Array.isArray(p.sections)) setSections(p.sections);
+        if (p.selected_questions && Array.isArray(p.selected_questions) && p.selected_questions.length > 0) {
+          setPaperQuestions(p.selected_questions);
           setViewMode('preview');
         }
         toast.success(`Loaded "${p.title}" for editing!`);

@@ -125,8 +125,8 @@ export function printExamPaper(data: ExamPaperData) {
 
   // Parse match the following
   const parseMatchCols = (q: any) => {
-    let colA: string[] = [];
-    let colB: string[] = [];
+    let colA: any[] = [];
+    let colB: any[] = [];
     if (q.options && typeof q.options === 'object' && !Array.isArray(q.options)) {
       const rawA = q.options.column_a || q.options.columnA || [];
       const rawB = q.options.column_b || q.options.columnB || [];

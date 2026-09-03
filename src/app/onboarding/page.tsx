@@ -214,7 +214,7 @@ export default function OnboardingPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Classes Range</Label>
-                  <Select value={classesRange} onValueChange={setClassesRange}>
+                  <Select value={classesRange} onValueChange={(val) => setClassesRange(val || '')}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select classes range" />
                     </SelectTrigger>
