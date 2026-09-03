@@ -40,11 +40,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+
+import 'katex/dist/katex.min.css';
+import Latex from 'react-latex-next';
+
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { API_URL } from '@/lib/api';
 import { toast } from 'sonner';
-import { printExamPaper } from '@/lib/paperPrinter';
+import { printExamPaper, autoFormatMath } from '@/lib/paperPrinter';
 
 export type QuestionType =
   | 'mcq'
@@ -202,6 +206,32 @@ const DEFAULT_SECTIONS: SectionConfigItem[] = [
   },
 ];
 
+const toRoman = (num: number): string => {
+  const lookup: any = {M:1000,CM:900,D:500,CD:400,C:100,XC:90,L:50,XL:40,X:10,IX:9,V:5,IV:4,I:1};
+  let roman = '';
+  for (let i in lookup ) {
+    while ( num >= lookup[i] ) {
+      roman += i;
+      num -= lookup[i];
+    }
+  }
+  return roman;
+};
+
+const formatQuestionNumber = (secIdx: number, qIdx: number): string => {
+  const n = qIdx + 1;
+  const style = secIdx % 5;
+  const alphaChar = String.fromCharCode(97 + ((n - 1) % 26));
+  switch (style) {
+    case 0: return `${n}`; // 1, 2, 3
+    case 1: return alphaChar; // a, b, c
+    case 2: return toRoman(n); // I, II, III
+    case 3: return alphaChar.toUpperCase(); // A, B, C
+    case 4: return toRoman(n).toLowerCase(); // i, ii, iii
+    default: return `${n}`;
+  }
+};
+
 export default function GeneratePaperPage() {
   const [token, setToken] = useState('');
   const [viewMode, setViewMode] = useState<'config' | 'preview'>('config');
@@ -215,9 +245,9 @@ export default function GeneratePaperPage() {
   const [selectedSubjectId, setSelectedSubjectId] = useState('');
   const [selectedChapterIds, setSelectedChapterIds] = useState<string[]>([]);
 
-  // Paper Config & Metadata
   const [schoolName, setSchoolName] = useState('Modern Public School');
   const [schoolLogo, setSchoolLogo] = useState('');
+  const [schoolAddress, setSchoolAddress] = useState('');
   const [examTitle, setExamTitle] = useState('Annual Examination - 2026');
   const [timeAllowed, setTimeAllowed] = useState('2.5 Hours');
   const [totalMarks, setTotalMarks] = useState('50');
@@ -238,6 +268,19 @@ export default function GeneratePaperPage() {
   // Image Upload state for questions
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [activeQuestionIdxForImage, setActiveQuestionIdxForImage] = useState<number | null>(null);
+
+  // Inline Question Editing
+  const [editingQuestionIdx, setEditingQuestionIdx] = useState<number | null>(null);
+  const [editingQuestionText, setEditingQuestionText] = useState('');
+
+  const handleSaveEditedQuestion = () => {
+    if (editingQuestionIdx === null) return;
+    const newQuestions = [...paperQuestions];
+    newQuestions[editingQuestionIdx].question_text = editingQuestionText;
+    setPaperQuestions(newQuestions);
+    setEditingQuestionIdx(null);
+    setEditingQuestionText('');
+  };
 
   useEffect(() => {
     const tokenMatch = document.cookie.match(new RegExp('(^| )notegen_session=([^;]+)'));
@@ -265,8 +308,9 @@ export default function GeneratePaperPage() {
           setSelectedSubjectId(p.subject_id);
           if (tokenStr) fetchChapters(p.subject_id, tokenStr);
         }
-        const bp = p.blueprint || {};
         if (bp.schoolName) setSchoolName(bp.schoolName);
+        if (bp.schoolLogo) setSchoolLogo(bp.schoolLogo);
+        if (bp.schoolAddress) setSchoolAddress(bp.schoolAddress);
         if (bp.timeAllowed) setTimeAllowed(bp.timeAllowed);
         if (bp.instructions) setInstructions(bp.instructions);
         if (bp.selectedChapterIds) setSelectedChapterIds(bp.selectedChapterIds);
@@ -288,8 +332,9 @@ export default function GeneratePaperPage() {
         headers: { Authorization: `Bearer ${authToken}` },
       });
       const data = await res.json();
-      if (data.data?.name) setSchoolName(data.data.name);
-      if (data.data?.logo_url) setSchoolLogo(data.data.logo_url);
+      if (data.school?.name) setSchoolName(data.school.name);
+      if (data.school?.logo_url) setSchoolLogo(data.school.logo_url);
+      if (data.school?.address) setSchoolAddress(data.school.address);
     } catch (e) {
       console.error(e);
     }
@@ -580,6 +625,8 @@ export default function GeneratePaperPage() {
           time_allowed_minutes: 150,
           blueprint: {
             schoolName,
+            schoolLogo,
+            schoolAddress,
             timeAllowed,
             instructions,
             selectedChapterIds,
@@ -605,6 +652,8 @@ export default function GeneratePaperPage() {
     if (paperQuestions.length === 0) return;
     printExamPaper({
       schoolName,
+      schoolLogo,
+      schoolAddress,
       title: examTitle,
       className: selectedClassName,
       subjectName: selectedSubjectName,
@@ -891,6 +940,26 @@ export default function GeneratePaperPage() {
                     onChange={(e) => setSchoolName(e.target.value)}
                     className="mt-1 h-9 rounded-lg text-sm"
                     placeholder="e.g. Modern Public School"
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-xs font-semibold text-slate-700">School Logo (Image URL)</Label>
+                  <Input
+                    value={schoolLogo}
+                    onChange={(e) => setSchoolLogo(e.target.value)}
+                    className="mt-1 h-9 rounded-lg text-sm"
+                    placeholder="https://example.com/logo.png"
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-xs font-semibold text-slate-700">School Address (Optional)</Label>
+                  <Input
+                    value={schoolAddress}
+                    onChange={(e) => setSchoolAddress(e.target.value)}
+                    className="mt-1 h-9 rounded-lg text-sm"
+                    placeholder="e.g. 123 Education Street, City"
                   />
                 </div>
 
@@ -1371,12 +1440,26 @@ export default function GeneratePaperPage() {
               <div className="space-y-6">
                 {/* Paper Header */}
                 <div className="print-header text-center border-b-2 border-slate-900 pb-4 space-y-1">
-                  <h2 className="text-xl sm:text-2xl font-black uppercase tracking-wide">
-                    {schoolName}
-                  </h2>
-                  <h3 className="text-sm sm:text-base font-bold text-slate-700">
-                    {examTitle}
-                  </h3>
+                  <div className="relative flex items-center justify-center">
+                    {schoolLogo && (
+                      <div className="absolute left-0 top-1/2 -translate-y-1/2 h-24 w-24 flex items-center">
+                        <img src={schoolLogo} alt="School Logo" className="max-h-full max-w-full object-contain" />
+                      </div>
+                    )}
+                    <div className="max-w-[calc(100%-220px)] mx-auto">
+                      <h2 className="text-xl sm:text-2xl font-black uppercase tracking-wide">
+                        {schoolName}
+                      </h2>
+                      {schoolAddress && (
+                        <div className="text-[11px] sm:text-xs font-bold text-slate-600 uppercase mb-1">
+                          {schoolAddress}
+                        </div>
+                      )}
+                      <h3 className="text-sm sm:text-base font-bold text-slate-700">
+                        {examTitle}
+                      </h3>
+                    </div>
+                  </div>
                   <div className="flex flex-wrap items-center justify-between text-xs font-semibold pt-2 text-slate-800 border-t border-slate-200 mt-2">
                     <span>CLASS: {selectedClassName || 'N/A'}</span>
                     <span>SUBJECT: {selectedSubjectName || 'N/A'}</span>
@@ -1414,8 +1497,8 @@ export default function GeneratePaperPage() {
                     return (
                       <div
                         key={secGroup.sectionName || secIdx}
-                        className={`print-section space-y-3 ${
-                          isTwoColumn ? 'break-inside-avoid print:break-inside-avoid mb-6' : ''
+                        className={`print-section space-y-3 break-inside-avoid ${
+                          isTwoColumn ? 'mb-6' : ''
                         }`}
                       >
                         {/* Section Header with Section Marks & Section Instruction */}
@@ -1448,9 +1531,9 @@ export default function GeneratePaperPage() {
 
                         {/* Questions in this Section */}
                         <div className="space-y-4">
-                          {secQuestions.map((q) => {
+                          {secQuestions.map((q, qIdx) => {
                             const globalIdx = paperQuestions.findIndex((item) => item.id === q.id);
-                            const qNumber = globalIdx + 1;
+                            const qNumber = formatQuestionNumber(secIdx, qIdx);
                             const { colA, colB, cleanQuestionText } = parseMatchTheFollowing(q);
                             const displayQuestionText =
                               q.type === 'match_the_following'
@@ -1466,15 +1549,40 @@ export default function GeneratePaperPage() {
                               >
                                 {/* Question Header Line without chapter name or per-question marks */}
                                 <div className="flex items-start justify-between font-medium">
-                                  <div className="flex-1 leading-relaxed">
-                                    <span className="font-bold">Q{qNumber}. </span>
-                                    <span>{displayQuestionText}</span>
+                                  <div className="flex-1 leading-relaxed flex items-start gap-1.5 w-full">
+                                    <span className="font-bold shrink-0 min-w-[24px]">{qNumber}.</span>
+                                    {editingQuestionIdx === globalIdx ? (
+                                      <div className="flex-1 space-y-2 print:hidden">
+                                        <Textarea
+                                          value={editingQuestionText}
+                                          onChange={(e) => setEditingQuestionText(e.target.value)}
+                                          className="text-xs min-h-[60px]"
+                                        />
+                                        <div className="flex gap-2">
+                                          <Button size="sm" onClick={handleSaveEditedQuestion} className="h-6 text-[10px] px-2 bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer">Save</Button>
+                                          <Button size="sm" variant="outline" onClick={() => setEditingQuestionIdx(null)} className="h-6 text-[10px] px-2 cursor-pointer">Cancel</Button>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <span className="flex-1 whitespace-pre-wrap"><Latex>{autoFormatMath(displayQuestionText)}</Latex></span>
+                                    )}
                                   </div>
-                                  <div className="flex items-center gap-2 shrink-0 ml-2 print:hidden">
+                                  <div className="absolute top-0 right-0 flex items-center gap-2 print:hidden bg-white px-1.5 py-0.5 rounded shadow-sm opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none group-hover:pointer-events-auto">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setEditingQuestionIdx(globalIdx);
+                                        setEditingQuestionText(q.question_text);
+                                      }}
+                                      className="text-slate-600 hover:text-indigo-600 text-[11px] font-bold flex items-center gap-0.5 cursor-pointer border-r border-slate-200 pr-2 mr-0.5"
+                                      title="Edit Question Text"
+                                    >
+                                      Edit
+                                    </button>
                                     <button
                                       type="button"
                                       onClick={() => handleOpenImagePicker(globalIdx)}
-                                      className="opacity-0 group-hover:opacity-100 transition-opacity text-indigo-600 hover:text-indigo-800 text-[11px] font-bold flex items-center gap-0.5 cursor-pointer"
+                                      className="text-indigo-600 hover:text-indigo-800 text-[11px] font-bold flex items-center gap-0.5 cursor-pointer"
                                       title="Attach diagram/image"
                                     >
                                       <ImageIcon className="w-3.5 h-3.5" />
@@ -1506,26 +1614,33 @@ export default function GeneratePaperPage() {
                                 )}
 
                                 {/* 1. MCQ Options */}
-                                {q.type === 'mcq' && Array.isArray(q.options) && q.options.length > 0 && (
-                                  <div
-                                    className={`grid gap-2 pl-4 pt-1 text-slate-700 ${
-                                      isTwoColumn ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-4'
-                                    }`}
-                                  >
-                                    {q.options.map((opt: any, oIdx: number) => {
+                                {q.type === 'mcq' && Array.isArray(q.options) && q.options.length > 0 && (() => {
+                                  const maxOptLen = Math.max(0, ...q.options.map((o: any) => (typeof o === 'string' ? o : o.text || '').length));
+                                  let colClass = maxOptLen < 20 ? 'grid-cols-2 sm:grid-cols-4' : maxOptLen < 50 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1';
+                                  
+                                  // In two-column paper layout, space is limited, so max 2 columns unless very small
+                                  if (isTwoColumn) {
+                                    colClass = maxOptLen < 8 ? 'grid-cols-4' : maxOptLen < 25 ? 'grid-cols-2' : 'grid-cols-1';
+                                  }
+
+                                  return (
+                                    <div className={`grid ${colClass} gap-x-4 gap-y-2 pl-4 pt-1 text-slate-800`}>
+                                      {q.options.map((opt: any, oIdx: number) => {
                                       const label =
                                         typeof opt === 'string'
                                           ? String.fromCharCode(65 + oIdx)
                                           : opt.label || String.fromCharCode(65 + oIdx);
-                                      const text = typeof opt === 'string' ? opt : opt.text;
+                                      const text = autoFormatMath(typeof opt === 'string' ? opt : opt.text);
                                       return (
-                                        <div key={oIdx} className="font-normal">
-                                          <span className="font-semibold">({label})</span> {text}
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                )}
+                                          <div key={oIdx} className="font-normal flex items-start gap-1 text-sm">
+                                            <span className="font-semibold shrink-0">({label})</span>
+                                            <span className="flex-1"><Latex>{text}</Latex></span>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  );
+                                })()}
 
                                 {/* 2. True / False Indicator */}
                                 {q.type === 'true_false' && (
@@ -1561,20 +1676,26 @@ export default function GeneratePaperPage() {
                                         return (
                                           <div key={rIdx} className="match-row grid grid-cols-2 gap-6 items-start py-0.5">
                                             <div className="pr-2">
-                                              {itemA ? (
-                                                <div>
-                                                  <span className="font-bold text-slate-900">{labelA}. </span>
-                                                  <span>{itemA.text}</span>
-                                                </div>
-                                              ) : ''}
+                                              {itemA ? (() => {
+                                                const textA = autoFormatMath(typeof itemA === 'string' ? itemA : itemA.text || '');
+                                                return (
+                                                  <div className="flex items-start gap-1">
+                                                    <span className="font-bold text-slate-900 shrink-0">{labelA}. </span>
+                                                    <span className="flex-1"><Latex>{textA}</Latex></span>
+                                                  </div>
+                                                );
+                                              })() : ''}
                                             </div>
                                             <div>
-                                              {itemB ? (
-                                                <div>
-                                                  <span className="font-bold text-slate-900">{labelB}. </span>
-                                                  <span>{itemB.text}</span>
-                                                </div>
-                                              ) : ''}
+                                              {itemB ? (() => {
+                                                const textB = autoFormatMath(typeof itemB === 'string' ? itemB : itemB.text || '');
+                                                return (
+                                                  <div className="flex items-start gap-1">
+                                                    <span className="font-bold text-slate-900 shrink-0">{labelB}. </span>
+                                                    <span className="flex-1"><Latex>{textB}</Latex></span>
+                                                  </div>
+                                                );
+                                              })() : ''}
                                             </div>
                                           </div>
                                         );

@@ -165,6 +165,8 @@ export default function SchoolSettingsPage() {
       
       const payload = {
         ...data,
+        num_teachers: data.num_teachers ? Number(data.num_teachers) : null,
+        num_students: data.num_students ? Number(data.num_students) : null,
         logo_url: logoUrl,
         stamp_url: stampUrl,
         signature_url: signatureUrl
