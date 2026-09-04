@@ -79,7 +79,10 @@ export default function LandingPage() {
               <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
                 <BookOpen className="w-4 h-4 text-primary-foreground" />
               </div>
-              <span className="text-xl font-heading font-bold text-foreground tracking-tight">ExamPrep AI</span>
+              <div className="flex flex-col">
+                <span className="text-xl font-heading font-bold text-foreground tracking-tight leading-none mt-1">Exam paper builder</span>
+                <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest mt-1">Powered by Kavion Innovation</span>
+              </div>
             </div>
             <div className="flex items-center gap-4">
               <Link href="/login" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors hidden sm:block">
@@ -244,7 +247,7 @@ export default function LandingPage() {
             Ready to upgrade your assessments?
           </h2>
           <p className="text-lg text-muted-foreground mb-10 max-w-xl mx-auto">
-            Join educational institutions worldwide using ExamPrep AI to standardize and accelerate their examination process.
+            Join educational institutions worldwide using Exam paper builder to standardize and accelerate their examination process.
           </p>
           <Link href="/login">
             <Button
@@ -260,14 +263,19 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="py-10 bg-background">
         <div className="max-w-7xl mx-auto px-6 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center">
-              <BookOpen className="w-3 h-3 text-primary-foreground" />
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center">
+                <BookOpen className="w-3 h-3 text-primary-foreground" />
+              </div>
+              <span className="text-sm font-heading font-bold text-foreground">Exam paper builder</span>
             </div>
-            <span className="text-sm font-heading font-bold text-foreground">ExamPrep AI</span>
+            <span className="text-[10px] text-muted-foreground sm:border-l sm:border-border sm:pl-2 uppercase tracking-widest">
+              Powered by Kavion Innovation
+            </span>
           </div>
           <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} ExamPrep AI. All rights reserved.
+            © {new Date().getFullYear()} Exam paper builder. All rights reserved.
           </p>
         </div>
       </footer>
