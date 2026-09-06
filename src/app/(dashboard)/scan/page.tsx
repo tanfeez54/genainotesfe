@@ -207,11 +207,12 @@ export default function ScanPage() {
   const startCamera = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
       });
       mediaStreamRef.current = stream;
-      if (videoRef.current) {
+      if (videoRef.current && videoRef.current.srcObject !== stream) {
         videoRef.current.srcObject = stream;
+        videoRef.current.play().catch(console.error);
       }
       setIsCameraActive(true);
       setSelectedFile(null);
@@ -531,7 +532,13 @@ export default function ScanPage() {
               {isCameraActive && (
                 <div className="relative rounded-2xl overflow-hidden bg-slate-950 aspect-4/3 flex items-center justify-center">
                   <video
-                    ref={videoRef}
+                    ref={(el) => {
+                      videoRef.current = el;
+                      if (el && mediaStreamRef.current && el.srcObject !== mediaStreamRef.current) {
+                        el.srcObject = mediaStreamRef.current;
+                        el.play().catch(console.error);
+                      }
+                    }}
                     autoPlay
                     playsInline
                     muted
