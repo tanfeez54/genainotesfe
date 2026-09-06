@@ -10,7 +10,10 @@ import 'katex/dist/katex.min.css';
 export const autoFormatMath = (text: string) => {
   if (!text) return '';
   try {
-    const parts = text.split('$');
+    // Decode literal unicode escapes (e.g. \u2018 -> ‘)
+    let decodedText = text.replace(/\\u([0-9a-fA-F]{4})/g, (match, grp) => String.fromCharCode(parseInt(grp, 16)));
+    
+    const parts = decodedText.split('$');
     for (let i = 0; i < parts.length; i++) {
       if (i % 2 === 0) {
         // Text mode: Wrap standalone fractions in LaTeX math mode
