@@ -10,7 +10,10 @@ import 'katex/dist/katex.min.css';
 export const autoFormatMath = (text: string) => {
   if (!text) return '';
   try {
-    const parts = text.split('$');
+    // Decode literal unicode escapes (e.g. \u2018 -> ‘)
+    let decodedText = text.replace(/\\u([0-9a-fA-F]{4})/g, (match, grp) => String.fromCharCode(parseInt(grp, 16)));
+    
+    const parts = decodedText.split('$');
     for (let i = 0; i < parts.length; i++) {
       if (i % 2 === 0) {
         // Text mode: Wrap standalone fractions in LaTeX math mode
@@ -482,8 +485,13 @@ export function printExamPaper(data: ExamPaperData) {
               ? `
           .sec-questions {
             column-count: 2;
-            column-gap: 25px;
-            column-rule: 1px solid #ccc;
+            column-gap: 20px;
+            column-fill: balance;
+          }
+          .mcq-grid {
+            display: flex !important;
+            flex-direction: column;
+            gap: 4px !important;
           }
           `
               : ''
