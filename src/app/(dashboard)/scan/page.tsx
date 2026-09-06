@@ -117,6 +117,12 @@ export default function ScanPage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (isCameraActive && videoRef.current && mediaStreamRef.current) {
+      videoRef.current.srcObject = mediaStreamRef.current;
+    }
+  }, [isCameraActive]);
+
   async function fetchClasses(authToken: string) {
     try {
       const res = await fetch(`${API_URL}/api/classes`, {
@@ -528,6 +534,7 @@ export default function ScanPage() {
                     ref={videoRef}
                     autoPlay
                     playsInline
+                    muted
                     className="w-full h-full object-cover"
                   />
                   <div className="absolute bottom-4 inset-x-0 flex items-center justify-center gap-3">
