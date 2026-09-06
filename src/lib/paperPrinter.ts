@@ -482,8 +482,13 @@ export function printExamPaper(data: ExamPaperData) {
               ? `
           .sec-questions {
             column-count: 2;
-            column-gap: 25px;
-            column-rule: 1px solid #ccc;
+            column-gap: 20px;
+            column-fill: balance;
+          }
+          .mcq-grid {
+            display: flex !important;
+            flex-direction: column;
+            gap: 4px !important;
           }
           `
               : ''
