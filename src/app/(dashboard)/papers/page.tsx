@@ -29,7 +29,9 @@ import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { API_URL } from '@/lib/api';
 import { toast } from 'sonner';
-import { printExamPaper } from '@/lib/paperPrinter';
+import { printExamPaper, autoFormatMath } from '@/lib/paperPrinter';
+import 'katex/dist/katex.min.css';
+import Latex from 'react-latex-next';
 
 interface QuestionPaper {
   id: string;
@@ -447,7 +449,7 @@ export default function SavedPapersPage() {
                     <div className="flex items-start justify-between font-medium">
                       <div className="flex-1 leading-relaxed">
                         <span className="font-bold text-slate-900">Q{qIdx + 1}. </span>
-                        <span>{q.question_text || q.text}</span>
+                        <span><Latex>{autoFormatMath(q.question_text || q.text || '')}</Latex></span>
                       </div>
                     </div>
 
@@ -467,7 +469,7 @@ export default function SavedPapersPage() {
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pl-4 pt-1 text-slate-700">
                         {q.options.map((opt: any, oIdx: number) => (
                           <div key={oIdx}>
-                            <span className="font-bold text-slate-900">({String.fromCharCode(65 + oIdx)})</span> {typeof opt === 'string' ? opt : opt.text}
+                            <span className="font-bold text-slate-900">({String.fromCharCode(65 + oIdx)})</span> <Latex>{autoFormatMath(typeof opt === 'string' ? opt : opt.text || '')}</Latex>
                           </div>
                         ))}
                       </div>
@@ -503,20 +505,20 @@ export default function SavedPapersPage() {
                             return (
                               <div key={rIdx} className="grid grid-cols-2 gap-6 items-start py-0.5 text-xs text-slate-800">
                                 <div>
-                                  {itA ? (
-                                    <span>
-                                      <strong className="font-bold text-slate-900">{rIdx + 1}. </strong>
-                                      {typeof itA === 'string' ? itA : itA.text}
-                                    </span>
-                                  ) : ''}
+                                    {itA ? (
+                                      <span>
+                                        <strong className="font-bold text-slate-900">{rIdx + 1}. </strong>
+                                        <Latex>{autoFormatMath(typeof itA === 'string' ? itA : itA.text || '')}</Latex>
+                                      </span>
+                                    ) : ''}
                                 </div>
                                 <div>
-                                  {itB ? (
-                                    <span>
-                                      <strong className="font-bold text-slate-900">{String.fromCharCode(65 + rIdx)}. </strong>
-                                      {typeof itB === 'string' ? itB : itB.text}
-                                    </span>
-                                  ) : ''}
+                                    {itB ? (
+                                      <span>
+                                        <strong className="font-bold text-slate-900">{String.fromCharCode(65 + rIdx)}. </strong>
+                                        <Latex>{autoFormatMath(typeof itB === 'string' ? itB : itB.text || '')}</Latex>
+                                      </span>
+                                    ) : ''}
                                 </div>
                               </div>
                             );
