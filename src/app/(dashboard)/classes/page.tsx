@@ -968,7 +968,7 @@ export default function AcademicStructurePage() {
                         >
                           {/* Document Preview Thumbnail (PDF or Image) */}
                           <div
-                            onClick={() => window.open(scan.image_url, '_blank')}
+                            onClick={() => window.open(`/document-viewer?url=${encodeURIComponent(scan.image_url)}`, '_blank')}
                             className="w-full h-40 bg-white rounded-xl border border-slate-200 overflow-hidden relative cursor-pointer group-hover:shadow-xs flex items-center justify-center"
                           >
                             {isPdf ? (
