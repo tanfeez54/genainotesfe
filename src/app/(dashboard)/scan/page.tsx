@@ -530,7 +530,7 @@ export default function ScanPage() {
             <CardContent className="space-y-4">
               {/* Camera Video Stream */}
               {isCameraActive && (
-                <div className="relative rounded-2xl overflow-hidden bg-slate-950 aspect-4/3 flex items-center justify-center">
+                <div className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center">
                   <video
                     ref={(el) => {
                       videoRef.current = el;
@@ -544,19 +544,19 @@ export default function ScanPage() {
                     muted
                     className="w-full h-full object-cover"
                   />
-                  <div className="absolute bottom-4 inset-x-0 flex items-center justify-center gap-3">
+                  <div className="absolute bottom-12 inset-x-0 flex items-center justify-center gap-4 px-4 pb-8 bg-gradient-to-t from-black/80 to-transparent">
                     <Button
                       onClick={capturePhoto}
                       size="lg"
-                      className="bg-white hover:bg-slate-100 text-slate-900 rounded-full font-bold shadow-lg px-6 cursor-pointer"
+                      className="bg-white hover:bg-slate-200 text-slate-900 rounded-full font-bold shadow-2xl px-8 h-14 cursor-pointer text-lg"
                     >
-                      <Camera className="w-5 h-5 mr-2 text-indigo-600" /> Snap Photo
+                      <Camera className="w-6 h-6 mr-2 text-indigo-600" /> Snap Photo
                     </Button>
                     <Button
                       onClick={stopCamera}
                       variant="destructive"
-                      size="sm"
-                      className="rounded-full cursor-pointer"
+                      size="lg"
+                      className="rounded-full shadow-2xl h-14 px-6 cursor-pointer text-lg font-bold"
                     >
                       Cancel
                     </Button>
