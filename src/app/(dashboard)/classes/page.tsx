@@ -93,7 +93,7 @@ export default function AcademicStructurePage() {
   const [chapterScans, setChapterScans] = useState<ScannedDocItem[]>([]);
   const [isLoadingScans, setIsLoadingScans] = useState(false);
   const [isUploadingScan, setIsUploadingScan] = useState(false);
-  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+
   const [viewingOcrDoc, setViewingOcrDoc] = useState<{ pageNum: number; text: string; imageUrl?: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -968,7 +968,7 @@ export default function AcademicStructurePage() {
                         >
                           {/* Document Preview Thumbnail (PDF or Image) */}
                           <div
-                            onClick={() => setPreviewImageUrl(scan.image_url)}
+                            onClick={() => window.open(scan.image_url, '_blank')}
                             className="w-full h-40 bg-white rounded-xl border border-slate-200 overflow-hidden relative cursor-pointer group-hover:shadow-xs flex items-center justify-center"
                           >
                             {isPdf ? (
@@ -1053,82 +1053,6 @@ export default function AcademicStructurePage() {
         </div>
       )}
 
-      {/* Professional Full-Screen PDF / Image Document Viewer Modal */}
-      {previewImageUrl && (
-        <div
-          onClick={() => setPreviewImageUrl(null)}
-          className="fixed inset-0 z-70 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-6"
-        >
-          <div
-            className="relative w-full max-w-5xl h-[88vh] bg-slate-900 rounded-3xl overflow-hidden shadow-2xl flex flex-col border border-slate-800 animate-scale-up"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header Bar */}
-            <div className="h-14 px-5 bg-slate-900 border-b border-slate-800 flex items-center justify-between shrink-0 text-white select-none">
-              <div className="flex items-center gap-3">
-                {previewImageUrl.toLowerCase().includes('.pdf') || previewImageUrl.includes('application/pdf') ? (
-                  <div className="w-8 h-8 rounded-xl bg-red-600/90 text-white flex items-center justify-center font-black text-xs shadow-xs">
-                    PDF
-                  </div>
-                ) : (
-                  <div className="w-8 h-8 rounded-xl bg-indigo-600/90 text-white flex items-center justify-center font-bold text-xs shadow-xs">
-                    IMG
-                  </div>
-                )}
-                <div>
-                  <h3 className="font-bold text-sm text-slate-100 flex items-center gap-2">
-                    Document Preview
-                  </h3>
-                  <p className="text-[11px] text-slate-400">
-                    {viewingDocsChapter?.title || 'Chapter Document'}
-                  </p>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex items-center gap-2.5">
-                <a
-                  href={previewImageUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-xl text-xs font-bold flex items-center gap-1.5 border border-slate-700 transition-colors cursor-pointer"
-                  title="Open full file in a new browser tab"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                  <span>Open in New Tab</span>
-                </a>
-
-                <button
-                  onClick={() => setPreviewImageUrl(null)}
-                  className="w-8 h-8 rounded-xl bg-slate-800 hover:bg-red-600 text-slate-300 hover:text-white flex items-center justify-center transition-colors cursor-pointer border border-slate-700"
-                  title="Close Preview (Esc)"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* Modal Body */}
-            <div className="flex-1 bg-slate-950 flex items-center justify-center overflow-hidden relative">
-              {previewImageUrl.toLowerCase().includes('.pdf') || previewImageUrl.includes('application/pdf') ? (
-                <iframe
-                  src={`${previewImageUrl}#toolbar=1&navpanes=0&scrollbar=1&view=FitH`}
-                  title="PDF Document"
-                  className="w-full h-full border-none bg-white"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center p-4 overflow-auto">
-                  <img
-                    src={previewImageUrl}
-                    alt="Document Preview"
-                    className="max-h-full max-w-full rounded-xl object-contain shadow-lg"
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Extracted OCR Text Viewer Modal */}
       {viewingOcrDoc && (
