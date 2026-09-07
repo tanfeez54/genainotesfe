@@ -212,7 +212,9 @@ export default function ScanPage() {
       mediaStreamRef.current = stream;
       if (videoRef.current && videoRef.current.srcObject !== stream) {
         videoRef.current.srcObject = stream;
-        videoRef.current.play().catch(console.error);
+        videoRef.current.play().catch(e => {
+          if (e.name !== 'AbortError') console.error('Play error:', e);
+        });
       }
       setIsCameraActive(true);
       setSelectedFile(null);
@@ -536,7 +538,9 @@ export default function ScanPage() {
                       videoRef.current = el;
                       if (el && mediaStreamRef.current && el.srcObject !== mediaStreamRef.current) {
                         el.srcObject = mediaStreamRef.current;
-                        el.play().catch(console.error);
+                        el.play().catch(e => {
+                          if (e.name !== 'AbortError') console.error('Play error:', e);
+                        });
                       }
                     }}
                     autoPlay
