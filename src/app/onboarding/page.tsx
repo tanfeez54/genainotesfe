@@ -49,21 +49,8 @@ export default function OnboardingPage() {
     const tokenStr = tokenMatch ? tokenMatch[2] : null;
     if (tokenStr) {
       setToken(tokenStr);
-      // Check if they already have a school
-      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/schools/my-school`, {
-        headers: { Authorization: `Bearer ${tokenStr}` },
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.school) {
-            router.push('/classes');
-          }
-        })
-        .catch(console.error);
-    } else {
-      router.push('/login');
     }
-  }, [router]);
+  }, []);
 
   async function handleFileUpload(
     e: React.ChangeEvent<HTMLInputElement>,
@@ -118,6 +105,12 @@ export default function OnboardingPage() {
   async function handleFinish() {
     if (!name || !email) {
       toast.error('School Name and Contact Email are required');
+      return;
+    }
+
+    if (!token) {
+      toast.error('Please log in or sign up first to save your school.');
+      router.push('/login');
       return;
     }
 

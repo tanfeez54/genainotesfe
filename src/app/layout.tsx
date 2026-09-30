@@ -15,15 +15,15 @@ const outfit = Outfit({
 
 export const metadata: Metadata = {
   title: {
-    default: 'ExamPrep AI — Turn Any Curriculum into Exam Papers',
-    template: '%s | ExamPrep AI',
+    default: 'NoteGen Academic — AI Teacher Lesson Suite & Board Exam Engine',
+    template: '%s | NoteGen Academic',
   },
   description:
-    'Paste a curriculum, choose your settings, and get structured AI-powered examination papers in seconds. Perfect for teachers and schools.',
-  keywords: ['AI exam papers', 'exam generator', 'test paper generator', 'AI school tool'],
+    'Transform physical textbooks into complete 7-Core Teacher Lesson Suites, compulsory student notes, homework sets, and CBSE/ICSE board examination papers.',
+  keywords: ['AI lesson plans', 'CBSE exam papers', 'textbook OCR', 'teacher lesson suite', 'NoteGen Academic'],
   openGraph: {
-    title: 'ExamPrep AI — Turn Any Curriculum into Exam Papers',
-    description: 'AI-powered examination papers from any syllabus',
+    title: 'NoteGen Academic — AI Teacher Lesson Suite & Board Exam Engine',
+    description: 'Transform physical textbooks into complete 7-Core Teacher Lesson Suites & CBSE/ICSE exam papers.',
     type: 'website',
   },
 };
