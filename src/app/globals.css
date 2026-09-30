@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Volkhov:ital,wght@0,700;1,700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 
@@ -179,6 +180,14 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* Professional utilities */
+.font-serif-display {
+  font-family: 'Volkhov', Georgia, serif;
+}
+
+.font-body-jadoo {
+  font-family: 'Poppins', 'Plus Jakarta Sans', sans-serif;
+}
+
 .gradient-brand {
   background: var(--primary);
 }
