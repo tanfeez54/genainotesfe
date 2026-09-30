@@ -6,8 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { BookOpen, Lock, Loader2, KeyRound } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Lock, Loader2, KeyRound, ArrowRight, ArrowLeft } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
@@ -65,93 +64,118 @@ function ResetPasswordForm() {
   if (!emailParam) return null;
 
   return (
-    <div className="w-full max-w-md flex flex-col items-center justify-center p-8 bg-card rounded-2xl border border-border shadow-xl">
-      <div className="w-full animate-fade-in">
-        <Link href="/" className="inline-flex items-center gap-3 mb-10 group justify-center w-full">
-          <div className="w-9 h-9 rounded-md bg-primary flex items-center justify-center">
-            <BookOpen className="w-5 h-5 text-primary-foreground" />
-          </div>
-          <span className="text-xl font-heading font-bold text-foreground">ExamPrep AI</span>
+    <div className="w-full max-w-md animate-fade-in bg-white border border-[#212832]/5 p-8 sm:p-12 shadow-2xl rounded-[36px] relative text-center">
+      {/* Logo */}
+      <Link href="/" className="inline-flex items-center gap-1.5 group mb-6">
+        <span className="font-heading font-black text-2xl text-[#181E4B] tracking-tight">
+          NoteGen
+        </span>
+        <span className="w-2.5 h-2.5 rounded-full bg-[#DF6951] mt-1.5" />
+      </Link>
+
+      <div className="flex justify-start mb-4">
+        <Link
+          href="/login"
+          className="inline-flex items-center gap-1.5 text-xs font-bold text-[#5E6282] hover:text-[#181E4B] transition-colors"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>Back to login</span>
         </Link>
-
-        <h1 className="text-2xl font-heading font-bold text-foreground mb-2 text-center">Set New Password</h1>
-        <p className="text-muted-foreground mb-8 text-sm text-center">
-          We sent a 6-digit code to <span className="font-medium text-foreground">{emailParam}</span>.
-        </p>
-
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-          <div className="space-y-2">
-            <Label htmlFor="otp" className="text-sm font-medium">
-              6-Digit Reset Code
-            </Label>
-            <div className="relative">
-              <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                id="otp"
-                type="text"
-                placeholder="123456"
-                className="pl-10 h-11 bg-background tracking-widest text-center font-mono"
-                maxLength={6}
-                {...register('otp')}
-              />
-            </div>
-            {errors.otp && (
-              <p className="text-sm text-destructive font-medium">{errors.otp.message}</p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="password" className="text-sm font-medium">
-              New Password
-            </Label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                className="pl-10 h-11 bg-background"
-                {...register('password')}
-              />
-            </div>
-            {errors.password && (
-              <p className="text-sm text-destructive font-medium">{errors.password.message}</p>
-            )}
-          </div>
-
-          <Button
-            type="submit"
-            className="w-full h-11 bg-primary text-primary-foreground hover:opacity-90 font-medium rounded-md mt-4"
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 w-4 h-4 animate-spin" />
-                Resetting...
-              </>
-            ) : (
-              <>
-                Save & Login
-              </>
-            )}
-          </Button>
-        </form>
-
-        <p className="mt-8 text-sm text-center text-muted-foreground">
-          Remember your password?{' '}
-          <Link href="/login" className="text-primary font-medium hover:underline">
-            Back to Login
-          </Link>
-        </p>
       </div>
+
+      <div className="w-14 h-14 rounded-2xl bg-[#DF6951]/10 text-[#DF6951] mx-auto flex items-center justify-center mb-4">
+        <Lock className="w-7 h-7" />
+      </div>
+
+      <span className="text-xs font-bold uppercase tracking-widest text-[#DF6951] block font-sans">
+        Security
+      </span>
+      <h1 className="font-serif-display text-2xl sm:text-3xl font-bold text-[#181E4B] mt-1">
+        Set New Password
+      </h1>
+      <p className="text-xs text-[#5E6282] mt-2 leading-relaxed">
+        We sent a 6-digit reset code to <span className="font-bold text-[#181E4B]">{emailParam}</span>.
+      </p>
+
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-6 text-left">
+        <div className="space-y-1.5">
+          <Label htmlFor="otp" className="text-xs font-bold text-[#181E4B]">
+            6-Digit Reset Code
+          </Label>
+          <div className="relative">
+            <KeyRound className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#5E6282]" />
+            <Input
+              id="otp"
+              type="text"
+              placeholder="123456"
+              className="pl-11 h-12 rounded-2xl bg-[#FFFDFB] border border-[#212832]/10 focus:border-[#DF6951] text-xs sm:text-sm font-mono tracking-widest text-center shadow-xs"
+              maxLength={6}
+              {...register('otp')}
+            />
+          </div>
+          {errors.otp && (
+            <p className="text-xs text-rose-500 font-semibold">{errors.otp.message}</p>
+          )}
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="password" className="text-xs font-bold text-[#181E4B]">
+            New Password
+          </Label>
+          <div className="relative">
+            <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#5E6282]" />
+            <Input
+              id="password"
+              type="password"
+              placeholder="••••••••"
+              className="pl-11 h-12 rounded-2xl bg-[#FFFDFB] border border-[#212832]/10 focus:border-[#DF6951] text-xs sm:text-sm shadow-xs"
+              autoComplete="new-password"
+              {...register('password')}
+            />
+          </div>
+          {errors.password && (
+            <p className="text-xs text-rose-500 font-semibold">{errors.password.message}</p>
+          )}
+        </div>
+
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="w-full h-12 bg-[#DF6951] hover:bg-[#c9523b] text-white font-bold rounded-2xl shadow-lg shadow-[#DF6951]/30 hover:shadow-xl transition-all duration-300 mt-2 flex items-center justify-center gap-2 text-xs sm:text-sm cursor-pointer disabled:opacity-70"
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>Updating password...</span>
+            </>
+          ) : (
+            <>
+              <span>Save &amp; Go to Dashboard</span>
+              <ArrowRight className="w-4 h-4" />
+            </>
+          )}
+        </button>
+      </form>
     </div>
   );
 }
 
 export default function ResetPasswordPage() {
   return (
-    <div className="min-h-screen bg-muted/20 flex items-center justify-center p-4 sm:p-8">
-      <Suspense fallback={<div className="flex items-center justify-center h-full w-full"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>}>
+    <div className="min-h-screen bg-[#FFFDFB] text-[#212832] font-body-jadoo flex items-center justify-center p-4 relative overflow-hidden selection:bg-[#DF6951]/20 selection:text-[#DF6951]">
+      {/* Jadoo Ambient Blobs */}
+      <div className="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
+        <div className="absolute -top-24 -right-24 w-[500px] h-[500px] bg-gradient-to-bl from-[#FFF1DA] to-transparent rounded-full blur-3xl opacity-80" />
+        <div className="absolute -bottom-24 -left-24 w-[500px] h-[500px] bg-[#DFD7F9]/25 rounded-full blur-3xl opacity-70" />
+      </div>
+
+      <Suspense
+        fallback={
+          <div className="flex h-screen items-center justify-center">
+            <Loader2 className="w-8 h-8 animate-spin text-[#DF6951]" />
+          </div>
+        }
+      >
         <ResetPasswordForm />
       </Suspense>
     </div>

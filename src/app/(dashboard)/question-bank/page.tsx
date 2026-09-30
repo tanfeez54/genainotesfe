@@ -153,44 +153,47 @@ export default function QuestionBankPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+    <div className="space-y-6 max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 animate-fade-in">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-5">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 flex items-center gap-2.5">
-            <FileText className="w-7 h-7 text-indigo-600" /> Question Bank
+          <h1 className="text-2xl sm:text-3xl font-heading font-black tracking-tight text-foreground flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl gradient-brand flex items-center justify-center text-white shadow-xs">
+              <FileText className="w-5 h-5" />
+            </div>
+            Question Bank
           </h1>
           <p className="text-muted-foreground text-xs sm:text-sm mt-1">
-            Browse and manage all questions scanned from test papers and textbooks categorized by Class, Subject & Chapter.
+            Browse and manage all questions scanned from test papers and textbooks categorized by Class, Subject &amp; Chapter.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
           <Link href="/scan">
-            <Button className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl shadow-xs cursor-pointer">
+            <Button className="gradient-brand hover:opacity-95 text-white font-bold text-xs rounded-xl shadow-[0_4px_14px_rgba(223,105,81,0.3)] cursor-pointer">
               <Camera className="w-4 h-4 mr-1.5" /> Scan New Papers
             </Button>
           </Link>
           <Link href="/generate-paper">
-            <Button variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50 font-semibold text-xs rounded-xl cursor-pointer">
-              <Sparkles className="w-4 h-4 mr-1.5 text-indigo-600" /> Create Paper
+            <Button variant="outline" className="border-[#F1A501]/30 text-primary bg-[#FFF1DA]/60 hover:bg-[#FFF1DA] font-bold text-xs rounded-xl cursor-pointer">
+              <Sparkles className="w-4 h-4 mr-1.5 text-primary" /> Create Paper
             </Button>
           </Link>
         </div>
       </div>
 
       {/* Filters Bar */}
-      <Card className="rounded-2xl border border-slate-200 shadow-xs">
-        <CardContent className="p-4 space-y-3">
+      <Card className="rounded-3xl border border-border bg-card shadow-[0_10px_30px_rgba(24,30,75,0.03)]">
+        <CardContent className="p-4 sm:p-5 space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {/* Class Filter */}
             <div>
-              <Label className="text-[11px] font-bold text-slate-700 mb-1 block">Class</Label>
+              <Label className="text-[11px] font-bold text-foreground mb-1 block">Class</Label>
               <div className="relative">
                 <select
                   value={selectedClassId}
                   onChange={(e) => handleClassChange(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer appearance-none"
+                  className="w-full bg-card border border-border rounded-xl px-3 py-2 text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer appearance-none"
                 >
                   <option value="">All Classes</option>
                   {classes.map((c) => (
@@ -199,19 +202,19 @@ export default function QuestionBankPage() {
                     </option>
                   ))}
                 </select>
-                <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-2.5 pointer-events-none" />
+                <ChevronDown className="w-3.5 h-3.5 text-muted-foreground absolute right-3 top-2.5 pointer-events-none" />
               </div>
             </div>
 
             {/* Subject Filter */}
             <div>
-              <Label className="text-[11px] font-bold text-slate-700 mb-1 block">Subject</Label>
+              <Label className="text-[11px] font-bold text-foreground mb-1 block">Subject</Label>
               <div className="relative">
                 <select
                   value={selectedSubjectId}
                   disabled={!selectedClassId}
                   onChange={(e) => handleSubjectChange(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer appearance-none disabled:opacity-50"
+                  className="w-full bg-card border border-border rounded-xl px-3 py-2 text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer appearance-none disabled:opacity-50"
                 >
                   <option value="">All Subjects</option>
                   {subjects.map((s) => (
@@ -220,19 +223,19 @@ export default function QuestionBankPage() {
                     </option>
                   ))}
                 </select>
-                <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-2.5 pointer-events-none" />
+                <ChevronDown className="w-3.5 h-3.5 text-muted-foreground absolute right-3 top-2.5 pointer-events-none" />
               </div>
             </div>
 
             {/* Chapter Filter */}
             <div>
-              <Label className="text-[11px] font-bold text-slate-700 mb-1 block">Chapter</Label>
+              <Label className="text-[11px] font-bold text-foreground mb-1 block">Chapter</Label>
               <div className="relative">
                 <select
                   value={selectedChapterId}
                   disabled={!selectedSubjectId}
                   onChange={(e) => handleChapterChange(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer appearance-none disabled:opacity-50"
+                  className="w-full bg-card border border-border rounded-xl px-3 py-2 text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer appearance-none disabled:opacity-50"
                 >
                   <option value="">All Chapters</option>
                   {chapters.map((c) => (
@@ -241,13 +244,13 @@ export default function QuestionBankPage() {
                     </option>
                   ))}
                 </select>
-                <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-2.5 pointer-events-none" />
+                <ChevronDown className="w-3.5 h-3.5 text-muted-foreground absolute right-3 top-2.5 pointer-events-none" />
               </div>
             </div>
 
             {/* Search Box */}
             <div>
-              <Label className="text-[11px] font-bold text-slate-700 mb-1 block">Search Questions</Label>
+              <Label className="text-[11px] font-bold text-foreground mb-1 block">Search Questions</Label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
                   <Input
@@ -255,14 +258,14 @@ export default function QuestionBankPage() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && fetchQuestions(token)}
-                    className="text-xs rounded-xl pr-8"
+                    className="text-xs rounded-xl pr-8 bg-card border-border text-foreground"
                   />
-                  <Search className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-3 pointer-events-none" />
+                  <Search className="w-3.5 h-3.5 text-muted-foreground absolute right-2.5 top-3 pointer-events-none" />
                 </div>
                 <Button
                   size="sm"
                   onClick={() => fetchQuestions(token)}
-                  className="rounded-xl bg-slate-900 text-white text-xs px-3 font-semibold"
+                  className="rounded-xl gradient-brand text-white text-xs px-4 font-bold shadow-2xs cursor-pointer"
                 >
                   Go
                 </Button>
@@ -275,29 +278,29 @@ export default function QuestionBankPage() {
       {/* Questions List */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <div className="text-xs font-bold text-slate-700">
+          <div className="text-xs font-bold text-foreground">
             Showing {questions.length} Questions
           </div>
         </div>
 
         {loading ? (
-          <div className="py-20 flex flex-col items-center justify-center text-slate-400 text-xs">
-            <Loader2 className="w-8 h-8 animate-spin text-indigo-600 mb-2" />
+          <div className="py-20 flex flex-col items-center justify-center text-muted-foreground text-xs">
+            <Loader2 className="w-8 h-8 animate-spin text-primary mb-2" />
             <span>Loading question bank...</span>
           </div>
         ) : questions.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {questions.map((q, idx) => (
-              <Card key={q.id} className="rounded-2xl border border-slate-200/90 shadow-xs hover:border-indigo-300 transition-all">
-                <CardHeader className="p-4 pb-2 border-b border-slate-100 flex flex-row items-center justify-between">
+              <Card key={q.id} className="rounded-2xl border border-border bg-card shadow-[0_4px_14px_rgba(24,30,75,0.02)] hover:border-primary/40 transition-all">
+                <CardHeader className="p-4 pb-2 border-b border-border/60 flex flex-row items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full bg-indigo-50 text-indigo-700 font-bold text-[11px] flex items-center justify-center">
+                    <span className="w-5 h-5 rounded-full bg-[#FFF1DA] text-primary font-bold text-[11px] flex items-center justify-center">
                       {idx + 1}
                     </span>
-                    <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700 px-2 py-0.5 rounded">
+                    <span className="text-[10px] font-bold uppercase tracking-wider bg-muted text-foreground px-2 py-0.5 rounded">
                       {q.type?.replace('_', ' ')}
                     </span>
-                    <span className="text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded">
+                    <span className="text-[10px] font-bold bg-[#FFF1DA]/80 text-[#B87A00] border border-[#F1A501]/30 px-2 py-0.5 rounded">
                       {q.marks || 1} Marks
                     </span>
                   </div>

@@ -54,41 +54,41 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="p-6 lg:p-8 max-w-2xl mx-auto">
+    <div className="p-6 lg:p-8 max-w-2xl mx-auto animate-fade-in">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-foreground">Settings</h1>
+        <h1 className="text-2xl sm:text-3xl font-heading font-black tracking-tight text-foreground">Settings</h1>
         <p className="text-muted-foreground text-sm mt-0.5">Manage your account and preferences</p>
       </div>
 
       {/* Profile */}
-      <Card className="mb-6">
+      <Card className="mb-6 rounded-3xl border-border bg-card shadow-[0_10px_30px_rgba(24,30,75,0.03)]">
         <CardHeader>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full gradient-brand flex items-center justify-center text-white font-bold flex-shrink-0">
+            <div className="w-10 h-10 rounded-2xl gradient-brand flex items-center justify-center text-white font-bold flex-shrink-0 shadow-xs">
               {email?.[0]?.toUpperCase() ?? 'U'}
             </div>
             <div>
-              <CardTitle className="text-base">Profile</CardTitle>
+              <CardTitle className="text-base font-heading font-bold text-foreground">Profile</CardTitle>
               <CardDescription>Update your display name</CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <Label className="text-sm font-medium mb-1.5 block">Email address</Label>
-            <Input value={email} disabled className="h-10 bg-muted/50 text-muted-foreground" />
+            <Label className="text-sm font-medium mb-1.5 block text-foreground">Email address</Label>
+            <Input value={email} disabled className="h-10 bg-muted/50 text-muted-foreground rounded-xl" />
             <p className="text-xs text-muted-foreground mt-1">Email cannot be changed</p>
           </div>
           <div>
-            <Label className="text-sm font-medium mb-1.5 block">Display name</Label>
+            <Label className="text-sm font-medium mb-1.5 block text-foreground">Display name</Label>
             <Input
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               placeholder="Your name"
-              className="h-10"
+              className="h-10 rounded-xl bg-card border-border text-foreground"
             />
           </div>
-          <Button onClick={handleSaveProfile} disabled={isSaving} className="gradient-brand text-white hover:opacity-90">
+          <Button onClick={handleSaveProfile} disabled={isSaving} className="gradient-brand text-white hover:opacity-95 rounded-xl font-bold shadow-[0_4px_14px_rgba(223,105,81,0.3)] cursor-pointer">
             {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
             Save changes
           </Button>
@@ -96,15 +96,15 @@ export default function SettingsPage() {
       </Card>
 
       {/* Account */}
-      <Card className="border-border">
+      <Card className="border-border rounded-3xl bg-card shadow-[0_10px_30px_rgba(24,30,75,0.03)]">
         <CardHeader>
-          <CardTitle className="text-base">Account</CardTitle>
+          <CardTitle className="text-base font-heading font-bold text-foreground">Account</CardTitle>
           <CardDescription>Sign out or manage your account</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <Button
             variant="outline"
-            className="w-full justify-start"
+            className="w-full justify-start rounded-xl cursor-pointer border-border hover:bg-[#FFF1DA]/30"
             onClick={handleLogout}
             disabled={isLoggingOut}
           >

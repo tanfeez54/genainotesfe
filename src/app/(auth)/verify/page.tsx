@@ -3,8 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { BookOpen, Loader2, RefreshCw, ArrowLeft } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Loader2, RefreshCw, ArrowLeft, Mail, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 
 const OTP_LENGTH = 6;
@@ -37,7 +36,6 @@ export default function VerifyPage() {
   }, [cooldown]);
 
   const handleChange = useCallback((index: number, value: string) => {
-    // Handle paste
     if (value.length > 1) {
       const digits = value.replace(/\D/g, '').slice(0, OTP_LENGTH).split('');
       const newOtp = [...otp];
@@ -87,10 +85,9 @@ export default function VerifyPage() {
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || 'Invalid code');
 
-      // Store the setup token in sessionStorage to pass to the next page
       sessionStorage.setItem('setupToken', result.setup_token);
 
-      toast.success('Email verified!');
+      toast.success('Email verified successfully!');
       router.push('/set-password');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Invalid code';
@@ -99,7 +96,6 @@ export default function VerifyPage() {
       } else {
         setError('Invalid code. Please try again.');
       }
-      // Clear OTP inputs
       setOtp(Array(OTP_LENGTH).fill(''));
       inputRefs.current[0]?.focus();
     } finally {
@@ -107,7 +103,6 @@ export default function VerifyPage() {
     }
   }, [otp, email, router]);
 
-  // Auto-verify when all digits are entered
   useEffect(() => {
     if (otp.every(Boolean) && otp.join('').length === OTP_LENGTH) {
       handleVerify();
@@ -128,32 +123,48 @@ export default function VerifyPage() {
   };
 
   return (
-    <div className="min-h-screen bg-muted/20 flex items-center justify-center p-4">
-      <div className="w-full max-w-md animate-fade-in bg-card border border-border p-10 lg:p-12 shadow-xl rounded-2xl relative overflow-hidden">
-        
-        <Link href="/" className="inline-flex items-center gap-3 mb-8 group">
-          <div className="w-9 h-9 rounded-md bg-primary flex items-center justify-center">
-            <BookOpen className="w-5 h-5 text-primary-foreground" />
-          </div>
-          <span className="text-xl font-heading font-bold text-foreground">ExamPrep AI</span>
+    <div className="min-h-screen bg-[#FFFDFB] text-[#212832] font-body-jadoo flex items-center justify-center p-4 relative overflow-hidden selection:bg-[#DF6951]/20 selection:text-[#DF6951]">
+      {/* Jadoo Ambient Blobs */}
+      <div className="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
+        <div className="absolute -top-24 -right-24 w-[500px] h-[500px] bg-gradient-to-bl from-[#FFF1DA] to-transparent rounded-full blur-3xl opacity-80" />
+        <div className="absolute -bottom-24 -left-24 w-[500px] h-[500px] bg-[#DFD7F9]/25 rounded-full blur-3xl opacity-70" />
+      </div>
+
+      <div className="w-full max-w-md animate-fade-in bg-white border border-[#212832]/5 p-8 sm:p-12 shadow-2xl rounded-[36px] relative text-center">
+        {/* Logo */}
+        <Link href="/" className="inline-flex items-center gap-1.5 group mb-6">
+          <span className="font-heading font-black text-2xl text-[#181E4B] tracking-tight">
+            NoteGen
+          </span>
+          <span className="w-2.5 h-2.5 rounded-full bg-[#DF6951] mt-1.5" />
         </Link>
 
-        <Link href="/login">
-          <Button variant="ghost" size="sm" className="mb-6 -ml-2 text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="w-4 h-4 mr-1.5" />
-            Back
-          </Button>
-        </Link>
+        <div className="flex justify-start mb-4">
+          <Link
+            href="/login"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-[#5E6282] hover:text-[#181E4B] transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Back to login</span>
+          </Link>
+        </div>
 
-        <h1 className="text-2xl font-heading font-bold text-foreground mb-3">Check your email</h1>
-        <p className="text-muted-foreground mb-8 text-sm">
-          We sent a 6-digit code to{' '}
-          <span className="font-medium text-foreground">{email}</span>.
-          Enter it below to verify.
+        <div className="w-14 h-14 rounded-2xl bg-[#DF6951]/10 text-[#DF6951] mx-auto flex items-center justify-center mb-4">
+          <Mail className="w-7 h-7" />
+        </div>
+
+        <span className="text-xs font-bold uppercase tracking-widest text-[#DF6951] block font-sans">
+          Verification
+        </span>
+        <h1 className="font-serif-display text-2xl sm:text-3xl font-bold text-[#181E4B] mt-1">
+          Check your email
+        </h1>
+        <p className="text-xs text-[#5E6282] mt-2 leading-relaxed">
+          We sent a 6-digit code to <span className="font-bold text-[#181E4B]">{email}</span>. Enter it below to proceed.
         </p>
 
         {/* OTP Input boxes */}
-        <div className="flex gap-3 mb-8 justify-between" role="group" aria-label="OTP input">
+        <div className="flex gap-2.5 my-8 justify-between" role="group" aria-label="OTP input">
           {Array.from({ length: OTP_LENGTH }).map((_, i) => (
             <input
               key={i}
@@ -170,62 +181,62 @@ export default function VerifyPage() {
               }}
               aria-label={`Digit ${i + 1}`}
               className={`
-                w-12 h-14 sm:w-14 sm:h-16 text-center text-xl font-bold rounded-md border bg-background
-                text-foreground outline-none transition-all focus:ring-2 focus:ring-primary/20
+                w-11 h-14 sm:w-13 sm:h-16 text-center text-xl font-bold rounded-2xl border bg-[#FFFDFB]
+                text-[#181E4B] outline-none transition-all focus:ring-2 focus:ring-[#DF6951]/20
                 ${error
-                  ? 'border-destructive bg-destructive/5'
+                  ? 'border-rose-400 bg-rose-50/50'
                   : otp[i]
-                  ? 'border-primary shadow-sm'
-                  : 'border-border hover:border-primary/50 focus:border-primary'
+                  ? 'border-[#DF6951] shadow-xs'
+                  : 'border-[#212832]/10 hover:border-[#DF6951]/50 focus:border-[#DF6951]'
                 }
               `}
             />
           ))}
         </div>
 
-        {/* Error */}
         {error && (
-          <p className="text-sm text-destructive mb-6 animate-fade-in font-medium">{error}</p>
+          <p className="text-xs text-rose-500 font-semibold mb-4 animate-fade-in">{error}</p>
         )}
 
-        <Button
-          id="verify-btn"
+        <button
+          type="button"
           onClick={handleVerify}
-          className="w-full h-11 bg-primary text-primary-foreground hover:opacity-90 font-medium rounded-md mb-6"
           disabled={isVerifying || otp.join('').length !== OTP_LENGTH}
+          className="w-full h-12 bg-[#DF6951] hover:bg-[#c9523b] text-white font-bold rounded-2xl shadow-lg shadow-[#DF6951]/30 hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2 text-xs sm:text-sm cursor-pointer disabled:opacity-50 mb-6"
         >
           {isVerifying ? (
             <>
-              <Loader2 className="mr-2 w-4 h-4 animate-spin" />
-              Verifying...
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>Verifying code...</span>
             </>
           ) : (
-            'Verify & Continue'
+            <span>Verify &amp; Continue</span>
           )}
-        </Button>
+        </button>
 
-        {/* Resend */}
-        <div className="text-center">
-          <p className="text-sm text-muted-foreground mb-3">Didn&apos;t receive a code?</p>
-          <Button
-            id="resend-btn"
-            variant="ghost"
-            size="sm"
+        <div className="text-center text-xs text-[#5E6282] space-y-2">
+          <p>Didn&apos;t receive a code?</p>
+          <button
+            type="button"
             onClick={handleResend}
             disabled={cooldown > 0 || isResending}
-            className="text-primary hover:text-primary/80 font-medium"
+            className="text-[#DF6951] font-bold hover:underline cursor-pointer disabled:opacity-50"
           >
-            {isResending ? (
-              <Loader2 className="mr-2 w-4 h-4 animate-spin" />
-            ) : (
-              <RefreshCw className="mr-2 w-4 h-4" />
-            )}
-            {cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend code'}
-          </Button>
+            {isResending ? 'Sending...' : cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend Code'}
+          </button>
         </div>
 
-        <p className="mt-8 text-xs text-center text-muted-foreground/80 font-medium">
-          Code expires in 10 minutes. Check your spam folder if you don&apos;t see it.
+        <div className="mt-6 p-3 rounded-2xl bg-[#FFF1DA]/60 border border-[#F1A501]/30 text-[11px] text-[#181E4B] text-left space-y-1">
+          <div className="font-bold flex items-center gap-1.5 text-[#DF6951]">
+            <span>💡 Can't find the email in your Inbox?</span>
+          </div>
+          <p className="text-[#5E6282] leading-relaxed">
+            Please check your <strong>Spam / Junk</strong> or <strong>Promotions</strong> folder. Click <em>"Report as not spam"</em> so future school updates land directly in your Primary inbox.
+          </p>
+        </div>
+
+        <p className="mt-4 text-[11px] text-[#5E6282]/80">
+          Code expires in 10 minutes.
         </p>
       </div>
     </div>

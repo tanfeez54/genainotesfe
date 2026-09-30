@@ -167,7 +167,7 @@ export default function ScanPage() {
 
   async function fetchRecentScans(authToken = token) {
     try {
-      const res = await fetch(`${API_URL}/api/scans`, {
+      const res = await fetch(`${API_URL}/api/scans?doc_type=question_paper`, {
         headers: { Authorization: `Bearer ${authToken}` },
       });
       const data = await res.json();
@@ -205,6 +205,10 @@ export default function ScanPage() {
 
   // --- Camera Handlers ---
   const startCamera = async () => {
+    if (!selectedClassId || !selectedSubjectId || (!selectedChapterId && !newChapterTitle.trim())) {
+      toast.error('Mandatory Requirement: Please select Class, Subject, and Chapter before opening camera.');
+      return;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
@@ -212,7 +216,9 @@ export default function ScanPage() {
       mediaStreamRef.current = stream;
       if (videoRef.current && videoRef.current.srcObject !== stream) {
         videoRef.current.srcObject = stream;
-        videoRef.current.play().catch(console.error);
+        videoRef.current.play().catch(e => {
+          if (e.name !== 'AbortError') console.error('Play error:', e);
+        });
       }
       setIsCameraActive(true);
       setSelectedFile(null);
@@ -246,6 +252,11 @@ export default function ScanPage() {
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!selectedClassId || !selectedSubjectId || (!selectedChapterId && !newChapterTitle.trim())) {
+      toast.error('Mandatory Requirement: Please select Class, Subject, and Chapter before uploading.');
+      if (e.target) e.target.value = '';
+      return;
+    }
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       setSelectedFile(file);
@@ -260,15 +271,15 @@ export default function ScanPage() {
   // --- OCR Extraction Handler ---
   const handleExtractText = async () => {
     if (!selectedClassId) {
-      toast.error('Please select a Class');
+      toast.error('Class selection is MANDATORY. Please select a Class.');
       return;
     }
     if (!selectedSubjectId) {
-      toast.error('Please select a Subject');
+      toast.error('Subject selection is MANDATORY. Please select a Subject.');
       return;
     }
     if (!selectedChapterId && (!isCreatingNewChapter || !newChapterTitle.trim())) {
-      toast.error('Please select or enter a Chapter');
+      toast.error('Chapter selection is MANDATORY. Please select or enter a Chapter.');
       return;
     }
     if (!imagePreview && !selectedFile) {
@@ -299,6 +310,7 @@ export default function ScanPage() {
         },
         body: JSON.stringify({
           image_url: imageDataUrl,
+          doc_type: 'question_paper',
           chapter_id: selectedChapterId || undefined,
           chapter_name: isCreatingNewChapter ? newChapterTitle.trim() : undefined,
           subject_id: selectedSubjectId,
@@ -405,27 +417,27 @@ export default function ScanPage() {
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-5">
         <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-indigo-600 uppercase tracking-wider mb-1">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold tracking-wider text-primary bg-[#FFF1DA]/70 border border-[#F1A501]/30 uppercase mb-2">
             <Sparkles className="w-3.5 h-3.5" /> Direct Text OCR Extractor
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
-            Scan & Extract Complete Text
+          <h1 className="text-2xl sm:text-3xl font-heading font-black tracking-tight text-foreground">
+            Scan &amp; Extract Complete Text
           </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Capture or upload textbook pages / papers and extract the entire raw text mapped directly to Class, Subject & Chapter
+          <p className="text-sm text-muted-foreground mt-1">
+            Capture or upload textbook pages / papers and extract the entire raw text mapped directly to Class, Subject &amp; Chapter
           </p>
         </div>
 
         <div className="flex items-center gap-3">
           <Link href="/classes">
-            <Button variant="outline" size="sm" className="cursor-pointer">
-              <FolderOpen className="w-4 h-4 mr-2 text-indigo-600" /> Class Structure
+            <Button variant="outline" size="sm" className="cursor-pointer border-border hover:bg-[#FFF1DA]/30 text-foreground">
+              <FolderOpen className="w-4 h-4 mr-2 text-primary" /> Class Structure
             </Button>
           </Link>
           <Link href="/generate-paper">
-            <Button size="sm" className="gradient-brand text-white cursor-pointer shadow-xs">
+            <Button size="sm" className="gradient-brand text-white cursor-pointer shadow-[0_4px_14px_rgba(223,105,81,0.3)]">
               <BookOpen className="w-4 h-4 mr-2" /> Generate Paper
             </Button>
           </Link>
@@ -436,22 +448,25 @@ export default function ScanPage() {
         {/* Left Column: Mapping & Input */}
         <div className="lg:col-span-5 space-y-5">
           {/* Step 1: Mapping Target */}
-          <Card className="rounded-2xl border-slate-200 shadow-xs">
+          <Card className="rounded-3xl border-border bg-card shadow-[0_10px_30px_rgba(24,30,75,0.03)]">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <GraduationCap className="w-4 h-4 text-indigo-600" /> 1. Class, Subject & Chapter Mapping
+              <CardTitle className="text-base font-heading font-bold text-foreground flex items-center gap-2">
+                <GraduationCap className="w-4 h-4 text-primary" /> 1. Class, Subject &amp; Chapter Mapping
               </CardTitle>
-              <CardDescription className="text-xs">
+              <CardDescription className="text-xs text-muted-foreground">
                 The extracted text will be permanently mapped and saved to this chapter.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <Label className="text-xs font-semibold text-slate-700">Class / Grade *</Label>
+                <Label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                  <span>Class / Grade <span className="text-[#DF6951]">* (Mandatory)</span></span>
+                  {selectedClassId && <Badge variant="outline" className="text-[10px] text-emerald-600 border-emerald-500/30">Selected ✓</Badge>}
+                </Label>
                 <select
                   value={selectedClassId}
                   onChange={(e) => handleClassChange(e.target.value)}
-                  className="w-full mt-1.5 h-10 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  className="w-full mt-1.5 h-10 px-3 rounded-xl border border-border bg-card text-foreground text-sm focus:ring-2 focus:ring-primary focus:outline-none"
                 >
                   <option value="">Select a class...</option>
                   {classes.map((c) => (
@@ -463,12 +478,15 @@ export default function ScanPage() {
               </div>
 
               <div>
-                <Label className="text-xs font-semibold text-slate-700">Subject *</Label>
+                <Label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                  <span>Subject <span className="text-[#DF6951]">* (Mandatory)</span></span>
+                  {selectedSubjectId && <Badge variant="outline" className="text-[10px] text-emerald-600 border-emerald-500/30">Selected ✓</Badge>}
+                </Label>
                 <select
                   value={selectedSubjectId}
                   onChange={(e) => handleSubjectChange(e.target.value)}
                   disabled={!selectedClassId}
-                  className="w-full mt-1.5 h-10 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none disabled:opacity-50"
+                  className="w-full mt-1.5 h-10 px-3 rounded-xl border border-border bg-card text-foreground text-sm focus:ring-2 focus:ring-primary focus:outline-none disabled:opacity-50"
                 >
                   <option value="">Select a subject...</option>
                   {subjects.map((s) => (
@@ -481,14 +499,19 @@ export default function ScanPage() {
 
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <Label className="text-xs font-semibold text-slate-700">Chapter *</Label>
+                  <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <span>Chapter <span className="text-[#DF6951]">* (Mandatory)</span></span>
+                    {(selectedChapterId || (isCreatingNewChapter && newChapterTitle.trim())) && (
+                      <Badge variant="outline" className="text-[10px] text-emerald-600 border-emerald-500/30">Selected ✓</Badge>
+                    )}
+                  </Label>
                   <button
                     type="button"
                     onClick={() => {
                       setIsCreatingNewChapter(!isCreatingNewChapter);
                       setSelectedChapterId('');
                     }}
-                    className="text-[11px] font-semibold text-indigo-600 hover:underline cursor-pointer"
+                    className="text-[11px] font-semibold text-primary hover:underline cursor-pointer"
                   >
                     {isCreatingNewChapter ? 'Select Existing Chapter' : '+ Create New Chapter'}
                   </button>
@@ -499,14 +522,14 @@ export default function ScanPage() {
                     placeholder="Enter new chapter name (e.g. Chapter 4: Motion)"
                     value={newChapterTitle}
                     onChange={(e) => setNewChapterTitle(e.target.value)}
-                    className="h-10 rounded-xl text-sm"
+                    className="h-10 rounded-xl text-sm bg-card border-border text-foreground"
                   />
                 ) : (
                   <select
                     value={selectedChapterId}
                     onChange={(e) => setSelectedChapterId(e.target.value)}
                     disabled={!selectedSubjectId}
-                    className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none disabled:opacity-50"
+                    className="w-full h-10 px-3 rounded-xl border border-border bg-card text-foreground text-sm focus:ring-2 focus:ring-primary focus:outline-none disabled:opacity-50"
                   >
                     <option value="">Select a chapter...</option>
                     {chapters.map((ch) => (
@@ -521,22 +544,24 @@ export default function ScanPage() {
           </Card>
 
           {/* Step 2: Image Capture or Upload */}
-          <Card className="rounded-2xl border-slate-200 shadow-xs">
+          <Card className="rounded-3xl border-border bg-card shadow-[0_10px_30px_rgba(24,30,75,0.03)]">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <Camera className="w-4 h-4 text-indigo-600" /> 2. Capture / Upload Document Page
+              <CardTitle className="text-base font-heading font-bold text-foreground flex items-center gap-2">
+                <Camera className="w-4 h-4 text-primary" /> 2. Capture / Upload Document Page
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Camera Video Stream */}
               {isCameraActive && (
-                <div className="relative rounded-2xl overflow-hidden bg-slate-950 aspect-4/3 flex items-center justify-center">
+                <div className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center">
                   <video
                     ref={(el) => {
                       videoRef.current = el;
                       if (el && mediaStreamRef.current && el.srcObject !== mediaStreamRef.current) {
                         el.srcObject = mediaStreamRef.current;
-                        el.play().catch(console.error);
+                        el.play().catch(e => {
+                          if (e.name !== 'AbortError') console.error('Play error:', e);
+                        });
                       }
                     }}
                     autoPlay
@@ -544,19 +569,19 @@ export default function ScanPage() {
                     muted
                     className="w-full h-full object-cover"
                   />
-                  <div className="absolute bottom-4 inset-x-0 flex items-center justify-center gap-3">
+                  <div className="absolute bottom-12 inset-x-0 flex items-center justify-center gap-4 px-4 pb-8 bg-gradient-to-t from-black/80 to-transparent">
                     <Button
                       onClick={capturePhoto}
                       size="lg"
-                      className="bg-white hover:bg-slate-100 text-slate-900 rounded-full font-bold shadow-lg px-6 cursor-pointer"
+                      className="bg-white hover:bg-slate-200 text-slate-900 rounded-full font-bold shadow-2xl px-8 h-14 cursor-pointer text-lg"
                     >
-                      <Camera className="w-5 h-5 mr-2 text-indigo-600" /> Snap Photo
+                      <Camera className="w-6 h-6 mr-2 text-indigo-600" /> Snap Photo
                     </Button>
                     <Button
                       onClick={stopCamera}
                       variant="destructive"
-                      size="sm"
-                      className="rounded-full cursor-pointer"
+                      size="lg"
+                      className="rounded-full shadow-2xl h-14 px-6 cursor-pointer text-lg font-bold"
                     >
                       Cancel
                     </Button>
@@ -595,25 +620,41 @@ export default function ScanPage() {
                 </div>
               )}
 
+              {/* Mandatory Requirement Warning if Class/Subject/Chapter not chosen */}
+              {(!selectedClassId || !selectedSubjectId || (!selectedChapterId && !newChapterTitle.trim())) && (
+                <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>
+                    <strong>Mandatory:</strong> Please select <strong>Class</strong>, <strong>Subject</strong>, and <strong>Chapter</strong> above before opening the camera or uploading.
+                  </span>
+                </div>
+              )}
+
               {/* Action Buttons if no image */}
               {!imagePreview && !isCameraActive && (
                 <div className="grid grid-cols-2 gap-3">
                   <Button
                     onClick={startCamera}
                     variant="outline"
-                    className="h-24 flex flex-col items-center justify-center gap-2 rounded-2xl border-dashed border-2 hover:border-indigo-500 hover:bg-indigo-50/50 cursor-pointer"
+                    disabled={!selectedClassId || !selectedSubjectId || (!selectedChapterId && !newChapterTitle.trim())}
+                    className="h-24 flex flex-col items-center justify-center gap-2 rounded-2xl border-dashed border-2 hover:border-indigo-500 hover:bg-indigo-50/50 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Camera className="w-6 h-6 text-indigo-600" />
                     <span className="text-xs font-semibold text-slate-700">Open Camera</span>
                   </Button>
 
-                  <label className="h-24 flex flex-col items-center justify-center gap-2 rounded-2xl border-dashed border-2 border-slate-200 hover:border-indigo-500 hover:bg-indigo-50/50 cursor-pointer transition-colors">
+                  <label className={`h-24 flex flex-col items-center justify-center gap-2 rounded-2xl border-dashed border-2 border-slate-200 hover:border-indigo-500 hover:bg-indigo-50/50 transition-colors ${
+                    !selectedClassId || !selectedSubjectId || (!selectedChapterId && !newChapterTitle.trim())
+                      ? 'opacity-50 cursor-not-allowed'
+                      : 'cursor-pointer'
+                  }`}>
                     <Upload className="w-6 h-6 text-indigo-600" />
                     <span className="text-xs font-semibold text-slate-700">Upload Image / PDF</span>
                     <input
                       type="file"
                       accept="image/*,application/pdf"
                       onChange={handleFileSelect}
+                      disabled={!selectedClassId || !selectedSubjectId || (!selectedChapterId && !newChapterTitle.trim())}
                       className="hidden"
                     />
                   </label>

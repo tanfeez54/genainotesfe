@@ -9,6 +9,7 @@ import {
   RefreshCw,
   Plus,
   Trash2,
+  Edit3,
   CheckCircle2,
   Eye,
   BookOpen,
@@ -263,6 +264,9 @@ export default function GeneratePaperPage() {
   const [sections, setSections] = useState<SectionConfigItem[]>(DEFAULT_SECTIONS);
 
   // Generated paper state
+  const [editingPaperId, setEditingPaperId] = useState<string | null>(null);
+  const [isAutoSaved, setIsAutoSaved] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [paperQuestions, setPaperQuestions] = useState<QuestionItem[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -294,6 +298,33 @@ export default function GeneratePaperPage() {
     setEditingQuestionText('');
   };
 
+  const handleDeleteQuestion = (idx: number) => {
+    if (paperQuestions.length <= 1) {
+      toast.error('The paper must contain at least 1 question');
+      return;
+    }
+    const newQuestions = paperQuestions.filter((_, i) => i !== idx);
+    setPaperQuestions(newQuestions);
+    toast.success('Question removed from paper');
+  };
+
+  const handleStartNewPaper = () => {
+    if (editingPaperId) {
+      if (!confirm('Start a new paper? You will exit edit mode for this paper.')) return;
+      setEditingPaperId(null);
+      setIsAutoSaved(false);
+      setLastSavedAt(null);
+      setPaperQuestions([]);
+      setViewMode('config');
+      toast.info('Cleared edit session. Ready for a new paper.');
+    } else {
+      setPaperQuestions([]);
+      setIsAutoSaved(false);
+      setLastSavedAt(null);
+      setViewMode('config');
+    }
+  };
+
   useEffect(() => {
     const tokenMatch = document.cookie.match(new RegExp('(^| )notegen_session=([^;]+)'));
     const tokenStr = tokenMatch ? tokenMatch[2] : '';
@@ -309,8 +340,9 @@ export default function GeneratePaperPage() {
       if (savedPaperJson) {
         sessionStorage.removeItem('edit_paper_data');
         const p = JSON.parse(savedPaperJson);
+        if (p.id) setEditingPaperId(p.id);
         if (p.title) setExamTitle(p.title);
-        if (p.total_marks) setTotalMarks(p.total_marks);
+        if (p.total_marks) setTotalMarks(String(p.total_marks));
         if (p.duration_minutes) setTimeAllowed(`${p.duration_minutes} Mins`);
         if (p.class_id) {
           setSelectedClassId(p.class_id);
@@ -320,18 +352,37 @@ export default function GeneratePaperPage() {
           setSelectedSubjectId(p.subject_id);
           if (tokenStr) fetchChapters(p.subject_id, tokenStr);
         }
-        if (p.schoolName) setSchoolName(p.schoolName);
-        if (p.schoolLogo) setSchoolLogo(p.schoolLogo);
-        if (p.schoolAddress) setSchoolAddress(p.schoolAddress);
-        if (p.timeAllowed) setTimeAllowed(p.timeAllowed);
-        if (p.instructions) setInstructions(p.instructions);
-        if (p.selectedChapterIds) setSelectedChapterIds(p.selectedChapterIds);
-        if (p.sections && Array.isArray(p.sections)) setSections(p.sections);
-        if (p.selected_questions && Array.isArray(p.selected_questions) && p.selected_questions.length > 0) {
-          setPaperQuestions(p.selected_questions);
-          setViewMode('preview');
+
+        const bp = p.blueprint || {};
+        if (bp.schoolName) setSchoolName(bp.schoolName);
+        else if (p.schoolName) setSchoolName(p.schoolName);
+
+        if (bp.schoolLogo) setSchoolLogo(bp.schoolLogo);
+        else if (p.schoolLogo) setSchoolLogo(p.schoolLogo);
+
+        if (bp.schoolAddress) setSchoolAddress(bp.schoolAddress);
+        else if (p.schoolAddress) setSchoolAddress(p.schoolAddress);
+
+        if (bp.timeAllowed) setTimeAllowed(bp.timeAllowed);
+        if (p.instructions || bp.instructions) setInstructions(p.instructions || bp.instructions);
+        if (bp.selectedChapterIds && Array.isArray(bp.selectedChapterIds)) {
+          setSelectedChapterIds(bp.selectedChapterIds);
         }
-        toast.success(`Loaded "${p.title}" for editing!`);
+        if (bp.sections && Array.isArray(bp.sections)) {
+          setSections(bp.sections);
+        }
+
+        // Questions can be in bp.selected_questions or p.selected_questions
+        const loadedQuestions = bp.selected_questions || p.selected_questions;
+        if (Array.isArray(loadedQuestions) && loadedQuestions.length > 0) {
+          setPaperQuestions(loadedQuestions);
+          setIsAutoSaved(true);
+          setLastSavedAt(new Date());
+          setViewMode('preview'); // Open preview immediately so user can edit and review
+        }
+        toast.info(`Editing "${p.title}" — Saving will update this paper directly without using any credits!`, {
+          duration: 6000,
+        });
       }
     } catch (e) {
       console.error('Failed to load edit_paper_data', e);
@@ -589,14 +640,42 @@ export default function GeneratePaperPage() {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to generate paper');
+      if (!res.ok) {
+        if (res.status === 402) {
+          toast.error(
+            data.error || 'Insufficient wallet balance. Each generation costs ₹5. Please recharge in Billing & Wallet.',
+            {
+              action: {
+                label: 'Recharge',
+                onClick: () => window.location.href = '/billing',
+              },
+              duration: 8000,
+            }
+          );
+          return;
+        }
+        throw new Error(data.error || 'Failed to generate paper');
+      }
 
       if (data.data && Array.isArray(data.data)) {
         setPaperQuestions(data.data);
         setViewMode('preview');
-        toast.success(
-          `Generated ${data.data.length} questions across ${activeSections.length} sections!`
-        );
+
+        // Notify layout to update live wallet balance in header/sidebar
+        window.dispatchEvent(new Event('billing-updated'));
+
+        // AUTO-SAVE: Automatically save newly generated paper immediately to DB
+        await handleSavePaper(false, data.data, true);
+
+        if (data.billing) {
+          toast.success(
+            `Generated & Auto-Saved ${data.data.length} questions! (₹${data.billing.cost_deducted} deducted • Balance: ₹${Number(data.billing.new_balance).toFixed(2)})`
+          );
+        } else {
+          toast.success(
+            `Generated & Auto-Saved ${data.data.length} questions across ${activeSections.length} sections!`
+          );
+        }
       } else {
         throw new Error('Invalid response format');
       }
@@ -608,53 +687,91 @@ export default function GeneratePaperPage() {
     }
   };
 
-  // Save Paper
-  const handleSavePaper = async () => {
-    if (paperQuestions.length === 0) {
-      toast.error('Question paper is currently empty');
-      return;
+  // Save Paper (In-place update if editingPaperId, or create new, with auto-save support)
+  const handleSavePaper = async (
+    createAsNew = false,
+    questionsToSave?: QuestionItem[],
+    isAutoSave = false
+  ) => {
+    const questions = questionsToSave || paperQuestions;
+    if (!questions || questions.length === 0) {
+      if (!isAutoSave) toast.error('Question paper is currently empty');
+      return null;
     }
 
     setIsSaving(true);
     try {
-      const calculatedTotalMarks = paperQuestions.reduce(
+      const calculatedTotalMarks = questions.reduce(
         (acc, q) => acc + (Number(q.marks) || 1),
         0
       );
 
-      const res = await fetch(`${API_URL}/api/question-papers`, {
-        method: 'POST',
+      const parsedDuration = Number(timeAllowed.replace(/[^0-9]/g, '')) || 120;
+      const safeTitle =
+        examTitle?.trim() ||
+        `${selectedClassName || 'General'} ${selectedSubjectName || 'Subject'} Examination`;
+
+      const payload = {
+        title: safeTitle,
+        class_id: selectedClassId || null,
+        subject_id: selectedSubjectId || null,
+        exam_type: 'Exam',
+        total_marks: calculatedTotalMarks || Number(totalMarks) || 50,
+        time_allowed_minutes: parsedDuration,
+        blueprint: {
+          schoolName,
+          schoolLogo,
+          schoolAddress,
+          timeAllowed,
+          instructions,
+          selectedChapterIds,
+          sections: activeSections,
+          selected_questions: questions,
+        },
+        selected_questions: questions,
+        status: 'final',
+      };
+
+      const isUpdating = Boolean(editingPaperId && !createAsNew);
+      const url = isUpdating
+        ? `${API_URL}/api/question-papers/${editingPaperId}`
+        : `${API_URL}/api/question-papers`;
+      const method = isUpdating ? 'PATCH' : 'POST';
+
+      const res = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          title: examTitle,
-          class_id: selectedClassId || null,
-          subject_id: selectedSubjectId || null,
-          exam_type: 'Exam',
-          total_marks: calculatedTotalMarks || Number(totalMarks) || 50,
-          time_allowed_minutes: 150,
-          blueprint: {
-            schoolName,
-            schoolLogo,
-            schoolAddress,
-            timeAllowed,
-            instructions,
-            selectedChapterIds,
-            sections: activeSections,
-          },
-          selected_questions: paperQuestions,
-          status: 'final',
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to save paper');
 
-      toast.success('Question paper saved successfully!');
+      setIsAutoSaved(true);
+      setLastSavedAt(new Date());
+
+      if (isUpdating) {
+        if (!isAutoSave) {
+          toast.success('Question paper updated in place! (0 Credits Used)');
+        }
+      } else {
+        if (data.data?.id) {
+          setEditingPaperId(data.data.id);
+        }
+        if (!isAutoSave) {
+          toast.success('Question paper saved successfully!');
+        }
+      }
+      return data.data;
     } catch (err: any) {
-      toast.error(err.message || 'Failed to save paper');
+      console.error('Save Paper Error:', err);
+      if (!isAutoSave) {
+        toast.error(err.message || 'Failed to save paper');
+      }
+      return null;
     } finally {
       setIsSaving(false);
     }
@@ -783,16 +900,16 @@ export default function GeneratePaperPage() {
       />
 
       {/* Top Header & View Mode Switcher */}
-      <div className="flex flex-col gap-4 border-b border-slate-200 pb-5 print:hidden">
+      <div className="flex flex-col gap-4 border-b border-border pb-5 print:hidden">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wider text-indigo-600 bg-indigo-50/90 border border-indigo-100 uppercase mb-2">
-              <Sparkles className="w-3 h-3 text-indigo-500" /> Paper Creation Suite
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold tracking-wider text-primary bg-[#FFF1DA]/70 border border-[#F1A501]/30 uppercase mb-2">
+              <Sparkles className="w-3 h-3 text-primary" /> Paper Creation Suite
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+            <h1 className="text-2xl sm:text-3xl font-heading font-black tracking-tight text-foreground">
               Automated Exam Paper Generator
             </h1>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-2xl">
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-2xl">
               Create custom exam papers with Fill in the Blanks, Match the Following, MCQs, True/False, and Descriptive sections.
             </p>
           </div>
@@ -800,21 +917,21 @@ export default function GeneratePaperPage() {
           {/* Stepper Navigation & Actions */}
           <div className="flex flex-wrap items-center gap-2 shrink-0">
             {/* Stepper Tabs */}
-            <div className="flex items-center bg-slate-100/90 p-1 rounded-xl border border-slate-200 shadow-2xs">
+            <div className="flex items-center bg-muted/80 p-1 rounded-2xl border border-border shadow-2xs">
               <button
                 type="button"
                 onClick={() => setViewMode('config')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   viewMode === 'config'
-                    ? 'bg-white text-indigo-600 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-[#FFF1DA] text-primary shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 <span
                   className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${
                     viewMode === 'config'
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-slate-200 text-slate-700'
+                      ? 'gradient-brand text-white shadow-2xs'
+                      : 'bg-muted-foreground/20 text-muted-foreground'
                   }`}
                 >
                   1
@@ -822,22 +939,22 @@ export default function GeneratePaperPage() {
                 <span>Setup Form</span>
               </button>
 
-              <span className="text-slate-400 text-xs px-1">→</span>
+              <span className="text-muted-foreground/40 text-xs px-1">→</span>
 
               <button
                 type="button"
                 onClick={() => setViewMode('preview')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   viewMode === 'preview'
-                    ? 'bg-white text-indigo-600 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-[#FFF1DA] text-primary shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 <span
                   className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${
                     viewMode === 'preview'
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-slate-200 text-slate-700'
+                      ? 'gradient-brand text-white shadow-2xs'
+                      : 'bg-muted-foreground/20 text-muted-foreground'
                   }`}
                 >
                   2
@@ -854,9 +971,9 @@ export default function GeneratePaperPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-8.5 px-2.5 sm:px-3 text-xs font-semibold text-indigo-700 bg-white border-slate-200 hover:bg-slate-50 cursor-pointer shadow-2xs"
+                  className="h-8.5 px-2.5 sm:px-3 text-xs font-semibold text-primary bg-card border-border hover:bg-[#FFF1DA]/40 cursor-pointer shadow-2xs"
                 >
-                  <FileCheck2 className="w-3.5 h-3.5 mr-1 text-indigo-600" />
+                  <FileCheck2 className="w-3.5 h-3.5 mr-1 text-primary" />
                   <span className="hidden sm:inline">Saved Papers</span>
                   <span className="sm:hidden">Saved</span>
                 </Button>
@@ -865,9 +982,9 @@ export default function GeneratePaperPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-8.5 px-2.5 sm:px-3 text-xs font-semibold text-slate-700 bg-white border-slate-200 hover:bg-slate-50 cursor-pointer shadow-2xs"
+                  className="h-8.5 px-2.5 sm:px-3 text-xs font-semibold text-foreground bg-card border-border hover:bg-muted cursor-pointer shadow-2xs"
                 >
-                  <BookOpen className="w-3.5 h-3.5 mr-1 text-indigo-600" />
+                  <BookOpen className="w-3.5 h-3.5 mr-1 text-primary" />
                   <span>Bank</span>
                 </Button>
               </Link>
@@ -875,9 +992,9 @@ export default function GeneratePaperPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-8.5 px-2.5 sm:px-3 text-xs font-semibold text-emerald-700 bg-white border-slate-200 hover:bg-slate-50 cursor-pointer shadow-2xs"
+                  className="h-8.5 px-2.5 sm:px-3 text-xs font-semibold text-[#F1A501] bg-card border-border hover:bg-[#FFF1DA]/40 cursor-pointer shadow-2xs"
                 >
-                  <Plus className="w-3.5 h-3.5 mr-1 text-emerald-600" />
+                  <Plus className="w-3.5 h-3.5 mr-1 text-[#F1A501]" />
                   <span>Scan</span>
                 </Button>
               </Link>
@@ -894,14 +1011,14 @@ export default function GeneratePaperPage() {
           {/* Row 1: Academic Selection & Paper Header Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {/* 1. Target Selection & Chapter Equal Weightage */}
-            <Card className="rounded-2xl border-slate-200 shadow-xs overflow-hidden">
+            <Card className="rounded-3xl border-border bg-card shadow-[0_10px_30px_rgba(24,30,75,0.03)] overflow-hidden">
               <CardHeader
-                className="pb-3 cursor-pointer md:cursor-default select-none hover:bg-slate-50/50 md:hover:bg-transparent transition-colors"
+                className="pb-3 cursor-pointer md:cursor-default select-none hover:bg-muted/40 md:hover:bg-transparent transition-colors"
                 onClick={() => setAccordionOpenClassSubject(!accordionOpenClassSubject)}
               >
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-base font-bold flex items-center gap-2">
-                    <GraduationCap className="w-4 h-4 text-indigo-600" /> 1. Class, Subject & Chapters
+                  <CardTitle className="text-base font-heading font-bold text-foreground flex items-center gap-2">
+                    <GraduationCap className="w-4 h-4 text-primary" /> 1. Class, Subject &amp; Chapters
                   </CardTitle>
                   <button
                     type="button"
@@ -1712,6 +1829,13 @@ export default function GeneratePaperPage() {
                       </>
                     )}
                   </Button>
+                  <p className="text-center text-[11px] text-slate-500 mt-2 flex items-center justify-center gap-1.5">
+                    <span>⚡ AI Generation Fee: <strong className="text-slate-700">₹5.00</strong> per paper</span>
+                    <span>•</span>
+                    <Link href="/billing" className="text-indigo-600 hover:underline font-semibold">
+                      Recharge Wallet / View Plans
+                    </Link>
+                  </p>
                 </div>
               </CardContent>
             </div>
@@ -1756,6 +1880,50 @@ export default function GeneratePaperPage() {
       {/* ========================================================================= */}
       {viewMode === 'preview' && (
         <div className="max-w-5xl mx-auto space-y-4 animate-fade-in">
+          {/* Active Edit / Auto-Saved Banner */}
+          {editingPaperId && (
+            <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs print:hidden">
+              <div className="flex items-center gap-2.5 text-emerald-800 dark:text-emerald-300">
+                <div className="w-7 h-7 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-700 dark:text-emerald-300 shrink-0">
+                  <CheckCircle2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-sm block text-emerald-950 dark:text-emerald-200">
+                      Paper Auto-Saved in Library
+                    </span>
+                    <Badge variant="outline" className="bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-400/40 text-[10px] font-bold px-2 py-0">
+                      Auto-Saved ✓
+                    </Badge>
+                  </div>
+                  <p className="text-[11px] text-emerald-800/80 dark:text-emerald-400">
+                    Saved as <strong>"{examTitle}"</strong>. Further edits, questions, and mark adjustments are completely free: <strong className="text-emerald-900 dark:text-emerald-200">0 Credits Used</strong>.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleSavePaper(true)}
+                  disabled={isSaving || paperQuestions.length === 0}
+                  className="h-8 text-xs font-semibold border-emerald-500/40 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/10 cursor-pointer"
+                  title="Save as a new separate question paper instead of updating this one"
+                >
+                  Save as New Copy
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleStartNewPaper}
+                  className="h-8 text-xs text-slate-600 hover:text-slate-900 cursor-pointer"
+                >
+                  Exit / New Paper
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Top Control Bar for Preview Mode */}
           <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs print:hidden">
             <div className="flex items-center gap-2">
@@ -1771,6 +1939,12 @@ export default function GeneratePaperPage() {
               <Badge variant="outline" className="text-xs font-bold text-indigo-700 bg-indigo-50 border-indigo-200">
                 {paperQuestions.length} Questions
               </Badge>
+              {isAutoSaved && (
+                <Badge variant="outline" className="text-xs font-bold text-emerald-700 bg-emerald-50 border-emerald-300 flex items-center gap-1 shadow-2xs">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  Auto-Saved {lastSavedAt ? `(${lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})` : ''}
+                </Badge>
+              )}
               <Button
                 variant="outline"
                 size="sm"
@@ -1798,14 +1972,18 @@ export default function GeneratePaperPage() {
 
             <div className="flex items-center gap-2">
               <Button
-                onClick={handleSavePaper}
+                onClick={() => handleSavePaper(false)}
                 disabled={isSaving || paperQuestions.length === 0}
                 size="sm"
                 variant="outline"
-                className="h-8 text-xs font-bold rounded-lg border-emerald-300 text-emerald-700 hover:bg-emerald-50 cursor-pointer"
+                className={`h-8 text-xs font-bold rounded-lg cursor-pointer ${
+                  editingPaperId
+                    ? 'border-emerald-400 bg-emerald-50/60 text-emerald-800 hover:bg-emerald-100'
+                    : 'border-emerald-300 text-emerald-700 hover:bg-emerald-50'
+                }`}
               >
                 {isSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin mr-1" /> : <Save className="w-3.5 h-3.5 mr-1" />}
-                Save Paper
+                {editingPaperId ? 'Update Paper (0 Credits)' : 'Save Paper'}
               </Button>
 
               <Button
@@ -1985,11 +2163,20 @@ export default function GeneratePaperPage() {
                                     <button
                                       type="button"
                                       onClick={() => handleOpenImagePicker(globalIdx)}
-                                      className="text-indigo-600 hover:text-indigo-800 text-[11px] font-bold flex items-center gap-0.5 cursor-pointer"
+                                      className="text-indigo-600 hover:text-indigo-800 text-[11px] font-bold flex items-center gap-0.5 cursor-pointer border-r border-slate-200 pr-2 mr-0.5"
                                       title="Attach diagram/image"
                                     >
                                       <ImageIcon className="w-3.5 h-3.5" />
                                       {q.image_url ? 'Change Diagram' : '+ Diagram'}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteQuestion(globalIdx)}
+                                      className="text-rose-500 hover:text-rose-700 text-[11px] font-bold flex items-center gap-0.5 cursor-pointer"
+                                      title="Remove question from paper"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                      Delete
                                     </button>
                                   </div>
                                 </div>

@@ -85,13 +85,13 @@ export default function SubjectsPage() {
   };
 
   return (
-    <div className="p-6 lg:p-8 max-w-4xl mx-auto">
+    <div className="p-6 lg:p-8 max-w-4xl mx-auto animate-fade-in">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Subjects</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">Organize your notes by subject</p>
+          <h1 className="text-2xl sm:text-3xl font-heading font-black tracking-tight text-foreground">Subjects</h1>
+          <p className="text-muted-foreground text-sm mt-0.5">Organize your notes and questions by subject</p>
         </div>
-        <Button onClick={openCreate} className="gradient-brand text-white hover:opacity-90 transition-opacity shadow-sm font-medium">
+        <Button onClick={openCreate} className="gradient-brand text-white hover:opacity-95 shadow-[0_4px_14px_rgba(223,105,81,0.3)] font-bold rounded-xl cursor-pointer">
           <Plus className="w-4 h-4 mr-2" />
           New Subject
         </Button>
@@ -100,17 +100,17 @@ export default function SubjectsPage() {
       {isLoading ? (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-28 rounded-xl bg-muted animate-pulse" />
+            <div key={i} className="h-28 rounded-2xl bg-muted animate-pulse" />
           ))}
         </div>
       ) : subjects.length === 0 ? (
         <div className="text-center py-20">
-          <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
-            <FolderOpen className="w-7 h-7 text-muted-foreground" />
+          <div className="w-14 h-14 rounded-2xl bg-[#FFF1DA] flex items-center justify-center mx-auto mb-4">
+            <FolderOpen className="w-7 h-7 text-primary" />
           </div>
-          <h3 className="text-lg font-semibold mb-2">No subjects yet</h3>
+          <h3 className="text-lg font-heading font-bold text-foreground mb-2">No subjects yet</h3>
           <p className="text-muted-foreground text-sm mb-6">Create a subject to organize your notes</p>
-          <Button onClick={openCreate} className="gradient-brand text-white hover:opacity-90">
+          <Button onClick={openCreate} className="gradient-brand text-white hover:opacity-95 shadow-[0_4px_14px_rgba(223,105,81,0.3)] font-bold rounded-xl cursor-pointer">
             <Plus className="w-4 h-4 mr-2" />
             Create first subject
           </Button>
@@ -118,14 +118,14 @@ export default function SubjectsPage() {
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {subjects.map((s) => (
-            <Card key={s.id} className="group hover:border-primary/40 hover:shadow-md transition-all">
+            <Card key={s.id} className="group hover:border-primary/40 rounded-2xl shadow-[0_10px_30px_rgba(24,30,75,0.03)] hover:shadow-md transition-all">
               <CardContent className="pt-5">
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg gradient-brand flex items-center justify-center flex-shrink-0">
+                    <div className="w-8 h-8 rounded-xl gradient-brand flex items-center justify-center flex-shrink-0 text-white">
                       <FolderOpen className="w-4 h-4 text-white" />
                     </div>
-                    <h3 className="font-semibold text-foreground truncate">{s.name}</h3>
+                    <h3 className="font-heading font-bold text-foreground truncate">{s.name}</h3>
                   </div>
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(s)}>
