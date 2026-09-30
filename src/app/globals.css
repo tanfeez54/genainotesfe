@@ -5,66 +5,66 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Brand Colors (Professional Blue/Slate) */
-  --brand-primary: oklch(0.55 0.15 250);
-  --brand-secondary: oklch(0.60 0.10 250);
-  --brand-accent: oklch(0.70 0.05 250);
+  /* Jadoo Brand Colors */
+  --brand-primary: #DF6951;
+  --brand-secondary: #F1A501;
+  --brand-accent: #181E4B;
 
-  /* Background - Light Mode (Crisp White/Gray) */
-  --background: oklch(0.99 0 0);
-  --foreground: oklch(0.15 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.15 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.15 0 0);
+  /* Background - Jadoo Warm Ivory */
+  --background: #FFFDFB;
+  --foreground: #181E4B;
+  --card: #FFFFFF;
+  --card-foreground: #181E4B;
+  --popover: #FFFFFF;
+  --popover-foreground: #181E4B;
 
-  /* Primary */
-  --primary: oklch(0.55 0.15 250);
-  --primary-foreground: oklch(0.98 0 0);
+  /* Primary - Jadoo Signature Coral */
+  --primary: #DF6951;
+  --primary-foreground: #FFFFFF;
 
-  /* Secondary */
-  --secondary: oklch(0.96 0 0);
-  --secondary-foreground: oklch(0.25 0 0);
+  /* Secondary - Jadoo Warm Peach/Amber */
+  --secondary: #FFF1DA;
+  --secondary-foreground: #181E4B;
 
-  /* Muted */
-  --muted: oklch(0.96 0 0);
-  --muted-foreground: oklch(0.50 0 0);
+  /* Muted - Jadoo Warm Cream / Slate */
+  --muted: #FAF7F2;
+  --muted-foreground: #5E6282;
 
-  /* Accent */
-  --accent: oklch(0.96 0 0);
-  --accent-foreground: oklch(0.25 0 0);
+  /* Accent - Warm Highlight */
+  --accent: #FFF1DA;
+  --accent-foreground: #DF6951;
 
   /* Destructive */
-  --destructive: oklch(0.57 0.22 25);
-  --destructive-foreground: oklch(0.98 0 0);
+  --destructive: #E53E3E;
+  --destructive-foreground: #FFFFFF;
 
   /* Border & Ring */
-  --border: oklch(0.92 0 0);
-  --input: oklch(0.92 0 0);
-  --ring: oklch(0.55 0.15 250);
+  --border: rgba(24, 30, 75, 0.08);
+  --input: rgba(24, 30, 75, 0.10);
+  --ring: #DF6951;
 
   /* Chart */
-  --chart-1: oklch(0.55 0.15 250);
-  --chart-2: oklch(0.60 0.10 250);
-  --chart-3: oklch(0.70 0.05 250);
-  --chart-4: oklch(0.40 0.10 250);
-  --chart-5: oklch(0.80 0.05 250);
+  --chart-1: #DF6951;
+  --chart-2: #F1A501;
+  --chart-3: #5956E9;
+  --chart-4: #00A389;
+  --chart-5: #181E4B;
 
-  --radius: 0.5rem;
+  --radius: 1rem;
 
-  /* Sidebar */
-  --sidebar: oklch(0.98 0 0);
-  --sidebar-foreground: oklch(0.15 0 0);
-  --sidebar-primary: oklch(0.55 0.15 250);
-  --sidebar-primary-foreground: oklch(0.98 0 0);
-  --sidebar-accent: oklch(0.94 0 0);
-  --sidebar-accent-foreground: oklch(0.25 0 0);
-  --sidebar-border: oklch(0.92 0 0);
-  --sidebar-ring: oklch(0.55 0.15 250);
+  /* Sidebar - Clean Ivory */
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #181E4B;
+  --sidebar-primary: #DF6951;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #FFF1DA;
+  --sidebar-accent-foreground: #DF6951;
+  --sidebar-border: rgba(24, 30, 75, 0.06);
+  --sidebar-ring: #DF6951;
 
   /* Font */
-  --font-heading: var(--font-sans);
-  --font-sans: 'Inter', sans-serif;
+  --font-heading: 'Volkhov', Georgia, serif;
+  --font-sans: 'Poppins', 'Plus Jakarta Sans', sans-serif;
 }
 
 .dark {
@@ -189,11 +189,11 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .gradient-brand {
-  background: var(--primary);
+  background: linear-gradient(135deg, #DF6951 0%, #F1A501 100%);
 }
 
 .gradient-brand-text {
-  color: var(--primary);
+  color: #DF6951;
 }
 
 .glass-panel {

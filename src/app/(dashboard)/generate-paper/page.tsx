@@ -900,16 +900,16 @@ export default function GeneratePaperPage() {
       />
 
       {/* Top Header & View Mode Switcher */}
-      <div className="flex flex-col gap-4 border-b border-slate-200 pb-5 print:hidden">
+      <div className="flex flex-col gap-4 border-b border-border pb-5 print:hidden">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wider text-indigo-600 bg-indigo-50/90 border border-indigo-100 uppercase mb-2">
-              <Sparkles className="w-3 h-3 text-indigo-500" /> Paper Creation Suite
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold tracking-wider text-primary bg-[#FFF1DA]/70 border border-[#F1A501]/30 uppercase mb-2">
+              <Sparkles className="w-3 h-3 text-primary" /> Paper Creation Suite
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+            <h1 className="text-2xl sm:text-3xl font-heading font-black tracking-tight text-foreground">
               Automated Exam Paper Generator
             </h1>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-2xl">
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-2xl">
               Create custom exam papers with Fill in the Blanks, Match the Following, MCQs, True/False, and Descriptive sections.
             </p>
           </div>
@@ -917,21 +917,21 @@ export default function GeneratePaperPage() {
           {/* Stepper Navigation & Actions */}
           <div className="flex flex-wrap items-center gap-2 shrink-0">
             {/* Stepper Tabs */}
-            <div className="flex items-center bg-slate-100/90 p-1 rounded-xl border border-slate-200 shadow-2xs">
+            <div className="flex items-center bg-muted/80 p-1 rounded-2xl border border-border shadow-2xs">
               <button
                 type="button"
                 onClick={() => setViewMode('config')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   viewMode === 'config'
-                    ? 'bg-white text-indigo-600 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-[#FFF1DA] text-primary shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 <span
                   className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${
                     viewMode === 'config'
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-slate-200 text-slate-700'
+                      ? 'gradient-brand text-white shadow-2xs'
+                      : 'bg-muted-foreground/20 text-muted-foreground'
                   }`}
                 >
                   1
@@ -939,22 +939,22 @@ export default function GeneratePaperPage() {
                 <span>Setup Form</span>
               </button>
 
-              <span className="text-slate-400 text-xs px-1">→</span>
+              <span className="text-muted-foreground/40 text-xs px-1">→</span>
 
               <button
                 type="button"
                 onClick={() => setViewMode('preview')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   viewMode === 'preview'
-                    ? 'bg-white text-indigo-600 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-[#FFF1DA] text-primary shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 <span
                   className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${
                     viewMode === 'preview'
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-slate-200 text-slate-700'
+                      ? 'gradient-brand text-white shadow-2xs'
+                      : 'bg-muted-foreground/20 text-muted-foreground'
                   }`}
                 >
                   2
@@ -971,9 +971,9 @@ export default function GeneratePaperPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-8.5 px-2.5 sm:px-3 text-xs font-semibold text-indigo-700 bg-white border-slate-200 hover:bg-slate-50 cursor-pointer shadow-2xs"
+                  className="h-8.5 px-2.5 sm:px-3 text-xs font-semibold text-primary bg-card border-border hover:bg-[#FFF1DA]/40 cursor-pointer shadow-2xs"
                 >
-                  <FileCheck2 className="w-3.5 h-3.5 mr-1 text-indigo-600" />
+                  <FileCheck2 className="w-3.5 h-3.5 mr-1 text-primary" />
                   <span className="hidden sm:inline">Saved Papers</span>
                   <span className="sm:hidden">Saved</span>
                 </Button>
@@ -982,9 +982,9 @@ export default function GeneratePaperPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-8.5 px-2.5 sm:px-3 text-xs font-semibold text-slate-700 bg-white border-slate-200 hover:bg-slate-50 cursor-pointer shadow-2xs"
+                  className="h-8.5 px-2.5 sm:px-3 text-xs font-semibold text-foreground bg-card border-border hover:bg-muted cursor-pointer shadow-2xs"
                 >
-                  <BookOpen className="w-3.5 h-3.5 mr-1 text-indigo-600" />
+                  <BookOpen className="w-3.5 h-3.5 mr-1 text-primary" />
                   <span>Bank</span>
                 </Button>
               </Link>
@@ -992,9 +992,9 @@ export default function GeneratePaperPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-8.5 px-2.5 sm:px-3 text-xs font-semibold text-emerald-700 bg-white border-slate-200 hover:bg-slate-50 cursor-pointer shadow-2xs"
+                  className="h-8.5 px-2.5 sm:px-3 text-xs font-semibold text-[#F1A501] bg-card border-border hover:bg-[#FFF1DA]/40 cursor-pointer shadow-2xs"
                 >
-                  <Plus className="w-3.5 h-3.5 mr-1 text-emerald-600" />
+                  <Plus className="w-3.5 h-3.5 mr-1 text-[#F1A501]" />
                   <span>Scan</span>
                 </Button>
               </Link>
@@ -1011,14 +1011,14 @@ export default function GeneratePaperPage() {
           {/* Row 1: Academic Selection & Paper Header Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {/* 1. Target Selection & Chapter Equal Weightage */}
-            <Card className="rounded-2xl border-slate-200 shadow-xs overflow-hidden">
+            <Card className="rounded-3xl border-border bg-card shadow-[0_10px_30px_rgba(24,30,75,0.03)] overflow-hidden">
               <CardHeader
-                className="pb-3 cursor-pointer md:cursor-default select-none hover:bg-slate-50/50 md:hover:bg-transparent transition-colors"
+                className="pb-3 cursor-pointer md:cursor-default select-none hover:bg-muted/40 md:hover:bg-transparent transition-colors"
                 onClick={() => setAccordionOpenClassSubject(!accordionOpenClassSubject)}
               >
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-base font-bold flex items-center gap-2">
-                    <GraduationCap className="w-4 h-4 text-indigo-600" /> 1. Class, Subject & Chapters
+                  <CardTitle className="text-base font-heading font-bold text-foreground flex items-center gap-2">
+                    <GraduationCap className="w-4 h-4 text-primary" /> 1. Class, Subject &amp; Chapters
                   </CardTitle>
                   <button
                     type="button"

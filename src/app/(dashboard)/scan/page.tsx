@@ -417,27 +417,27 @@ export default function ScanPage() {
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-5">
         <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-indigo-600 uppercase tracking-wider mb-1">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold tracking-wider text-primary bg-[#FFF1DA]/70 border border-[#F1A501]/30 uppercase mb-2">
             <Sparkles className="w-3.5 h-3.5" /> Direct Text OCR Extractor
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
-            Scan & Extract Complete Text
+          <h1 className="text-2xl sm:text-3xl font-heading font-black tracking-tight text-foreground">
+            Scan &amp; Extract Complete Text
           </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Capture or upload textbook pages / papers and extract the entire raw text mapped directly to Class, Subject & Chapter
+          <p className="text-sm text-muted-foreground mt-1">
+            Capture or upload textbook pages / papers and extract the entire raw text mapped directly to Class, Subject &amp; Chapter
           </p>
         </div>
 
         <div className="flex items-center gap-3">
           <Link href="/classes">
-            <Button variant="outline" size="sm" className="cursor-pointer">
-              <FolderOpen className="w-4 h-4 mr-2 text-indigo-600" /> Class Structure
+            <Button variant="outline" size="sm" className="cursor-pointer border-border hover:bg-[#FFF1DA]/30 text-foreground">
+              <FolderOpen className="w-4 h-4 mr-2 text-primary" /> Class Structure
             </Button>
           </Link>
           <Link href="/generate-paper">
-            <Button size="sm" className="gradient-brand text-white cursor-pointer shadow-xs">
+            <Button size="sm" className="gradient-brand text-white cursor-pointer shadow-[0_4px_14px_rgba(223,105,81,0.3)]">
               <BookOpen className="w-4 h-4 mr-2" /> Generate Paper
             </Button>
           </Link>
@@ -448,25 +448,25 @@ export default function ScanPage() {
         {/* Left Column: Mapping & Input */}
         <div className="lg:col-span-5 space-y-5">
           {/* Step 1: Mapping Target */}
-          <Card className="rounded-2xl border-slate-200 shadow-xs">
+          <Card className="rounded-3xl border-border bg-card shadow-[0_10px_30px_rgba(24,30,75,0.03)]">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <GraduationCap className="w-4 h-4 text-indigo-600" /> 1. Class, Subject & Chapter Mapping
+              <CardTitle className="text-base font-heading font-bold text-foreground flex items-center gap-2">
+                <GraduationCap className="w-4 h-4 text-primary" /> 1. Class, Subject &amp; Chapter Mapping
               </CardTitle>
-              <CardDescription className="text-xs">
+              <CardDescription className="text-xs text-muted-foreground">
                 The extracted text will be permanently mapped and saved to this chapter.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <Label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
-                  <span>Class / Grade <span className="text-red-500">* (Mandatory)</span></span>
+                <Label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                  <span>Class / Grade <span className="text-[#DF6951]">* (Mandatory)</span></span>
                   {selectedClassId && <Badge variant="outline" className="text-[10px] text-emerald-600 border-emerald-500/30">Selected ✓</Badge>}
                 </Label>
                 <select
                   value={selectedClassId}
                   onChange={(e) => handleClassChange(e.target.value)}
-                  className="w-full mt-1.5 h-10 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  className="w-full mt-1.5 h-10 px-3 rounded-xl border border-border bg-card text-foreground text-sm focus:ring-2 focus:ring-primary focus:outline-none"
                 >
                   <option value="">Select a class...</option>
                   {classes.map((c) => (
@@ -478,15 +478,15 @@ export default function ScanPage() {
               </div>
 
               <div>
-                <Label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
-                  <span>Subject <span className="text-red-500">* (Mandatory)</span></span>
+                <Label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                  <span>Subject <span className="text-[#DF6951]">* (Mandatory)</span></span>
                   {selectedSubjectId && <Badge variant="outline" className="text-[10px] text-emerald-600 border-emerald-500/30">Selected ✓</Badge>}
                 </Label>
                 <select
                   value={selectedSubjectId}
                   onChange={(e) => handleSubjectChange(e.target.value)}
                   disabled={!selectedClassId}
-                  className="w-full mt-1.5 h-10 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none disabled:opacity-50"
+                  className="w-full mt-1.5 h-10 px-3 rounded-xl border border-border bg-card text-foreground text-sm focus:ring-2 focus:ring-primary focus:outline-none disabled:opacity-50"
                 >
                   <option value="">Select a subject...</option>
                   {subjects.map((s) => (
@@ -499,8 +499,8 @@ export default function ScanPage() {
 
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <Label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-                    <span>Chapter <span className="text-red-500">* (Mandatory)</span></span>
+                  <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <span>Chapter <span className="text-[#DF6951]">* (Mandatory)</span></span>
                     {(selectedChapterId || (isCreatingNewChapter && newChapterTitle.trim())) && (
                       <Badge variant="outline" className="text-[10px] text-emerald-600 border-emerald-500/30">Selected ✓</Badge>
                     )}
@@ -511,7 +511,7 @@ export default function ScanPage() {
                       setIsCreatingNewChapter(!isCreatingNewChapter);
                       setSelectedChapterId('');
                     }}
-                    className="text-[11px] font-semibold text-indigo-600 hover:underline cursor-pointer"
+                    className="text-[11px] font-semibold text-primary hover:underline cursor-pointer"
                   >
                     {isCreatingNewChapter ? 'Select Existing Chapter' : '+ Create New Chapter'}
                   </button>
@@ -522,14 +522,14 @@ export default function ScanPage() {
                     placeholder="Enter new chapter name (e.g. Chapter 4: Motion)"
                     value={newChapterTitle}
                     onChange={(e) => setNewChapterTitle(e.target.value)}
-                    className="h-10 rounded-xl text-sm"
+                    className="h-10 rounded-xl text-sm bg-card border-border text-foreground"
                   />
                 ) : (
                   <select
                     value={selectedChapterId}
                     onChange={(e) => setSelectedChapterId(e.target.value)}
                     disabled={!selectedSubjectId}
-                    className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none disabled:opacity-50"
+                    className="w-full h-10 px-3 rounded-xl border border-border bg-card text-foreground text-sm focus:ring-2 focus:ring-primary focus:outline-none disabled:opacity-50"
                   >
                     <option value="">Select a chapter...</option>
                     {chapters.map((ch) => (
@@ -544,10 +544,10 @@ export default function ScanPage() {
           </Card>
 
           {/* Step 2: Image Capture or Upload */}
-          <Card className="rounded-2xl border-slate-200 shadow-xs">
+          <Card className="rounded-3xl border-border bg-card shadow-[0_10px_30px_rgba(24,30,75,0.03)]">
             <CardHeader className="pb-3">
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <Camera className="w-4 h-4 text-indigo-600" /> 2. Capture / Upload Document Page
+              <CardTitle className="text-base font-heading font-bold text-foreground flex items-center gap-2">
+                <Camera className="w-4 h-4 text-primary" /> 2. Capture / Upload Document Page
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">

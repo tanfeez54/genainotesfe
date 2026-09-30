@@ -449,14 +449,14 @@ export default function AcademicStructurePage() {
       {/* ========================================================================= */}
       {/* TOP BREADCRUMB & NAVIGATION BAR                                           */}
       {/* ========================================================================= */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-5">
         <div className="space-y-1">
           {/* Breadcrumb Path */}
-          <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+          <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
             <button
               onClick={handleBackToClasses}
-              className={`hover:text-indigo-600 transition-colors flex items-center gap-1 ${
-                currentLevel === 'classes' ? 'text-indigo-600 font-bold' : ''
+              className={`hover:text-primary transition-colors flex items-center gap-1 ${
+                currentLevel === 'classes' ? 'text-primary font-bold' : ''
               }`}
             >
               <GraduationCap className="w-3.5 h-3.5" /> Classes
@@ -464,11 +464,11 @@ export default function AcademicStructurePage() {
 
             {selectedClass && (
               <>
-                <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
+                <ChevronRight className="w-3.5 h-3.5 text-border" />
                 <button
                   onClick={handleBackToSubjects}
-                  className={`hover:text-indigo-600 transition-colors flex items-center gap-1 ${
-                    currentLevel === 'subjects' ? 'text-indigo-600 font-bold' : ''
+                  className={`hover:text-primary transition-colors flex items-center gap-1 ${
+                    currentLevel === 'subjects' ? 'text-primary font-bold' : ''
                   }`}
                 >
                   <BookOpen className="w-3.5 h-3.5" /> {selectedClass.name}
@@ -478,8 +478,8 @@ export default function AcademicStructurePage() {
 
             {selectedSubject && (
               <>
-                <ChevronRight className="w-3.5 h-3.5 text-slate-300" />
-                <span className="text-indigo-600 font-bold flex items-center gap-1">
+                <ChevronRight className="w-3.5 h-3.5 text-border" />
+                <span className="text-primary font-bold flex items-center gap-1">
                   <Bookmark className="w-3.5 h-3.5" /> {selectedSubject.name}
                 </span>
               </>
@@ -493,13 +493,13 @@ export default function AcademicStructurePage() {
                 variant="outline"
                 size="sm"
                 onClick={currentLevel === 'chapters' ? handleBackToSubjects : handleBackToClasses}
-                className="h-8 px-2.5 rounded-xl border-slate-300 text-slate-700 hover:bg-slate-100 cursor-pointer"
+                className="h-8 px-2.5 rounded-xl border-border text-foreground hover:bg-[#FFF1DA]/30 cursor-pointer"
               >
-                <ArrowLeft className="w-4 h-4 mr-1 text-slate-600" /> Back
+                <ArrowLeft className="w-4 h-4 mr-1 text-muted-foreground" /> Back
               </Button>
             )}
 
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
+            <h1 className="text-2xl sm:text-3xl font-heading font-black tracking-tight text-foreground">
               {currentLevel === 'classes' && 'All Classes / Grades'}
               {currentLevel === 'subjects' && `${selectedClass?.name} — Subjects`}
               {currentLevel === 'chapters' && `${selectedSubject?.name} — Chapters`}
@@ -514,7 +514,7 @@ export default function AcademicStructurePage() {
               setIsAdding(!isAdding);
               setItemName('');
             }}
-            className="h-9 px-4 rounded-xl gradient-brand text-white font-bold text-xs shadow-sm hover:opacity-95 cursor-pointer"
+            className="h-9 px-4 rounded-xl gradient-brand text-white font-bold text-xs shadow-[0_4px_14px_rgba(223,105,81,0.3)] hover:opacity-95 cursor-pointer"
           >
             <Plus className="w-4 h-4 mr-1.5" />
             {currentLevel === 'classes' && 'Add New Class'}
@@ -526,11 +526,11 @@ export default function AcademicStructurePage() {
 
       {/* Quick Add Form */}
       {isAdding && (
-        <Card className="rounded-2xl border-indigo-200 bg-gradient-to-br from-indigo-50/60 to-white shadow-sm p-4 sm:p-5 animate-slide-down">
+        <Card className="rounded-3xl border border-[#F1A501]/30 bg-card shadow-[0_10px_30px_rgba(24,30,75,0.04)] p-4 sm:p-5 animate-slide-down">
           <form onSubmit={handleCreateItem} className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-indigo-950 flex items-center gap-1.5">
-                <Sparkles className="w-4 h-4 text-indigo-600" />
+              <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-primary" />
                 {currentLevel === 'classes' && 'Create a New Class / Grade'}
                 {currentLevel === 'subjects' && `Add a Subject to ${selectedClass?.name}`}
                 {currentLevel === 'chapters' && `Add a Chapter / Topic to ${selectedSubject?.name}`}
@@ -538,7 +538,7 @@ export default function AcademicStructurePage() {
               <button
                 type="button"
                 onClick={() => setIsAdding(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                className="text-muted-foreground hover:text-foreground p-1 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -555,10 +555,10 @@ export default function AcademicStructurePage() {
                     ? 'e.g. Mathematics, Science, Social Studies...'
                     : 'e.g. Chapter 1 - Real Numbers, Quadratic Equations...'
                 }
-                className="h-10 text-sm bg-white rounded-xl border-indigo-200 focus:ring-2 focus:ring-indigo-500"
+                className="h-10 text-sm bg-card rounded-xl border-border focus:ring-2 focus:ring-primary"
                 autoFocus
               />
-              <Button type="submit" className="h-10 px-5 rounded-xl gradient-brand text-white font-bold text-xs shrink-0 cursor-pointer">
+              <Button type="submit" className="h-10 px-5 rounded-xl gradient-brand text-white font-bold text-xs shrink-0 cursor-pointer shadow-[0_4px_14px_rgba(223,105,81,0.3)]">
                 Save
               </Button>
             </div>
@@ -568,12 +568,12 @@ export default function AcademicStructurePage() {
 
       {/* Search Bar */}
       <div className="relative max-w-md">
-        <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
+        <Search className="w-4 h-4 absolute left-3.5 top-3 text-muted-foreground" />
         <Input
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder={`Search ${currentLevel}...`}
-          className="h-10 pl-10 rounded-xl bg-white border-slate-200 text-xs text-slate-800"
+          className="h-10 pl-10 rounded-xl bg-card border-border text-xs text-foreground placeholder:text-muted-foreground"
         />
       </div>
 
@@ -584,21 +584,21 @@ export default function AcademicStructurePage() {
         <div>
           {isLoading ? (
             <div className="h-72 flex flex-col items-center justify-center space-y-3">
-              <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
-              <p className="text-xs text-slate-500 font-medium">Loading classes...</p>
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              <p className="text-xs text-muted-foreground font-medium">Loading classes...</p>
             </div>
           ) : filteredClasses.length === 0 ? (
-            <div className="h-72 flex flex-col items-center justify-center text-center p-6 border-2 border-dashed border-slate-200 rounded-2xl bg-white space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center">
-                <GraduationCap className="w-6 h-6 text-indigo-600" />
+            <div className="h-72 flex flex-col items-center justify-center text-center p-6 border-2 border-dashed border-border rounded-3xl bg-card space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-[#FFF1DA] flex items-center justify-center">
+                <GraduationCap className="w-6 h-6 text-primary" />
               </div>
-              <h3 className="font-bold text-slate-800 text-base">No Classes Found</h3>
-              <p className="text-xs text-slate-500 max-w-sm">
+              <h3 className="font-heading font-bold text-foreground text-base">No Classes Found</h3>
+              <p className="text-xs text-muted-foreground max-w-sm">
                 Get started by adding your first school grade or class.
               </p>
               <Button
                 onClick={() => setIsAdding(true)}
-                className="h-8 text-xs gradient-brand text-white rounded-xl font-bold cursor-pointer"
+                className="h-8 text-xs gradient-brand text-white rounded-xl font-bold cursor-pointer shadow-[0_4px_12px_rgba(223,105,81,0.25)]"
               >
                 <Plus className="w-3.5 h-3.5 mr-1" /> Add Class
               </Button>
@@ -614,11 +614,11 @@ export default function AcademicStructurePage() {
                     onClick={() => {
                       if (!isEditing) handleSelectClass(cls);
                     }}
-                    className="group relative bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all duration-200 cursor-pointer hover:-translate-y-0.5 flex flex-col justify-between h-36"
+                    className="group relative bg-card border border-border hover:border-primary/40 rounded-2xl p-5 shadow-[0_10px_30px_rgba(24,30,75,0.03)] hover:shadow-md transition-all duration-200 cursor-pointer hover:-translate-y-0.5 flex flex-col justify-between h-36"
                   >
                     <div>
                       <div className="flex items-start justify-between">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 text-white flex items-center justify-center font-bold text-base shadow-xs">
+                        <div className="w-10 h-10 rounded-xl gradient-brand text-white flex items-center justify-center font-bold text-base shadow-xs">
                           {cls.name.charAt(0).toUpperCase()}
                         </div>
 
@@ -629,14 +629,14 @@ export default function AcademicStructurePage() {
                               setEditingId(cls.id);
                               setEditName(cls.name);
                             }}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors cursor-pointer"
+                            className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-[#FFF1DA]/60 transition-colors cursor-pointer"
                             title="Edit name"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => handleDelete(cls.id, cls.name)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                            className="p-1.5 rounded-lg text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
                             title="Delete class"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -650,25 +650,25 @@ export default function AcademicStructurePage() {
                           <Input
                             value={editName}
                             onChange={(e) => setEditName(e.target.value)}
-                            className="h-7 text-xs bg-white rounded-lg"
+                            className="h-7 text-xs bg-card rounded-lg border-border"
                             autoFocus
                           />
                           <Button size="sm" onClick={() => handleSaveEdit(cls.id)} className="h-7 px-2 gradient-brand text-white rounded-lg cursor-pointer">
                             <Check className="w-3 h-3" />
                           </Button>
-                          <Button size="sm" variant="ghost" onClick={() => setEditingId(null)} className="h-7 px-2 rounded-lg text-slate-400 cursor-pointer">
+                          <Button size="sm" variant="ghost" onClick={() => setEditingId(null)} className="h-7 px-2 rounded-lg text-muted-foreground cursor-pointer">
                             <X className="w-3 h-3" />
                           </Button>
                         </div>
                       ) : (
-                        <h3 className="font-bold text-slate-900 text-base mt-3 tracking-tight group-hover:text-indigo-600 transition-colors truncate">
+                        <h3 className="font-heading font-bold text-foreground text-base mt-3 tracking-tight group-hover:text-primary transition-colors truncate">
                           {cls.name}
                         </h3>
                       )}
                     </div>
 
-                    <div className="flex items-center justify-between text-xs font-semibold text-slate-500 pt-2 border-t border-slate-100 mt-2">
-                      <span className="text-[11px] text-indigo-600 font-bold group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5">
+                    <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground pt-2 border-t border-border mt-2">
+                      <span className="text-[11px] text-primary font-bold group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5">
                         View Subjects →
                       </span>
                     </div>
@@ -687,21 +687,21 @@ export default function AcademicStructurePage() {
         <div>
           {isLoading ? (
             <div className="h-72 flex flex-col items-center justify-center space-y-3">
-              <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
-              <p className="text-xs text-slate-500 font-medium">Loading subjects in {selectedClass.name}...</p>
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              <p className="text-xs text-muted-foreground font-medium">Loading subjects in {selectedClass.name}...</p>
             </div>
           ) : filteredSubjects.length === 0 ? (
-            <div className="h-72 flex flex-col items-center justify-center text-center p-6 border-2 border-dashed border-slate-200 rounded-2xl bg-white space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center">
-                <BookOpen className="w-6 h-6 text-emerald-600" />
+            <div className="h-72 flex flex-col items-center justify-center text-center p-6 border-2 border-dashed border-border rounded-3xl bg-card space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-[#FFF1DA] flex items-center justify-center">
+                <BookOpen className="w-6 h-6 text-primary" />
               </div>
-              <h3 className="font-bold text-slate-800 text-base">No Subjects in {selectedClass.name}</h3>
-              <p className="text-xs text-slate-500 max-w-sm">
+              <h3 className="font-heading font-bold text-foreground text-base">No Subjects in {selectedClass.name}</h3>
+              <p className="text-xs text-muted-foreground max-w-sm">
                 Add subjects like Mathematics, English, or Science to this class.
               </p>
               <Button
                 onClick={() => setIsAdding(true)}
-                className="h-8 text-xs gradient-brand text-white rounded-xl font-bold cursor-pointer"
+                className="h-8 text-xs gradient-brand text-white rounded-xl font-bold cursor-pointer shadow-[0_4px_12px_rgba(223,105,81,0.25)]"
               >
                 <Plus className="w-3.5 h-3.5 mr-1" /> Add Subject
               </Button>
@@ -717,11 +717,11 @@ export default function AcademicStructurePage() {
                     onClick={() => {
                       if (!isEditing) handleSelectSubject(sub);
                     }}
-                    className="group relative bg-white border border-slate-200 hover:border-emerald-300 rounded-2xl p-5 shadow-xs hover:shadow-md transition-all duration-200 cursor-pointer hover:-translate-y-0.5 flex flex-col justify-between h-36"
+                    className="group relative bg-card border border-border hover:border-primary/40 rounded-2xl p-5 shadow-[0_10px_30px_rgba(24,30,75,0.03)] hover:shadow-md transition-all duration-200 cursor-pointer hover:-translate-y-0.5 flex flex-col justify-between h-36"
                   >
                     <div>
                       <div className="flex items-start justify-between">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center font-bold text-base shadow-xs">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#F1A501] to-[#DF6951] text-white flex items-center justify-center font-bold text-base shadow-xs">
                           {sub.name.charAt(0).toUpperCase()}
                         </div>
 
@@ -732,14 +732,14 @@ export default function AcademicStructurePage() {
                               setEditingId(sub.id);
                               setEditName(sub.name);
                             }}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors cursor-pointer"
+                            className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-[#FFF1DA]/60 transition-colors cursor-pointer"
                             title="Edit name"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => handleDelete(sub.id, sub.name)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                            className="p-1.5 rounded-lg text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
                             title="Delete subject"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -753,25 +753,25 @@ export default function AcademicStructurePage() {
                           <Input
                             value={editName}
                             onChange={(e) => setEditName(e.target.value)}
-                            className="h-7 text-xs bg-white rounded-lg"
+                            className="h-7 text-xs bg-card rounded-lg border-border"
                             autoFocus
                           />
                           <Button size="sm" onClick={() => handleSaveEdit(sub.id)} className="h-7 px-2 gradient-brand text-white rounded-lg cursor-pointer">
                             <Check className="w-3 h-3" />
                           </Button>
-                          <Button size="sm" variant="ghost" onClick={() => setEditingId(null)} className="h-7 px-2 rounded-lg text-slate-400 cursor-pointer">
+                          <Button size="sm" variant="ghost" onClick={() => setEditingId(null)} className="h-7 px-2 rounded-lg text-muted-foreground cursor-pointer">
                             <X className="w-3 h-3" />
                           </Button>
                         </div>
                       ) : (
-                        <h3 className="font-bold text-slate-900 text-base mt-3 tracking-tight group-hover:text-emerald-600 transition-colors truncate">
+                        <h3 className="font-heading font-bold text-foreground text-base mt-3 tracking-tight group-hover:text-primary transition-colors truncate">
                           {sub.name}
                         </h3>
                       )}
                     </div>
 
-                    <div className="flex items-center justify-between text-xs font-semibold text-slate-500 pt-2 border-t border-slate-100 mt-2">
-                      <span className="text-[11px] text-emerald-600 font-bold group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5">
+                    <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground pt-2 border-t border-border mt-2">
+                      <span className="text-[11px] text-primary font-bold group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5">
                         Manage Chapters →
                       </span>
                     </div>
@@ -790,21 +790,21 @@ export default function AcademicStructurePage() {
         <div>
           {isLoading ? (
             <div className="h-72 flex flex-col items-center justify-center space-y-3">
-              <Loader2 className="w-8 h-8 animate-spin text-amber-600" />
-              <p className="text-xs text-slate-500 font-medium">Loading chapters in {selectedSubject.name}...</p>
+              <Loader2 className="w-8 h-8 animate-spin text-[#F1A501]" />
+              <p className="text-xs text-muted-foreground font-medium">Loading chapters in {selectedSubject.name}...</p>
             </div>
           ) : filteredChapters.length === 0 ? (
-            <div className="h-72 flex flex-col items-center justify-center text-center p-6 border-2 border-dashed border-slate-200 rounded-2xl bg-white space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center">
-                <Bookmark className="w-6 h-6 text-amber-600" />
+            <div className="h-72 flex flex-col items-center justify-center text-center p-6 border-2 border-dashed border-border rounded-3xl bg-card space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-[#FFF1DA] flex items-center justify-center">
+                <Bookmark className="w-6 h-6 text-[#F1A501]" />
               </div>
-              <h3 className="font-bold text-slate-800 text-base">No Chapters in {selectedSubject.name}</h3>
-              <p className="text-xs text-slate-500 max-w-sm">
+              <h3 className="font-heading font-bold text-foreground text-base">No Chapters in {selectedSubject.name}</h3>
+              <p className="text-xs text-muted-foreground max-w-sm">
                 Add textbook chapters or lessons for this subject syllabus.
               </p>
               <Button
                 onClick={() => setIsAdding(true)}
-                className="h-8 text-xs gradient-brand text-white rounded-xl font-bold cursor-pointer"
+                className="h-8 text-xs gradient-brand text-white rounded-xl font-bold cursor-pointer shadow-[0_4px_12px_rgba(223,105,81,0.25)]"
               >
                 <Plus className="w-3.5 h-3.5 mr-1" /> Add Chapter
               </Button>
@@ -817,10 +817,10 @@ export default function AcademicStructurePage() {
                 return (
                   <div
                     key={chap.id}
-                    className="group bg-white border border-slate-200 hover:border-amber-300 rounded-2xl p-4 shadow-2xs hover:shadow-xs transition-all flex items-center justify-between"
+                    className="group bg-card border border-border hover:border-primary/40 rounded-2xl p-4 shadow-[0_4px_12px_rgba(24,30,75,0.02)] hover:shadow-xs transition-all flex items-center justify-between"
                   >
                     <div className="flex items-center gap-3 flex-1 mr-4 truncate">
-                      <span className="w-7 h-7 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 font-bold text-xs flex items-center justify-center shrink-0">
+                      <span className="w-7 h-7 rounded-xl bg-[#FFF1DA] border border-[#F1A501]/30 text-[#DF6951] font-bold text-xs flex items-center justify-center shrink-0">
                         {idx + 1}
                       </span>
 
@@ -829,18 +829,18 @@ export default function AcademicStructurePage() {
                           <Input
                             value={editName}
                             onChange={(e) => setEditName(e.target.value)}
-                            className="h-8 text-xs bg-white rounded-lg"
+                            className="h-8 text-xs bg-card rounded-lg border-border"
                             autoFocus
                           />
                           <Button size="sm" onClick={() => handleSaveEdit(chap.id)} className="h-8 px-2.5 gradient-brand text-white rounded-lg cursor-pointer">
                             <Check className="w-3.5 h-3.5" />
                           </Button>
-                          <Button size="sm" variant="ghost" onClick={() => setEditingId(null)} className="h-8 px-2 rounded-lg text-slate-400 cursor-pointer">
+                          <Button size="sm" variant="ghost" onClick={() => setEditingId(null)} className="h-8 px-2 rounded-lg text-muted-foreground cursor-pointer">
                             <X className="w-3.5 h-3.5" />
                           </Button>
                         </div>
                       ) : (
-                        <span className="font-bold text-slate-800 text-sm truncate">
+                        <span className="font-heading font-semibold text-foreground text-sm truncate">
                           {chap.title}
                         </span>
                       )}
@@ -851,10 +851,10 @@ export default function AcademicStructurePage() {
                       {/* VIEW DOCUMENTS BUTTON (Left of Edit) */}
                       <button
                         onClick={() => handleOpenChapterDocs(chap)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 text-indigo-700 hover:bg-indigo-100 text-xs font-bold transition-colors cursor-pointer border border-indigo-100"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#FFF1DA]/60 text-primary hover:bg-[#FFF1DA] text-xs font-bold transition-colors cursor-pointer border border-[#F1A501]/30"
                         title="View & manage scanned pages of this chapter"
                       >
-                        <Eye className="w-3.5 h-3.5 text-indigo-600" />
+                        <Eye className="w-3.5 h-3.5 text-primary" />
                         <span>View Documents</span>
                       </button>
 
@@ -864,7 +864,7 @@ export default function AcademicStructurePage() {
                           setEditingId(chap.id);
                           setEditName(chap.title);
                         }}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-amber-700 hover:bg-amber-50 transition-colors cursor-pointer"
+                        className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-[#FFF1DA]/60 transition-colors cursor-pointer"
                         title="Edit title"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
@@ -873,7 +873,7 @@ export default function AcademicStructurePage() {
                       {/* DELETE BUTTON */}
                       <button
                         onClick={() => handleDelete(chap.id, chap.title)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                        className="p-1.5 rounded-lg text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
                         title="Delete chapter"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -891,18 +891,18 @@ export default function AcademicStructurePage() {
       {/* CHAPTER DOCUMENTS GALLERY MODAL                                           */}
       {/* ========================================================================= */}
       {viewingDocsChapter && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden animate-scale-up">
+        <div className="fixed inset-0 z-50 bg-[#181E4B]/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-card rounded-3xl shadow-2xl border border-border w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden animate-scale-up">
             {/* Modal Header */}
-            <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50/80">
+            <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40">
               <div className="space-y-0.5">
-                <div className="flex items-center gap-2 text-[11px] font-bold text-indigo-600 uppercase tracking-wide">
+                <div className="flex items-center gap-2 text-[11px] font-bold text-primary uppercase tracking-wide">
                   <FileScan className="w-3.5 h-3.5" /> Scanned Pages Sequence
                 </div>
-                <h2 className="text-lg font-black text-slate-900">
+                <h2 className="text-lg font-heading font-black text-foreground">
                   {viewingDocsChapter.title}
                 </h2>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-muted-foreground">
                   {selectedClass?.name} • {selectedSubject?.name}
                 </p>
               </div>
@@ -911,7 +911,7 @@ export default function AcademicStructurePage() {
                 <Button
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isUploadingScan}
-                  className="h-8 px-3 text-xs gradient-brand text-white font-bold rounded-xl cursor-pointer"
+                  className="h-8 px-3 text-xs gradient-brand text-white font-bold rounded-xl cursor-pointer shadow-[0_4px_12px_rgba(223,105,81,0.25)]"
                 >
                   {isUploadingScan ? (
                     <>
@@ -926,7 +926,7 @@ export default function AcademicStructurePage() {
 
                 <button
                   onClick={() => setViewingDocsChapter(null)}
-                  className="w-8 h-8 rounded-full bg-slate-200/60 hover:bg-slate-200 flex items-center justify-center text-slate-600 cursor-pointer"
+                  className="w-8 h-8 rounded-full bg-muted hover:bg-border/40 flex items-center justify-center text-muted-foreground cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -937,21 +937,21 @@ export default function AcademicStructurePage() {
             <div className="flex-1 overflow-y-auto p-6">
               {isLoadingScans ? (
                 <div className="h-64 flex flex-col items-center justify-center space-y-3">
-                  <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
-                  <p className="text-xs text-slate-500 font-medium">Loading pages in sequence...</p>
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                  <p className="text-xs text-muted-foreground font-medium">Loading pages in sequence...</p>
                 </div>
               ) : chapterScans.length === 0 ? (
-                <div className="h-64 flex flex-col items-center justify-center text-center p-6 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50 space-y-3">
-                  <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center">
-                    <FileScan className="w-6 h-6 text-indigo-600" />
+                <div className="h-64 flex flex-col items-center justify-center text-center p-6 border-2 border-dashed border-border rounded-3xl bg-muted/20 space-y-3">
+                  <div className="w-12 h-12 rounded-2xl bg-[#FFF1DA] flex items-center justify-center">
+                    <FileScan className="w-6 h-6 text-primary" />
                   </div>
-                  <h3 className="font-bold text-slate-800 text-sm">No Scanned Documents Yet</h3>
-                  <p className="text-xs text-slate-500 max-w-xs">
+                  <h3 className="font-heading font-bold text-foreground text-sm">No Scanned Documents Yet</h3>
+                  <p className="text-xs text-muted-foreground max-w-xs">
                     Upload photos of textbook pages or worksheets in the order you want them saved.
                   </p>
                   <Button
                     onClick={() => fileInputRef.current?.click()}
-                    className="h-8 text-xs gradient-brand text-white font-bold rounded-xl cursor-pointer"
+                    className="h-8 text-xs gradient-brand text-white font-bold rounded-xl cursor-pointer shadow-[0_4px_12px_rgba(223,105,81,0.25)]"
                   >
                     <Upload className="w-3.5 h-3.5 mr-1" /> Upload Page 1
                   </Button>
@@ -964,22 +964,22 @@ export default function AcademicStructurePage() {
                       return (
                         <div
                           key={scan.id}
-                          className="bg-slate-50 border border-slate-200 hover:border-indigo-300 rounded-2xl p-3 space-y-2 relative group transition-all"
+                          className="bg-card border border-border hover:border-primary/40 rounded-2xl p-3 space-y-2 relative group transition-all shadow-[0_4px_12px_rgba(24,30,75,0.02)]"
                         >
                           {/* Document Preview Thumbnail (PDF or Image) */}
                           <div
                             onClick={() => window.open(`/document-viewer?url=${encodeURIComponent(scan.image_url)}`, '_blank')}
-                            className="w-full h-40 bg-white rounded-xl border border-slate-200 overflow-hidden relative cursor-pointer group-hover:shadow-xs flex items-center justify-center"
+                            className="w-full h-40 bg-card rounded-xl border border-border overflow-hidden relative cursor-pointer group-hover:shadow-xs flex items-center justify-center"
                           >
                             {isPdf ? (
-                              <div className="w-full h-full bg-gradient-to-br from-rose-50 to-red-100 flex flex-col items-center justify-center p-3 text-center">
-                                <div className="w-12 h-12 rounded-2xl bg-red-600 text-white flex items-center justify-center font-black text-sm shadow-md mb-2">
+                              <div className="w-full h-full bg-gradient-to-br from-[#FFF1DA]/60 to-[#FFFDFB] flex flex-col items-center justify-center p-3 text-center">
+                                <div className="w-12 h-12 rounded-2xl gradient-brand text-white flex items-center justify-center font-black text-sm shadow-md mb-2">
                                   PDF
                                 </div>
-                                <span className="text-xs font-bold text-slate-800 line-clamp-1">
+                                <span className="text-xs font-bold text-foreground line-clamp-1">
                                   Page {sIdx + 1} Document
                                 </span>
-                                <span className="text-[10px] text-red-600 font-semibold mt-0.5">
+                                <span className="text-[10px] text-primary font-semibold mt-0.5">
                                   Click to Preview PDF
                                 </span>
                               </div>
@@ -990,7 +990,7 @@ export default function AcademicStructurePage() {
                                 className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                               />
                             )}
-                            <div className="absolute inset-0 bg-slate-900/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1">
+                            <div className="absolute inset-0 bg-[#181E4B]/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1">
                               <Maximize2 className="w-4 h-4" /> {isPdf ? 'Open PDF' : 'Full View'}
                             </div>
                           </div>
@@ -998,10 +998,10 @@ export default function AcademicStructurePage() {
                           {/* Sequence Label & Status */}
                           <div className="flex items-center justify-between pt-1">
                             <div className="flex items-center gap-1.5">
-                              <span className="w-6 h-6 rounded-lg bg-indigo-600 text-white font-bold text-xs flex items-center justify-center shadow-xs">
+                              <span className="w-6 h-6 rounded-lg gradient-brand text-white font-bold text-xs flex items-center justify-center shadow-xs">
                                 {sIdx + 1}
                               </span>
-                              <span className="text-xs font-bold text-slate-800">
+                              <span className="text-xs font-bold text-foreground">
                                 Page {sIdx + 1}
                               </span>
                             </div>
@@ -1015,7 +1015,7 @@ export default function AcademicStructurePage() {
                                     imageUrl: scan.image_url,
                                   })
                                 }
-                                className="text-[10px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2 py-1 rounded-md transition-colors cursor-pointer"
+                                className="text-[10px] font-bold text-primary bg-[#FFF1DA]/60 hover:bg-[#FFF1DA] border border-[#F1A501]/30 px-2 py-1 rounded-md transition-colors cursor-pointer"
                                 title="View extracted OCR text"
                               >
                                 <FileText className="w-3 h-3 inline mr-0.5" /> Text
@@ -1023,7 +1023,7 @@ export default function AcademicStructurePage() {
 
                               <button
                                 onClick={() => handleDeleteScan(scan.id, sIdx + 1)}
-                                className="p-1 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                                className="p-1 rounded-md text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
                                 title="Delete page"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -1038,7 +1038,7 @@ export default function AcademicStructurePage() {
             </div>
 
             {/* Modal Footer */}
-            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
+            <div className="p-4 bg-muted/40 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
               <span>{chapterScans.length} pages attached in sequential order</span>
               <Button
                 variant="outline"
@@ -1058,22 +1058,22 @@ export default function AcademicStructurePage() {
       {viewingOcrDoc && (
         <div
           onClick={() => setViewingOcrDoc(null)}
-          className="fixed inset-0 z-60 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4"
+          className="fixed inset-0 z-60 bg-[#181E4B]/60 backdrop-blur-sm flex items-center justify-center p-4"
         >
           <div
-            className="relative w-full max-w-2xl max-h-[85vh] bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col animate-scale-up"
+            className="relative w-full max-w-2xl max-h-[85vh] bg-card rounded-3xl overflow-hidden shadow-2xl flex flex-col animate-scale-up border border-border"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+            <div className="p-5 border-b border-border flex items-center justify-between bg-muted/30">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center font-bold text-xs">
+                <div className="w-8 h-8 rounded-xl bg-[#FFF1DA] text-primary flex items-center justify-center font-bold text-xs">
                   P{viewingOcrDoc.pageNum}
                 </div>
                 <div>
-                  <h3 className="font-bold text-sm text-slate-900">
+                  <h3 className="font-heading font-bold text-sm text-foreground">
                     Extracted Verbatim Text (Page {viewingOcrDoc.pageNum})
                   </h3>
-                  <p className="text-[11px] text-slate-500">OCR text extracted from document scan</p>
+                  <p className="text-[11px] text-muted-foreground">OCR text extracted from document scan</p>
                 </div>
               </div>
 
@@ -1091,18 +1091,18 @@ export default function AcademicStructurePage() {
                 </Button>
                 <button
                   onClick={() => setViewingOcrDoc(null)}
-                  className="w-8 h-8 rounded-full bg-slate-200 hover:bg-slate-300 flex items-center justify-center text-slate-700 cursor-pointer"
+                  className="w-8 h-8 rounded-full bg-muted hover:bg-border/40 flex items-center justify-center text-muted-foreground cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
             </div>
 
-            <div className="p-6 overflow-y-auto flex-1 font-mono text-xs leading-relaxed whitespace-pre-wrap text-slate-800 bg-slate-50/50">
+            <div className="p-6 overflow-y-auto flex-1 font-mono text-xs leading-relaxed whitespace-pre-wrap text-foreground bg-muted/20">
               {viewingOcrDoc.text}
             </div>
 
-            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
+            <div className="p-4 bg-muted/30 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
               <span>{viewingOcrDoc.text.split(/\s+/).filter(Boolean).length} words extracted</span>
               <Button
                 variant="outline"

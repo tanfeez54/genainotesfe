@@ -153,19 +153,19 @@ export default function SavedPapersPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 flex items-center gap-2.5">
+          <h1 className="text-2xl sm:text-3xl font-heading font-black tracking-tight text-foreground flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl gradient-brand flex items-center justify-center text-white shadow-md">
               <FileCheck2 className="w-5 h-5" />
             </div>
             Saved Examination Papers
           </h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-sm text-muted-foreground mt-1">
             Access, preview, and print all previously generated question papers for your school.
           </p>
         </div>
 
         <Link href="/generate-paper">
-          <Button className="gradient-brand text-white shadow-md hover:opacity-90 font-bold rounded-xl cursor-pointer">
+          <Button className="gradient-brand text-white shadow-[0_4px_14px_rgba(223,105,81,0.3)] hover:opacity-95 font-bold rounded-xl cursor-pointer">
             <Plus className="w-4 h-4 mr-1.5" />
             Create New Paper
           </Button>
@@ -173,23 +173,23 @@ export default function SavedPapersPage() {
       </div>
 
       {/* Search and Filters Bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200 shadow-xs">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-card p-3 rounded-2xl border border-border shadow-[0_4px_14px_rgba(24,30,75,0.02)]">
         <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search by title, subject, class..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 h-9 text-xs rounded-xl bg-slate-50 border-slate-200"
+            className="pl-9 h-9 text-xs rounded-xl bg-card border-border text-foreground placeholder:text-muted-foreground"
           />
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          <span className="text-xs font-semibold text-slate-500 shrink-0">Class:</span>
+          <span className="text-xs font-semibold text-muted-foreground shrink-0">Class:</span>
           <select
             value={selectedClassFilter}
             onChange={(e) => setSelectedClassFilter(e.target.value)}
-            className="h-9 px-3 rounded-xl text-xs font-medium bg-slate-50 border border-slate-200 text-slate-700 cursor-pointer focus:outline-hidden"
+            className="h-9 px-3 rounded-xl text-xs font-medium bg-card border border-border text-foreground cursor-pointer focus:outline-hidden"
           >
             <option value="all">All Classes ({papers.length})</option>
             {classOptions.map((cName) => {
@@ -206,20 +206,20 @@ export default function SavedPapersPage() {
 
       {/* Main Content List / Grid */}
       {isLoading ? (
-        <div className="h-64 flex flex-col items-center justify-center text-slate-400 gap-3">
+        <div className="h-64 flex flex-col items-center justify-center text-muted-foreground gap-3">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
           <p className="text-xs font-medium">Loading saved papers...</p>
         </div>
       ) : filteredPapers.length === 0 ? (
-        <Card className="p-12 text-center border-dashed rounded-3xl bg-slate-50/50 flex flex-col items-center justify-center space-y-4">
-          <div className="w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 shadow-xs">
+        <Card className="p-12 text-center border-dashed rounded-3xl bg-[#FFF1DA]/20 border-border flex flex-col items-center justify-center space-y-4">
+          <div className="w-14 h-14 rounded-2xl bg-[#FFF1DA] flex items-center justify-center text-primary shadow-xs">
             <FileText className="w-7 h-7" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-slate-800">
+            <h3 className="font-heading font-bold text-foreground text-base">
               {searchQuery ? 'No matching papers found' : 'No question papers saved yet'}
             </h3>
-            <p className="text-xs text-slate-500 max-w-sm mt-1">
+            <p className="text-xs text-muted-foreground max-w-sm mt-1">
               {searchQuery
                 ? 'Try adjusting your search keywords or filter.'
                 : 'Generate your first examination paper with AI and save it to your school archive.'}
@@ -227,7 +227,7 @@ export default function SavedPapersPage() {
           </div>
           {!searchQuery && (
             <Link href="/generate-paper">
-              <Button className="gradient-brand text-white font-bold text-xs rounded-xl shadow-xs cursor-pointer">
+              <Button className="gradient-brand text-white font-bold text-xs rounded-xl shadow-[0_4px_14px_rgba(223,105,81,0.3)] cursor-pointer">
                 <Sparkles className="w-3.5 h-3.5 mr-1.5" />
                 Generate Question Paper Now
               </Button>
@@ -246,17 +246,17 @@ export default function SavedPapersPage() {
               <Card
                 key={paper.id}
                 onClick={() => setSelectedPaperForPreview(paper)}
-                className="group relative p-5 rounded-2xl border border-slate-200 hover:border-indigo-300 hover:shadow-lg transition-all bg-white cursor-pointer flex flex-col justify-between"
+                className="group relative p-5 rounded-2xl border border-border hover:border-primary/40 hover:shadow-lg transition-all bg-card cursor-pointer flex flex-col justify-between shadow-[0_10px_30px_rgba(24,30,75,0.03)]"
               >
                 <div className="space-y-3">
                   {/* Top Badges */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5">
-                      <Badge className="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200 text-[10px] font-bold">
+                      <Badge className="bg-[#FFF1DA]/80 text-primary hover:bg-[#FFF1DA] border-[#F1A501]/30 text-[10px] font-bold">
                         <GraduationCap className="w-3 h-3 mr-1" />
                         {paper.classes?.name || 'Class N/A'}
                       </Badge>
-                      <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-200 text-[10px] font-bold">
+                      <Badge className="bg-muted text-muted-foreground hover:bg-muted/80 border-border text-[10px] font-bold">
                         <BookOpen className="w-3 h-3 mr-1" />
                         {paper.subjects?.name || 'Subject N/A'}
                       </Badge>
@@ -265,8 +265,8 @@ export default function SavedPapersPage() {
                     <Badge
                       className={`text-[10px] font-bold ${
                         paper.status === 'final'
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                          : 'bg-amber-50 text-amber-700 border-amber-200'
+                          ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30'
+                          : 'bg-[#F1A501]/15 text-[#B87A00] border-[#F1A501]/30'
                       }`}
                     >
                       {paper.status === 'final' ? 'Finalized' : 'Draft'}
@@ -275,33 +275,33 @@ export default function SavedPapersPage() {
 
                   {/* Paper Title */}
                   <div>
-                    <h3 className="font-bold text-base text-slate-900 group-hover:text-indigo-600 transition-colors line-clamp-1">
+                    <h3 className="font-heading font-bold text-base text-foreground group-hover:text-primary transition-colors line-clamp-1">
                       {paper.title}
                     </h3>
-                    <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">
+                    <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
                       {blueprint.schoolName || 'Standard School Paper'}
                     </p>
                   </div>
 
                   {/* Paper Stats */}
-                  <div className="grid grid-cols-3 gap-2 py-2 px-3 bg-slate-50 rounded-xl border border-slate-100 text-center text-xs">
+                  <div className="grid grid-cols-3 gap-2 py-2 px-3 bg-muted/40 rounded-xl border border-border/60 text-center text-xs">
                     <div>
-                      <span className="text-[10px] text-slate-400 block font-medium">Marks</span>
-                      <strong className="text-slate-800 font-bold">{paper.total_marks}</strong>
+                      <span className="text-[10px] text-muted-foreground block font-medium">Marks</span>
+                      <strong className="text-foreground font-bold">{paper.total_marks}</strong>
                     </div>
                     <div>
-                      <span className="text-[10px] text-slate-400 block font-medium">Time</span>
-                      <strong className="text-slate-800 font-bold">{paper.duration_minutes || 120}m</strong>
+                      <span className="text-[10px] text-muted-foreground block font-medium">Time</span>
+                      <strong className="text-foreground font-bold">{paper.duration_minutes || 120}m</strong>
                     </div>
                     <div>
-                      <span className="text-[10px] text-slate-400 block font-medium">Questions</span>
-                      <strong className="text-slate-800 font-bold">{questionCount || '—'}</strong>
+                      <span className="text-[10px] text-muted-foreground block font-medium">Questions</span>
+                      <strong className="text-foreground font-bold">{questionCount || '—'}</strong>
                     </div>
                   </div>
                 </div>
 
                 {/* Footer Actions */}
-                <div className="pt-4 mt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
+                <div className="pt-4 mt-2 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
                   <div className="flex items-center gap-1 text-[11px]">
                     <Calendar className="w-3.5 h-3.5" />
                     <span>{new Date(paper.created_at).toLocaleDateString()}</span>
@@ -313,7 +313,7 @@ export default function SavedPapersPage() {
                       variant="ghost"
                       onClick={(e) => handleDeletePaper(paper.id, e)}
                       disabled={isDeletingId === paper.id}
-                      className="h-7 w-7 p-0 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg cursor-pointer"
+                      className="h-7 w-7 p-0 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded-lg cursor-pointer"
                       title="Delete Paper"
                     >
                       <Trash2 className="w-3.5 h-3.5" />

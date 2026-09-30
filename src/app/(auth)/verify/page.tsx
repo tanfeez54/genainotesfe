@@ -226,8 +226,17 @@ export default function VerifyPage() {
           </button>
         </div>
 
-        <p className="mt-8 text-[11px] text-[#5E6282]/80">
-          Code expires in 10 minutes. Check your spam folder if not received.
+        <div className="mt-6 p-3 rounded-2xl bg-[#FFF1DA]/60 border border-[#F1A501]/30 text-[11px] text-[#181E4B] text-left space-y-1">
+          <div className="font-bold flex items-center gap-1.5 text-[#DF6951]">
+            <span>💡 Can't find the email in your Inbox?</span>
+          </div>
+          <p className="text-[#5E6282] leading-relaxed">
+            Please check your <strong>Spam / Junk</strong> or <strong>Promotions</strong> folder. Click <em>"Report as not spam"</em> so future school updates land directly in your Primary inbox.
+          </p>
+        </div>
+
+        <p className="mt-4 text-[11px] text-[#5E6282]/80">
+          Code expires in 10 minutes.
         </p>
       </div>
     </div>

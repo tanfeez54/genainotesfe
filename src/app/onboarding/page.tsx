@@ -282,10 +282,10 @@ export default function OnboardingPage() {
               <div className="space-y-1.5">
                 <Label className="text-xs font-bold text-[#181E4B]">Classes Range</Label>
                 <Select value={classesRange} onValueChange={(val) => setClassesRange(val || '')}>
-                  <SelectTrigger className="h-12 rounded-2xl bg-[#FFFDFB] border border-[#212832]/10 text-xs sm:text-sm">
+                  <SelectTrigger className="w-full h-12 rounded-2xl bg-[#FFFDFB] border border-[#212832]/10 text-xs sm:text-sm">
                     <SelectValue placeholder="Select classes range" />
                   </SelectTrigger>
-                  <SelectContent className="rounded-2xl">
+                  <SelectContent className="rounded-2xl w-full min-w-[340px] bg-white border border-[#212832]/10 shadow-2xl p-2 z-50">
                     <SelectItem value="1 - 5">Primary (Classes 1 - 5)</SelectItem>
                     <SelectItem value="1 - 8">Elementary (Classes 1 - 8)</SelectItem>
                     <SelectItem value="1 - 10">Secondary (Classes 1 - 10)</SelectItem>
