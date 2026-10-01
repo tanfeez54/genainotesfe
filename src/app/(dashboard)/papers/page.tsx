@@ -429,9 +429,21 @@ export default function SavedPapersPage() {
               </div>
 
               {/* Candidate Info Line */}
-              <div className="grid grid-cols-2 gap-4 text-xs font-medium border-b border-slate-200 pb-3">
-                <div>Name: _______________________________</div>
-                <div className="text-right">Roll No: ____________ Section: ____</div>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs font-medium border-b border-slate-200 pb-3">
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <span className="shrink-0 font-bold text-slate-800">Name:</span>
+                  <span className="border-b border-slate-400 border-dotted flex-1 min-w-[120px] inline-block h-3"></span>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <span className="flex items-center gap-1.5">
+                    <span className="font-bold text-slate-800">Roll No:</span>
+                    <span className="border-b border-slate-400 border-dotted w-16 inline-block h-3"></span>
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="font-bold text-slate-800">Section:</span>
+                    <span className="border-b border-slate-400 border-dotted w-12 inline-block h-3"></span>
+                  </span>
+                </div>
               </div>
 
               {/* Instructions */}

@@ -10,20 +10,72 @@ import 'katex/dist/katex.min.css';
 export const autoFormatMath = (text: string) => {
   if (!text) return '';
   try {
-    // Decode literal unicode escapes (e.g. \u2018 -> ‘)
-    let decodedText = text.replace(/\\u([0-9a-fA-F]{4})/g, (match, grp) => String.fromCharCode(parseInt(grp, 16)));
-    
-    const parts = decodedText.split('$');
+    let str = String(text);
+
+    // 1. Decode literal unicode escapes (e.g. \u2018 -> ‘)
+    str = str.replace(/\\u([0-9a-fA-F]{4})/g, (_, grp) => String.fromCharCode(parseInt(grp, 16)));
+
+    // 2. Fix swallowed \text where JSON parser converted \t to a literal tab or missing backslash before ext{
+    // E.g. "ext{BA}" -> "\text{BA}", or literal tab character before "ext{"
+    str = str.replace(/\t\s*ext\{/g, '\\text{');
+    str = str.replace(/(?<!\\)ext\{([^\}]+)\}/g, '\\text{$1}');
+
+    // 3. Normalize quadruple or double backslashes in front of common LaTeX commands
+    str = str.replace(/\\\\([a-zA-Z]+)/g, '\\$1');
+
+    // 4. Convert standalone degrees like "90°" outside $...$ to "$90^\circ$"
+    str = str.replace(/(?<![\$\w])(\d+)\s*°/g, '$$$1^\\circ$$');
+
+    // 5. Parity & unclosed math checks
+    // If string has an odd number of $ delimiters, attempt intelligent repair
+    const dollarMatches = str.match(/\$/g);
+    let dollarCount = dollarMatches ? dollarMatches.length : 0;
+
+    if (dollarCount % 2 !== 0) {
+      // Pattern: starts with math command like \angle1 = 90^\circ$ but missing opening $
+      if (/^\s*\\(?:angle|Delta|frac|sqrt|[a-zA-Z]+)[^\$]*\$/.test(str)) {
+        str = '$' + str;
+        dollarCount++;
+      } else {
+        // Pattern: sentence like "... 2. \angle3 + \angle1 = 90^\circ$"
+        str = str.replace(/(^|[\.\n]\s*)(\\(?:angle|Delta|frac|sqrt)[^\$]*\$)/g, (match, p1, p2) => {
+          return `${p1}$${p2}`;
+        });
+        const updatedMatches = str.match(/\$/g);
+        if (updatedMatches && updatedMatches.length % 2 !== 0) {
+          // If still odd, close unclosed dollar at the end
+          str = str + '$';
+        }
+      }
+    }
+
+    // 6. Split into text mode (even indices) and math mode (odd indices)
+    const parts = str.split('$');
     for (let i = 0; i < parts.length; i++) {
       if (i % 2 === 0) {
-        // Text mode: Wrap standalone fractions in LaTeX math mode
+        // Text mode: Wrap standalone fractions like 3/4 or -1/2 in $\frac{1}{2}$
         parts[i] = parts[i].replace(/(?<![\w\.\/])([-+]?\d+)\/(\d+)(?![\w\.\/])/g, '$\\frac{$1}{$2}$');
+
+        // Text mode: If there are unbracketed LaTeX commands left in text mode, wrap them in $...$
+        // e.g. \angle 1, \Delta ABC, \cong, \text{...}
+        parts[i] = parts[i].replace(/(\\(?:angle|Delta|cong|sim|perp|parallel|theta|pi|alpha|beta|gamma|lambda|mu|sigma|sqrt|frac|times|pm|leq|geq|neq|approx|circ)[a-zA-Z0-9_\^\+\-\=\s\{\}\\]*?)(?=[,\.\;\:\n]|$)/g, (m) => {
+          const trimmed = m.trim();
+          if (trimmed) return `$${trimmed}$`;
+          return m;
+        });
       } else {
         // Math mode: Convert slash fractions to \frac
         parts[i] = parts[i].replace(/(?<![\w\.\/])([-+]?\d+)\/(\d+)(?![\w\.\/])/g, '\\frac{$1}{$2}');
+        // Normalize any double backslashes in math mode
+        parts[i] = parts[i].replace(/\\\\([a-zA-Z]+)/g, '\\$1');
       }
     }
-    return parts.join('$');
+
+    let result = parts.join('$');
+    // Clean up empty math blocks "$$$$" or "$ $"
+    result = result.replace(/\$\s*\$/g, ' ');
+
+    return result;
   } catch (e) {
     return text;
   }

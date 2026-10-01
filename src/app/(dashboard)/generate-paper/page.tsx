@@ -1008,7 +1008,7 @@ export default function GeneratePaperPage() {
       {/* FULL PAGE VIEW 1: FULL-WIDTH CONFIGURATION SETUP                          */}
       {/* ========================================================================= */}
       {viewMode === 'config' && (
-        <div className="max-w-5xl mx-auto space-y-6 animate-fade-in print:hidden">
+        <div className="max-w-5xl mx-auto space-y-6 animate-fade-in print:hidden pb-24 md:pb-6">
           {/* Row 1: Academic Selection & Paper Header Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {/* 1. Target Selection & Chapter Equal Weightage */}
@@ -1880,7 +1880,7 @@ export default function GeneratePaperPage() {
       {/* FULL PAGE VIEW 2: FULL-WIDTH PAPER PREVIEW & PRINT CANVAS                 */}
       {/* ========================================================================= */}
       {viewMode === 'preview' && (
-        <div className="max-w-5xl mx-auto space-y-4 animate-fade-in">
+        <div className="max-w-5xl mx-auto space-y-4 animate-fade-in pb-24 md:pb-6">
           {/* Unified Professional Document Control Bar */}
           <div className="bg-card border border-border/80 rounded-2xl p-3.5 sm:p-4 shadow-xs space-y-3 print:hidden">
             {/* Top Tier: Navigation, Title & Live Status */}
@@ -2089,9 +2089,21 @@ export default function GeneratePaperPage() {
                 </div>
 
                 {/* Candidate Details Line */}
-                <div className="grid grid-cols-2 gap-4 text-xs font-medium border-b border-slate-200 pb-3">
-                  <div>Name: _______________________________</div>
-                  <div className="text-right">Roll No: ____________ Section: ____</div>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs font-medium border-b border-slate-200 pb-3">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <span className="shrink-0 font-bold text-slate-800">Name:</span>
+                    <span className="border-b border-slate-400 border-dotted flex-1 min-w-[120px] inline-block h-3"></span>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className="flex items-center gap-1.5">
+                      <span className="font-bold text-slate-800">Roll No:</span>
+                      <span className="border-b border-slate-400 border-dotted w-16 inline-block h-3"></span>
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="font-bold text-slate-800">Section:</span>
+                      <span className="border-b border-slate-400 border-dotted w-12 inline-block h-3"></span>
+                    </span>
+                  </div>
                 </div>
 
                 {/* Instructions */}
@@ -2335,11 +2347,22 @@ export default function GeneratePaperPage() {
 
                                 {/* Answer Key for Teachers */}
                                 {showAnswerKey && (
-                                  <div className="mt-1.5 pl-4 text-[11px] text-emerald-700 bg-emerald-50/80 border border-emerald-200 rounded-lg p-2 font-medium">
-                                    <div>
-                                      <span className="font-bold">✓ Model Answer: </span>
-                                      {q.correct_option ? `Option (${q.correct_option}) ` : ''}
-                                      {q.answer_text || q.correct_answer || 'N/A'}
+                                  <div className="mt-2 text-xs text-emerald-800 dark:text-emerald-300 bg-emerald-50/90 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50 rounded-xl p-3 font-medium space-y-1 shadow-2xs break-words overflow-hidden">
+                                    <div className="flex items-start gap-1.5 leading-relaxed">
+                                      <span className="font-bold shrink-0 text-emerald-900 dark:text-emerald-200 flex items-center gap-1">
+                                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 inline shrink-0" />
+                                        Model Answer:
+                                      </span>
+                                      <div className="flex-1 min-w-0">
+                                        {q.correct_option && (
+                                          <span className="font-bold mr-1.5 text-emerald-950 dark:text-emerald-100 bg-emerald-100 dark:bg-emerald-900/50 px-1.5 py-0.5 rounded text-[11px]">
+                                            Option ({q.correct_option})
+                                          </span>
+                                        )}
+                                        <span className="inline-block break-words max-w-full">
+                                          <Latex>{autoFormatMath(q.answer_text || q.correct_answer || 'N/A')}</Latex>
+                                        </span>
+                                      </div>
                                     </div>
                                   </div>
                                 )}
