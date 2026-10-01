@@ -229,23 +229,10 @@ export default function BillingPage() {
               await verifyCashfreePayment(orderId, amount, 'wallet_recharge');
             }
           });
+      } else if (isMock) {
+        toast.error('Payment gateway not configured. Please configure CASHFREE_APP_ID & CASHFREE_SECRET_KEY in backend .env');
       } else {
-        // Fallback: Instant Dev/Mock Top-up
-        const mockRes = await fetch(`${apiUrl}/api/billing/mock-recharge`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ amount }),
-        });
-
-        const mockData = await mockRes.json();
-        if (!mockRes.ok) throw new Error(mockData.error || 'Test recharge failed');
-
-        toast.success(`Instant Recharge Successful! Added ₹${amount} (${Math.floor(amount / 5)} generations)`);
-        window.dispatchEvent(new Event('billing-updated'));
-        fetchBillingData();
+        toast.error('Payment gateway SDK is loading. Please try again in a moment.');
       }
     } catch (err: any) {
       console.error('Recharge Error:', err);
@@ -311,29 +298,10 @@ export default function BillingPage() {
               await verifyCashfreePayment(orderId, amount, 'subscription', planObj.id);
             }
           });
+      } else if (isMock) {
+        toast.error('Payment gateway not configured. Please configure CASHFREE_APP_ID & CASHFREE_SECRET_KEY in backend .env');
       } else {
-        // Mock instant plan activation
-        const verifyRes = await fetch(`${apiUrl}/api/billing/verify-payment`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            orderId,
-            amount,
-            type: 'subscription',
-            planId: planObj.id,
-            billingCycle: 'lifetime',
-          }),
-        });
-
-        const verifyData = await verifyRes.json();
-        if (!verifyRes.ok) throw new Error(verifyData.error || 'Failed to activate membership');
-
-        toast.success(`Lifetime Membership Activated! ${planObj.name} is now active.`);
-        window.dispatchEvent(new Event('billing-updated'));
-        fetchBillingData();
+        toast.error('Payment gateway SDK is loading. Please try again in a moment.');
       }
     } catch (err: any) {
       console.error('Membership Activation Error:', err);
@@ -359,6 +327,9 @@ export default function BillingPage() {
   const walletBalance = summary?.wallet_balance ?? 50.0;
   const costPerGen = summary?.cost_per_generation ?? 5.0;
   const gensLeft = summary?.generations_remaining ?? Math.floor(walletBalance / costPerGen);
+  const isLifetimeActive =
+    summary?.subscription_status === 'active' ||
+    (Boolean(summary?.plan_slug) && summary?.plan_slug !== 'trial');
 
   return (
     <div className="p-6 lg:p-8 max-w-6xl mx-auto space-y-8 select-none">
@@ -374,7 +345,7 @@ export default function BillingPage() {
             </Badge>
           </div>
           <p className="text-muted-foreground text-sm mt-1">
-            Manage your school tenant credits, transparent pay-as-you-go generations, and one-time lifetime membership.
+            Manage your school tenant credits, transparent pay-as-you-go generations, and wallet balance.
           </p>
         </div>
 
@@ -401,207 +372,211 @@ export default function BillingPage() {
         </div>
       )}
 
-      {/* SECTION 1: ONE-TIME LIFETIME MEMBERSHIP (PROMINENT AT TOP) */}
-      <div className="space-y-6 pt-1">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
-                <Layers className="w-5 h-5" />
-              </div>
-              <h2 className="text-2xl lg:text-3xl font-heading font-black text-foreground tracking-tight">
-                One-Time Lifetime Membership
-              </h2>
-              <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-xs font-bold px-2.5 py-0.5">
-                Pay Once • Use Forever
-              </Badge>
+      {/* Active Member Celebration Banner */}
+      {isLifetimeActive && (
+        <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+              <ShieldCheck className="w-5 h-5" />
             </div>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-1.5 max-w-3xl">
-              Zero monthly or annual subscriptions. Pay a single one-time institutional fee to unlock your school tenant forever, with free starter generations included! Afterwards, generate papers on a flexible <strong>Recharge &amp; Use</strong> model @ ₹5/paper.
-            </p>
+            <div className="text-xs sm:text-sm">
+              <span className="font-bold text-emerald-800 dark:text-emerald-300">
+                Lifetime Membership Active:
+              </span>{' '}
+              <span className="text-emerald-700 dark:text-emerald-400">
+                Your school is permanently enrolled under <strong>{summary?.plan_name}</strong> with lifetime validity. No further renewal payments will ever be charged. Top up generation credits anytime below!
+              </span>
+            </div>
           </div>
-
-          <div className="flex items-center gap-2 self-start sm:self-auto bg-muted/60 px-3 py-1.5 rounded-full border border-border text-xs text-muted-foreground font-semibold shrink-0">
-            <ShieldCheck className="w-4 h-4 text-emerald-500" />
-            <span>Perpetual School License • No Renewals Ever</span>
-          </div>
+          <Badge className="bg-emerald-600 text-white shrink-0 font-bold text-xs px-3 py-1 self-start sm:self-auto">
+            Active Member
+          </Badge>
         </div>
+      )}
 
-        {/* Active Member Celebration Banner */}
-        {summary?.subscription_status === 'active' && (
-          <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-              <div className="text-xs sm:text-sm">
-                <span className="font-bold text-emerald-800 dark:text-emerald-300">
-                  Lifetime Membership Active:
-                </span>{' '}
-                <span className="text-emerald-700 dark:text-emerald-400">
-                  Your school is permanently enrolled under <strong>{summary?.plan_name}</strong> with lifetime validity. No further renewal payments will ever be charged. Top up generation credits anytime below!
-                </span>
+      {/* SECTION 1: ONE-TIME LIFETIME MEMBERSHIP (Shown only if NOT already a lifetime member) */}
+      {!isLifetimeActive && (
+        <div className="space-y-6 pt-1">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                  <Layers className="w-5 h-5" />
+                </div>
+                <h2 className="text-2xl lg:text-3xl font-heading font-black text-foreground tracking-tight">
+                  One-Time Lifetime Membership
+                </h2>
+                <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-xs font-bold px-2.5 py-0.5">
+                  Pay Once • Use Forever
+                </Badge>
               </div>
-            </div>
-            <Badge className="bg-emerald-600 text-white shrink-0 font-bold text-xs px-3 py-1">
-              Active Member
-            </Badge>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto">
-          {/* Starter Lifetime Plan Card */}
-          <div className={`rounded-2xl border bg-card p-6 flex flex-col justify-between shadow-sm hover:border-primary/40 transition-all ${
-            summary?.plan_slug === 'lifetime_starter' ? 'border-primary ring-1 ring-primary/20 bg-primary/[0.01]' : 'border-border'
-          }`}>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Starter Tier</span>
-                <span className="text-xs px-2.5 py-0.5 rounded-full bg-muted font-medium text-muted-foreground">Single Branch / Coaching</span>
-              </div>
-              <div>
-                <div className="text-3xl lg:text-4xl font-black font-heading text-foreground">
-                  ₹500
-                  <span className="text-xs font-normal text-muted-foreground ml-1.5">one-time payment</span>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Pay once for lifetime school access. Ideal for coaching centers and single-branch schools.
-                </p>
-              </div>
-
-              {/* Free included credit highlight */}
-              <div className="p-3.5 rounded-xl bg-primary/10 border border-primary/20 flex items-center gap-2.5">
-                <Sparkles className="w-4 h-4 text-primary shrink-0" />
-                <span className="text-xs font-bold text-foreground">
-                  Includes ₹600 Generation Credit (120 Papers Free • +20% Bonus Included!)
-                </span>
-              </div>
-
-              <div className="space-y-2.5 pt-2 text-xs">
-                <div className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                  <span><strong>Lifetime Access</strong> — No monthly or annual renewals ever</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                  <span><strong>120 AI Question Papers Included</strong> (₹600 balance added instantly with +20% bonus)</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                  <span>Custom School Logo, Stamp, Signatures & Watermark</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                  <span>Up to <strong>5 Teacher Accounts</strong></span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                  <span>Full PDF Export with Solutions & Answer Keys</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                  <span>Recharge & Use @ ₹5/extra generation (Tiered bonuses up to +50%)</span>
-                </div>
-              </div>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1.5 max-w-3xl">
+                Zero monthly or annual subscriptions. Pay a single one-time institutional fee to unlock your school tenant forever, with free starter generations included! Afterwards, generate papers on a flexible <strong>Recharge &amp; Use</strong> model @ ₹5/paper.
+              </p>
             </div>
 
-            <Button
-              className="w-full mt-6 bg-primary text-primary-foreground hover:opacity-90 font-medium"
-              disabled={isProcessing || summary?.plan_slug === 'lifetime_starter'}
-              onClick={() => handleSubscribe('lifetime_starter', 500)}
-            >
-              {summary?.plan_slug === 'lifetime_starter' ? '✓ Active Lifetime Plan' : 'Get Starter Lifetime (₹500)'}
-            </Button>
+            <div className="flex items-center gap-2 self-start sm:self-auto bg-muted/60 px-3 py-1.5 rounded-full border border-border text-xs text-muted-foreground font-semibold shrink-0">
+              <ShieldCheck className="w-4 h-4 text-emerald-500" />
+              <span>Perpetual School License • No Renewals Ever</span>
+            </div>
           </div>
 
-          {/* Institutional Lifetime Plan Card */}
-          <div className="rounded-2xl border-2 border-primary bg-primary/[0.02] p-6 flex flex-col justify-between shadow-lg relative">
-            <span className="absolute -top-3 right-6 text-xs uppercase font-bold tracking-wider px-3 py-0.5 rounded-full bg-primary text-primary-foreground shadow-sm flex items-center gap-1">
-              <Flame className="w-3.5 h-3.5 fill-current" /> Recommended • Best Value
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto">
+            {/* Starter Lifetime Plan Card */}
+            <div className={`rounded-2xl border bg-card p-6 flex flex-col justify-between shadow-sm hover:border-primary/40 transition-all ${
+              summary?.plan_slug === 'lifetime_starter' ? 'border-primary ring-1 ring-primary/20 bg-primary/[0.01]' : 'border-border'
+            }`}>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Starter Tier</span>
+                  <span className="text-xs px-2.5 py-0.5 rounded-full bg-muted font-medium text-muted-foreground">Single Branch / Coaching</span>
+                </div>
+                <div>
+                  <div className="text-3xl lg:text-4xl font-black font-heading text-foreground">
+                    ₹500
+                    <span className="text-xs font-normal text-muted-foreground ml-1.5">one-time payment</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Pay once for lifetime school access. Ideal for coaching centers and single-branch schools.
+                  </p>
+                </div>
+
+                {/* Free included credit highlight */}
+                <div className="p-3.5 rounded-xl bg-primary/10 border border-primary/20 flex items-center gap-2.5">
+                  <Sparkles className="w-4 h-4 text-primary shrink-0" />
+                  <span className="text-xs font-bold text-foreground">
+                    Includes ₹600 Generation Credit (120 Papers Free • +20% Bonus Included!)
+                  </span>
+                </div>
+
+                <div className="space-y-2.5 pt-2 text-xs">
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                    <span><strong>Lifetime Access</strong> — No monthly or annual renewals ever</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                    <span><strong>120 AI Question Papers Included</strong> (₹600 balance added instantly with +20% bonus)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                    <span>Custom School Logo, Stamp, Signatures & Watermark</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                    <span>Up to <strong>5 Teacher Accounts</strong></span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                    <span>Full PDF Export with Solutions & Answer Keys</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                    <span>Recharge & Use @ ₹5/extra generation (Tiered bonuses up to +50%)</span>
+                  </div>
+                </div>
+              </div>
+
+              <Button
+                className="w-full mt-6 bg-primary text-primary-foreground hover:opacity-90 font-medium"
+                disabled={isProcessing || summary?.plan_slug === 'lifetime_starter'}
+                onClick={() => handleSubscribe('lifetime_starter', 500)}
+              >
+                {summary?.plan_slug === 'lifetime_starter' ? '✓ Active Lifetime Plan' : 'Get Starter Lifetime (₹500)'}
+              </Button>
+            </div>
+
+            {/* Institutional Lifetime Plan Card */}
+            <div className="rounded-2xl border-2 border-primary bg-primary/[0.02] p-6 flex flex-col justify-between shadow-lg relative">
+              <span className="absolute -top-3 right-6 text-xs uppercase font-bold tracking-wider px-3 py-0.5 rounded-full bg-primary text-primary-foreground shadow-sm flex items-center gap-1">
+                <Flame className="w-3.5 h-3.5 fill-current" /> Recommended • Best Value
+              </span>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wider text-primary">Institutional Tier</span>
+                  <span className="text-xs px-2.5 py-0.5 rounded-full bg-primary/10 font-semibold text-primary">Full Campus</span>
+                </div>
+                <div>
+                  <div className="text-3xl lg:text-4xl font-black font-heading text-foreground">
+                    ₹1,000
+                    <span className="text-xs font-normal text-muted-foreground ml-1.5">one-time payment</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Complete institutional lifetime suite for growing schools, junior colleges, and academy chains.
+                  </p>
+                </div>
+
+                {/* Free included credit highlight */}
+                <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 flex items-center gap-2.5">
+                  <Gift className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <span className="text-xs font-bold text-foreground">
+                    Includes ₹1,500 Generation Credit (300 Papers Free • +50% Bonus Included!)
+                  </span>
+                </div>
+
+                <div className="space-y-2.5 pt-2 text-xs">
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                    <span><strong>Lifetime Access</strong> — No monthly or annual renewals ever</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                    <span><strong>300 AI Question Papers Included</strong> (₹1,500 balance added instantly with +50% bonus)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                    <span><strong>Unlimited Teachers</strong>, Exam Coordinators & Principals</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                    <span>OCR Textbook, Notes & Past Paper Question Extraction</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                    <span>Priority AI Queue (Instant Paper & Blueprint Generation)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                    <span>Custom Multi-Section Layouts & Bilingual Question Paper Settings</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                    <span>Dedicated WhatsApp & Technical Support</span>
+                  </div>
+                </div>
+              </div>
+
+              <Button
+                className="w-full mt-6 bg-primary text-primary-foreground hover:opacity-90 font-bold shadow-md"
+                disabled={isProcessing || summary?.plan_slug === 'lifetime_pro'}
+                onClick={() => handleSubscribe('lifetime_pro', 1000)}
+              >
+                {summary?.plan_slug === 'lifetime_pro' ? '✓ Active Lifetime Plan' : 'Get Institutional Lifetime (₹1,000)'}
+              </Button>
+            </div>
+          </div>
+
+          {/* Trust Badges Bar */}
+          <div className="flex flex-wrap items-center justify-center gap-6 py-3 px-4 rounded-xl bg-muted/30 border border-border/60 text-[11px] text-muted-foreground font-medium">
+            <span className="flex items-center gap-1.5">
+              <Zap className="w-3.5 h-3.5 text-amber-500" /> Instant Activation
             </span>
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-primary">Institutional Tier</span>
-                <span className="text-xs px-2.5 py-0.5 rounded-full bg-primary/10 font-semibold text-primary">Full Campus</span>
-              </div>
-              <div>
-                <div className="text-3xl lg:text-4xl font-black font-heading text-foreground">
-                  ₹1,000
-                  <span className="text-xs font-normal text-muted-foreground ml-1.5">one-time payment</span>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Complete institutional lifetime suite for growing schools, junior colleges, and academy chains.
-                </p>
-              </div>
-
-              {/* Free included credit highlight */}
-              <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 flex items-center gap-2.5">
-                <Gift className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                <span className="text-xs font-bold text-foreground">
-                  Includes ₹1,500 Generation Credit (300 Papers Free • +50% Bonus Included!)
-                </span>
-              </div>
-
-              <div className="space-y-2.5 pt-2 text-xs">
-                <div className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                  <span><strong>Lifetime Access</strong> — No monthly or annual renewals ever</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                  <span><strong>300 AI Question Papers Included</strong> (₹1,500 balance added instantly with +50% bonus)</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                  <span><strong>Unlimited Teachers</strong>, Exam Coordinators & Principals</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                  <span>OCR Textbook, Notes & Past Paper Question Extraction</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                  <span>Priority AI Queue (Instant Paper & Blueprint Generation)</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                  <span>Custom Multi-Section Layouts & Bilingual Question Paper Settings</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                  <span>Dedicated WhatsApp & Technical Support</span>
-                </div>
-              </div>
-            </div>
-
-            <Button
-              className="w-full mt-6 bg-primary text-primary-foreground hover:opacity-90 font-bold shadow-md"
-              disabled={isProcessing || summary?.plan_slug === 'lifetime_pro'}
-              onClick={() => handleSubscribe('lifetime_pro', 1000)}
-            >
-              {summary?.plan_slug === 'lifetime_pro' ? '✓ Active Lifetime Plan' : 'Get Institutional Lifetime (₹1,000)'}
-            </Button>
+            <span className="flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-primary" /> Bundled Generation Credits Included
+            </span>
+            <span className="flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" /> 100% Secure via Cashfree Payments
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5 text-indigo-500" /> Zero Recurring Fees
+            </span>
           </div>
         </div>
-
-        {/* Trust Badges Bar */}
-        <div className="flex flex-wrap items-center justify-center gap-6 py-3 px-4 rounded-xl bg-muted/30 border border-border/60 text-[11px] text-muted-foreground font-medium">
-          <span className="flex items-center gap-1.5">
-            <Zap className="w-3.5 h-3.5 text-amber-500" /> Instant Activation
-          </span>
-          <span className="flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-primary" /> Bundled Generation Credits Included
-          </span>
-          <span className="flex items-center gap-1.5">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" /> 100% Secure via Cashfree Payments
-          </span>
-          <span className="flex items-center gap-1.5">
-            <Clock className="w-3.5 h-3.5 text-indigo-500" /> Zero Recurring Fees
-          </span>
-        </div>
-      </div>
+      )}
 
       {/* SECTION 2: School Overview & Wallet Balance */}
-      <div className="space-y-4 pt-4 border-t border-border">
+      <div className={`space-y-4 ${!isLifetimeActive ? 'pt-4 border-t border-border' : ''}`}>
         <div>
           <h2 className="text-xl font-heading font-bold text-foreground flex items-center gap-2">
             <Wallet className="w-5 h-5 text-primary" />
