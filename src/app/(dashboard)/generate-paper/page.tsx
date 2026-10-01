@@ -1821,20 +1821,20 @@ export default function GeneratePaperPage() {
                     {isGenerating ? (
                       <>
                         <RefreshCw className="w-4 h-4 animate-spin" />
-                        Generating {totalConfiguredQuestions} Questions across {activeSections.length} Sections with AI...
+                        <span>Generating Paper...</span>
                       </>
                     ) : (
                       <>
                         <Sparkles className="w-4 h-4" />
-                        Generate Examination Paper ({totalConfiguredQuestions} Questions, {totalConfiguredMarks} Marks)
+                        <span>Generate Paper ({totalConfiguredMarks} Marks)</span>
                       </>
                     )}
                   </Button>
-                  <p className="text-center text-[11px] text-slate-500 mt-2 flex items-center justify-center gap-1.5">
-                    <span>⚡ AI Generation Fee: <strong className="text-slate-700">₹5.00</strong> per paper</span>
+                  <p className="text-center text-[11px] text-muted-foreground mt-2 flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5">
+                    <span>⚡ ₹5 / paper</span>
                     <span>•</span>
-                    <Link href="/billing" className="text-indigo-600 hover:underline font-semibold">
-                      Recharge Wallet / View Plans
+                    <Link href="/billing" className="text-primary hover:underline font-semibold">
+                      Recharge Wallet
                     </Link>
                   </p>
                 </div>
@@ -1858,16 +1858,16 @@ export default function GeneratePaperPage() {
               {isGenerating ? (
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin" />
-                  Generating Questions with AI...
+                  <span>Generating Paper...</span>
                 </>
               ) : paperQuestions.length > 0 ? (
                 <>
-                  Next: Paper Preview ({paperQuestions.length})
+                  <span>Preview Paper ({paperQuestions.length})</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               ) : (
                 <>
-                  Next: Paper Preview ({totalConfiguredMarks} Marks)
+                  <span>Preview Paper ({totalConfiguredMarks} Marks)</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
