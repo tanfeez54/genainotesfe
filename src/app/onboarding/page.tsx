@@ -1,25 +1,21 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
+import { getDeviceFingerprint } from '@/lib/deviceFingerprint';
 import {
   Loader2,
-  Building,
   UploadCloud,
   ChevronRight,
   ChevronLeft,
   CheckCircle2,
-  GraduationCap,
   Sparkles,
   School,
-  Check,
-  Send,
 } from 'lucide-react';
 
 export default function OnboardingPage() {
@@ -27,7 +23,11 @@ export default function OnboardingPage() {
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [token, setToken] = useState('');
+  const [token] = useState(() =>
+    typeof document !== 'undefined'
+      ? document.cookie.match(new RegExp('(^| )notegen_session=([^;]+)'))?.[2] || ''
+      : ''
+  );
 
   // Form State
   const [name, setName] = useState('');
@@ -43,14 +43,6 @@ export default function OnboardingPage() {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [stampUrl, setStampUrl] = useState<string | null>(null);
   const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    const tokenMatch = document.cookie.match(new RegExp('(^| )notegen_session=([^;]+)'));
-    const tokenStr = tokenMatch ? tokenMatch[2] : null;
-    if (tokenStr) {
-      setToken(tokenStr);
-    }
-  }, []);
 
   async function handleFileUpload(
     e: React.ChangeEvent<HTMLInputElement>,
@@ -88,16 +80,18 @@ export default function OnboardingPage() {
           if (type === 'signature') setSignatureUrl(data.url);
 
           toast.success(`${type} uploaded successfully`, { id: toastId });
-        } catch (err: any) {
+        } catch (err: unknown) {
           console.error(err);
-          toast.error(err.message || `Failed to upload ${type}`, { id: toastId });
+          const errMsg = err instanceof Error ? err.message : `Failed to upload ${type}`;
+          toast.error(errMsg, { id: toastId });
         } finally {
           setIsUploading(false);
         }
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(error);
-      toast.error(`Failed to upload ${type}`, { id: toastId });
+      const errMsg = error instanceof Error ? error.message : `Failed to upload ${type}`;
+      toast.error(errMsg, { id: toastId });
       setIsUploading(false);
     }
   }
@@ -116,6 +110,8 @@ export default function OnboardingPage() {
 
     setIsLoading(true);
     try {
+      const { deviceId, fingerprint } = await getDeviceFingerprint();
+
       const payload = {
         name: name.trim(),
         contact_email: email.trim(),
@@ -128,6 +124,8 @@ export default function OnboardingPage() {
         logo_url: logoUrl || null,
         stamp_url: stampUrl || null,
         signature_url: signatureUrl || null,
+        device_id: deviceId,
+        device_fingerprint: fingerprint,
       };
 
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/schools`, {
@@ -135,6 +133,8 @@ export default function OnboardingPage() {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
+          'x-device-id': deviceId,
+          'x-device-fingerprint': fingerprint,
         },
         body: JSON.stringify(payload),
       });
@@ -145,11 +145,21 @@ export default function OnboardingPage() {
         throw new Error(errorMsg);
       }
 
-      toast.success('School created successfully!');
+      if (data.trial_abuse_prevented) {
+        toast.info('Trial already used on this system', {
+          description:
+            'Aapke device par free trial pehle hi claim kiya ja chuka hai. Papers generate karne ke liye Subscription & Wallet se recharge karein.',
+          duration: 6000,
+        });
+      } else {
+        toast.success('School created successfully with ₹50 welcome credit!');
+      }
+
       router.push('/classes');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(error);
-      toast.error(error.message);
+      const errorMsg = error instanceof Error ? error.message : 'Failed to create school';
+      toast.error(errorMsg);
     } finally {
       setIsLoading(false);
     }

@@ -10,6 +10,7 @@ import { Mail, User, Phone, Loader2, ArrowRight, CheckCircle2, Send, GraduationC
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
+import { getDeviceFingerprint } from '@/lib/deviceFingerprint';
 
 const schema = z.object({
   full_name: z.string().min(2, 'Full name is required'),
@@ -31,10 +32,20 @@ export default function SignupPage() {
   const onSubmit = async (data: FormData) => {
     setIsLoading(true);
     try {
+      const { deviceId, fingerprint } = await getDeviceFingerprint();
+
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/signup`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        headers: {
+          'Content-Type': 'application/json',
+          'x-device-id': deviceId,
+          'x-device-fingerprint': fingerprint,
+        },
+        body: JSON.stringify({
+          ...data,
+          device_id: deviceId,
+          device_fingerprint: fingerprint,
+        }),
       });
 
       const result = await res.json();
