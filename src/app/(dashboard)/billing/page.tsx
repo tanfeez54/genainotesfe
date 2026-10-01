@@ -56,7 +56,7 @@ interface PlanItem {
   name: string;
 }
 
-// Formatted row model matching user spec: [datetime, typeCode, description, amount, balanceAfter]
+// Formatted row model matching spec: [datetime, typeCode, description, amount, balanceAfter]
 type TxRow = [string, 'g' | 'u' | 'q', string, number, number];
 
 const PACKS_CONFIG: [number, number, number, string, number][] = [
@@ -433,21 +433,22 @@ export default function BillingPage() {
     <div className="sw-root">
       <style jsx global>{`
         .sw-root {
-          --bg: #f4f6f8;
-          --card: #ffffff;
-          --ink: #14212b;
-          --mut: #6b7a86;
-          --line: #e3e8ec;
-          --pri: #0f6b5c;
-          --pri2: #0b4f44;
-          --soft: #e4f3ef;
-          --acc: #e9a21b;
-          --neg: #c2413b;
-          --pos: #12805c;
-          --chip: #eef1f4;
+          /* Jadoo Signature Theme Colors */
+          --bg: #FFFDFB;
+          --card: #FFFFFF;
+          --ink: #181E4B;
+          --mut: #5E6282;
+          --line: rgba(24, 30, 75, 0.08);
+          --pri: #DF6951;
+          --pri2: #C9523B;
+          --soft: #FFF1DA;
+          --acc: #F1A501;
+          --neg: #DF6951;
+          --pos: #00A389;
+          --chip: #FAF7F2;
           background: var(--bg);
           color: var(--ink);
-          font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+          font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
           font-size: 14px;
           line-height: 1.5;
           min-height: 100vh;
@@ -455,41 +456,41 @@ export default function BillingPage() {
 
         :root[data-theme='dark'] .sw-root,
         .dark .sw-root {
-          --bg: #0f1519;
-          --card: #171f25;
-          --ink: #e8eef2;
-          --mut: #8b9aa5;
-          --line: #26323a;
-          --pri: #3fbfa6;
-          --pri2: #2a9983;
-          --soft: #14302b;
-          --acc: #f0b23a;
-          --neg: #ef7a73;
-          --pos: #4fd1a1;
-          --chip: #222d35;
+          --bg: #0F1519;
+          --card: #171F25;
+          --ink: #E8EEF2;
+          --mut: #8B9AA5;
+          --line: #26323A;
+          --pri: #DF6951;
+          --pri2: #F17962;
+          --soft: #261F1A;
+          --acc: #F1A501;
+          --neg: #EF7A73;
+          --pos: #00A389;
+          --chip: #1F2933;
         }
 
         @media (prefers-color-scheme: dark) {
           :root:not([data-theme='light']) .sw-root {
-            --bg: #0f1519;
-            --card: #171f25;
-            --ink: #e8eef2;
-            --mut: #8b9aa5;
-            --line: #26323a;
-            --pri: #3fbfa6;
-            --pri2: #2a9983;
-            --soft: #14302b;
-            --acc: #f0b23a;
-            --neg: #ef7a73;
-            --pos: #4fd1a1;
-            --chip: #222d35;
+            --bg: #0F1519;
+            --card: #171F25;
+            --ink: #E8EEF2;
+            --mut: #8B9AA5;
+            --line: #26323A;
+            --pri: #DF6951;
+            --pri2: #F17962;
+            --soft: #261F1A;
+            --acc: #F1A501;
+            --neg: #EF7A73;
+            --pos: #00A389;
+            --chip: #1F2933;
           }
         }
 
         .sw-wrap {
-          max-width: 960px;
+          max-width: 980px;
           margin: 0 auto;
-          padding: 20px 16px 48px;
+          padding: 24px 20px 56px;
         }
 
         .sw-header {
@@ -498,75 +499,86 @@ export default function BillingPage() {
           align-items: flex-start;
           gap: 12px;
           flex-wrap: wrap;
-          margin-bottom: 16px;
+          margin-bottom: 20px;
         }
 
         .sw-title {
-          font-size: 24px;
+          font-family: 'Volkhov', Georgia, serif;
+          font-size: 30px;
           margin: 0;
-          font-weight: 800;
+          font-weight: 700;
           letter-spacing: -0.02em;
           color: var(--ink);
         }
 
         .sw-header p {
-          margin: 2px 0 0;
+          margin: 4px 0 0;
           color: var(--mut);
+          font-size: 13.5px;
         }
 
         .sw-btn {
           font: inherit;
           cursor: pointer;
-          color: inherit;
+          color: var(--ink);
           border: 1px solid var(--line);
           background: var(--card);
-          padding: 8px 14px;
-          border-radius: 10px;
+          padding: 9px 16px;
+          border-radius: 12px;
           font-weight: 600;
-          transition: all 0.15s ease;
+          transition: all 0.2s ease;
+          box-shadow: 0 1px 3px rgba(24, 30, 75, 0.04);
         }
 
         .sw-btn:hover {
-          opacity: 0.92;
+          border-color: var(--pri);
+          color: var(--pri);
+          background: var(--soft);
         }
 
         .sw-btn.p {
           background: var(--pri);
           border-color: var(--pri);
-          color: #fff;
+          color: #ffffff;
+          box-shadow: 0 4px 14px rgba(223, 105, 81, 0.25);
         }
 
         .sw-btn.p:hover {
           background: var(--pri2);
+          box-shadow: 0 6px 20px rgba(223, 105, 81, 0.35);
+          color: #ffffff;
         }
 
         .sw-btn:disabled {
           opacity: 0.6;
           cursor: not-allowed;
+          box-shadow: none;
         }
 
         .sw-banner {
-          background: var(--soft);
-          border: 1px solid var(--pri);
-          border-radius: 12px;
-          padding: 12px 16px;
+          background: linear-gradient(135deg, rgba(255, 241, 218, 0.7) 0%, rgba(255, 241, 218, 0.4) 100%);
+          border: 1px solid rgba(241, 165, 1, 0.3);
+          border-radius: 16px;
+          padding: 14px 18px;
           display: flex;
-          gap: 10px;
+          gap: 12px;
           align-items: center;
-          margin-bottom: 16px;
+          margin-bottom: 20px;
+          box-shadow: 0 2px 8px rgba(241, 165, 1, 0.08);
         }
 
         .sw-banner b {
-          color: var(--pri);
+          color: var(--ink);
         }
 
         .sw-tabs {
           display: flex;
-          gap: 4px;
+          gap: 6px;
           background: var(--chip);
-          padding: 4px;
-          border-radius: 12px;
-          margin-bottom: 20px;
+          padding: 6px;
+          border-radius: 16px;
+          margin-bottom: 24px;
+          border: 1px solid var(--line);
           overflow-x: auto;
         }
 
@@ -575,105 +587,147 @@ export default function BillingPage() {
           min-width: max-content;
           border: 0;
           background: transparent;
-          padding: 10px 16px;
-          border-radius: 9px;
+          padding: 10px 18px;
+          border-radius: 11px;
           font-weight: 600;
           color: var(--mut);
           cursor: pointer;
-          transition: all 0.15s ease;
+          transition: all 0.2s ease;
           font-family: inherit;
+          font-size: 13.5px;
+        }
+
+        .sw-tab:hover {
+          color: var(--ink);
         }
 
         .sw-tab[aria-selected='true'] {
           background: var(--card);
           color: var(--ink);
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+          font-weight: 700;
+          box-shadow: 0 2px 10px rgba(24, 30, 75, 0.08);
         }
 
+        /* Jadoo Signature Midnight & Amber Hero Card */
         .sw-hero {
-          background: linear-gradient(135deg, #0b4f44, #0f6b5c);
-          color: #fff;
-          border-radius: 18px;
-          padding: 24px;
+          background: linear-gradient(135deg, #181E4B 0%, #20275B 55%, #2E3875 100%);
+          color: #ffffff;
+          border-radius: 24px;
+          padding: 28px 26px;
           display: grid;
           grid-template-columns: 1.4fr 1fr;
-          gap: 20px;
-          margin-bottom: 16px;
+          gap: 24px;
+          margin-bottom: 18px;
+          box-shadow: 0 16px 36px -8px rgba(24, 30, 75, 0.35);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          position: relative;
+          overflow: hidden;
+        }
+
+        .sw-hero::before {
+          content: '';
+          position: absolute;
+          top: -60px;
+          right: -60px;
+          width: 220px;
+          height: 220px;
+          background: radial-gradient(circle, rgba(241, 165, 1, 0.22) 0%, transparent 70%);
+          pointer-events: none;
         }
 
         .sw-hero small {
-          opacity: 0.8;
+          opacity: 0.85;
           font-size: 13px;
         }
 
         .sw-bal {
-          font-size: 44px;
+          font-size: 46px;
           font-weight: 800;
           letter-spacing: -0.03em;
           line-height: 1.1;
-          margin: 4px 0;
+          margin: 6px 0;
+          color: #ffffff;
         }
 
         .sw-hero .side {
-          border-left: 1px solid rgba(255, 255, 255, 0.25);
-          padding-left: 20px;
+          border-left: 1px solid rgba(255, 255, 255, 0.16);
+          padding-left: 24px;
           display: flex;
           flex-direction: column;
           justify-content: center;
-          gap: 10px;
+          gap: 12px;
         }
 
         .sw-hero .side div {
           display: flex;
           justify-content: space-between;
           align-items: center;
+          font-size: 13.5px;
         }
 
         .sw-grid {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-          gap: 12px;
+          gap: 14px;
         }
 
         .sw-card {
           background: var(--card);
           border: 1px solid var(--line);
-          border-radius: 14px;
-          padding: 16px;
+          border-radius: 20px;
+          padding: 18px 20px;
+          box-shadow: 0 2px 10px rgba(24, 30, 75, 0.02);
+          transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .sw-card:hover {
+          border-color: rgba(223, 105, 81, 0.3);
+          box-shadow: 0 6px 18px rgba(24, 30, 75, 0.05);
         }
 
         .sw-card h3 {
           margin: 0 0 6px;
-          font-size: 13px;
+          font-size: 12.5px;
           color: var(--mut);
-          font-weight: 600;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
         }
 
         .sw-card .v {
-          font-size: 22px;
+          font-size: 24px;
           font-weight: 800;
           color: var(--ink);
+          font-family: 'Plus Jakarta Sans', sans-serif;
         }
 
         .sw-badge {
           display: inline-block;
-          padding: 2px 10px;
+          padding: 3px 12px;
           border-radius: 99px;
           font-size: 12px;
           font-weight: 700;
           background: var(--soft);
           color: var(--pri);
+          border: 1px solid rgba(223, 105, 81, 0.2);
+        }
+
+        .sw-badge.pos {
+          background: rgba(0, 163, 137, 0.12);
+          color: var(--pos);
+          border-color: rgba(0, 163, 137, 0.25);
         }
 
         .sw-sec {
           display: flex;
           justify-content: space-between;
           align-items: baseline;
-          margin: 20px 0 10px;
+          margin: 26px 0 14px;
         }
 
         .sw-sec h2 {
-          font-size: 17px;
+          font-family: 'Volkhov', Georgia, serif;
+          font-size: 20px;
           margin: 0;
           font-weight: 700;
           color: var(--ink);
@@ -687,43 +741,55 @@ export default function BillingPage() {
         .sw-packs {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-          gap: 12px;
+          gap: 14px;
         }
 
         .sw-pack {
           position: relative;
           background: var(--card);
           border: 1px solid var(--line);
-          border-radius: 16px;
-          padding: 18px 16px;
+          border-radius: 22px;
+          padding: 20px 18px;
           display: flex;
           flex-direction: column;
           gap: 6px;
-          transition: transform 0.15s ease, border-color 0.15s ease;
+          box-shadow: 0 3px 12px rgba(24, 30, 75, 0.03);
+          transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
         }
 
         .sw-pack:hover {
+          transform: translateY(-3px);
           border-color: var(--pri);
+          box-shadow: 0 12px 28px -6px rgba(223, 105, 81, 0.15);
         }
 
         .sw-pack.pop {
           border: 2px solid var(--pri);
+          box-shadow: 0 8px 24px -4px rgba(223, 105, 81, 0.2);
         }
 
         .sw-pack .tag {
           position: absolute;
-          top: -10px;
-          right: 12px;
-          background: var(--acc);
-          color: #2a1d00;
+          top: -11px;
+          right: 14px;
+          background: var(--pri);
+          color: #ffffff;
           font-size: 11px;
-          font-weight: 700;
-          padding: 2px 10px;
+          font-weight: 800;
+          padding: 3px 12px;
           border-radius: 99px;
+          letter-spacing: 0.02em;
+          box-shadow: 0 2px 8px rgba(223, 105, 81, 0.35);
+        }
+
+        .sw-pack .tag.gold {
+          background: var(--acc);
+          color: #181E4B;
+          box-shadow: 0 2px 8px rgba(241, 165, 1, 0.35);
         }
 
         .sw-pack .amt {
-          font-size: 28px;
+          font-size: 30px;
           font-weight: 800;
           letter-spacing: -0.02em;
           color: var(--ink);
@@ -732,11 +798,12 @@ export default function BillingPage() {
         .sw-pack .gens {
           font-weight: 700;
           color: var(--ink);
+          font-size: 14px;
         }
 
         .sw-pack .free {
           color: var(--pos);
-          font-weight: 600;
+          font-weight: 700;
           font-size: 13px;
         }
 
@@ -754,30 +821,31 @@ export default function BillingPage() {
         .sw-custom {
           display: flex;
           flex-wrap: wrap;
-          gap: 14px;
+          gap: 16px;
           align-items: center;
           justify-content: space-between;
+          border-radius: 20px;
         }
 
         .sw-custom input {
           font: inherit;
-          width: 120px;
-          padding: 9px 12px;
+          width: 130px;
+          padding: 10px 14px;
           border: 1px solid var(--line);
-          border-radius: 10px;
+          border-radius: 12px;
           background: var(--bg);
           color: var(--ink);
           font-weight: 700;
         }
 
         .sw-custom input:focus {
-          outline: 2px solid var(--pri);
-          outline-offset: 1px;
+          border-color: var(--pri);
+          outline: 2px solid rgba(223, 105, 81, 0.2);
         }
 
         .sw-calc {
           color: var(--mut);
-          font-size: 13px;
+          font-size: 13.5px;
         }
 
         .sw-calc b {
@@ -788,64 +856,69 @@ export default function BillingPage() {
           display: flex;
           gap: 8px;
           flex-wrap: wrap;
-          margin-bottom: 12px;
+          margin-bottom: 14px;
         }
 
         .sw-chip {
           border: 1px solid var(--line);
           background: var(--card);
-          padding: 6px 14px;
+          padding: 7px 16px;
           border-radius: 99px;
           font-weight: 600;
           color: var(--mut);
           cursor: pointer;
           font-size: 13px;
           font-family: inherit;
-          transition: all 0.15s ease;
+          transition: all 0.2s ease;
         }
 
         .sw-chip:hover {
-          border-color: var(--pri);
+          border-color: var(--ink);
+          color: var(--ink);
         }
 
         .sw-chip[aria-pressed='true'] {
-          background: var(--pri);
-          border-color: var(--pri);
-          color: #fff;
+          background: var(--ink);
+          border-color: var(--ink);
+          color: #ffffff;
+          box-shadow: 0 3px 10px rgba(24, 30, 75, 0.2);
         }
 
         .sw-sum {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-          gap: 10px;
-          margin-bottom: 12px;
+          gap: 12px;
+          margin-bottom: 14px;
         }
 
         .sw-tbl {
           overflow-x: auto;
           background: var(--card);
           border: 1px solid var(--line);
-          border-radius: 14px;
+          border-radius: 20px;
+          box-shadow: 0 2px 10px rgba(24, 30, 75, 0.02);
         }
 
         .sw-table {
           width: 100%;
           border-collapse: collapse;
           min-width: 640px;
-          font-size: 13px;
+          font-size: 13.5px;
         }
 
         .sw-table th {
           text-align: left;
           font-size: 12px;
           color: var(--mut);
-          font-weight: 600;
-          padding: 12px 14px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+          padding: 14px 16px;
           border-bottom: 1px solid var(--line);
         }
 
         .sw-table td {
-          padding: 12px 14px;
+          padding: 14px 16px;
           border-bottom: 1px solid var(--line);
           vertical-align: top;
           color: var(--ink);
@@ -862,58 +935,25 @@ export default function BillingPage() {
         .sw-t {
           font-size: 12px;
           font-weight: 700;
-          padding: 2px 8px;
-          border-radius: 6px;
+          padding: 3px 10px;
+          border-radius: 8px;
           white-space: nowrap;
           display: inline-block;
         }
 
         .sw-t.g {
-          background: #fdf0d5;
-          color: #8a5a00;
+          background: #FFF1DA;
+          color: #DF6951;
         }
 
         .sw-t.u {
-          background: #dcf3ea;
-          color: #0c6b49;
+          background: #E6F8F4;
+          color: #00A389;
         }
 
         .sw-t.q {
-          background: #e2e9fb;
-          color: #2c4bb0;
-        }
-
-        :root[data-theme='dark'] .sw-t.g,
-        .dark .sw-t.g {
-          background: #3a2d10;
-          color: #f0b23a;
-        }
-
-        :root[data-theme='dark'] .sw-t.u,
-        .dark .sw-t.u {
-          background: #12352b;
-          color: #4fd1a1;
-        }
-
-        :root[data-theme='dark'] .sw-t.q,
-        .dark .sw-t.q {
-          background: #1c2744;
-          color: #8fa8f5;
-        }
-
-        @media (prefers-color-scheme: dark) {
-          :root:not([data-theme='light']) .sw-t.g {
-            background: #3a2d10;
-            color: #f0b23a;
-          }
-          :root:not([data-theme='light']) .sw-t.u {
-            background: #12352b;
-            color: #4fd1a1;
-          }
-          :root:not([data-theme='light']) .sw-t.q {
-            background: #1c2744;
-            color: #8fa8f5;
-          }
+          background: #EEF2FF;
+          color: #4F46E5;
         }
 
         .sw-neg {
@@ -938,11 +978,11 @@ export default function BillingPage() {
           .sw-hero .side {
             border-left: 0;
             padding-left: 0;
-            border-top: 1px solid rgba(255, 255, 255, 0.25);
-            padding-top: 14px;
+            border-top: 1px solid rgba(255, 255, 255, 0.16);
+            padding-top: 16px;
           }
           .sw-bal {
-            font-size: 36px;
+            font-size: 38px;
           }
         }
       `}</style>
@@ -969,7 +1009,9 @@ export default function BillingPage() {
 
         {/* Membership Banner */}
         <div className="sw-banner">
-          <span className="sw-badge">{isLifetimeActive ? 'Active' : 'Trial'}</span>
+          <span className={`sw-badge ${isLifetimeActive ? 'pos' : ''}`}>
+            {isLifetimeActive ? 'Active' : 'Trial'}
+          </span>
           <div>
             <b>{isLifetimeActive ? 'Lifetime Membership active.' : 'Free Trial active.'}</b>{' '}
             {isLifetimeActive
@@ -1024,7 +1066,7 @@ export default function BillingPage() {
         {/* TAB 1: OVERVIEW */}
         {tab === 'overview' && (
           <section className="sw-panel" id="p-overview" role="tabpanel">
-            {/* Hero Wallet Card */}
+            {/* Jadoo Signature Hero Wallet Card */}
             <div className="sw-hero">
               <div>
                 <small>Available balance</small>
@@ -1036,7 +1078,7 @@ export default function BillingPage() {
               <div className="side">
                 <div>
                   <small>Generations left</small>
-                  <b id="gl">~{gensLeft} papers</b>
+                  <b id="gl" style={{ color: '#F1A501' }}>~{gensLeft} papers</b>
                 </div>
                 <div>
                   <small>Rate</small>
@@ -1054,7 +1096,7 @@ export default function BillingPage() {
               <div className="sw-card">
                 <h3>Institutional plan</h3>
                 <div className="v">{planDisplayName}</div>
-                <p className="sw-sub" style={{ margin: '4px 0 8px' }}>
+                <p className="sw-sub" style={{ margin: '4px 0 10px' }}>
                   {isLifetimeActive
                     ? 'One-time payment, recharge & use at ₹5/gen'
                     : '14-Day Free Trial included'}
@@ -1132,13 +1174,13 @@ export default function BillingPage() {
           <section className="sw-panel" id="p-plans" role="tabpanel">
             {/* Non-Lifetime Banner & Purchase Offer (if on trial) */}
             {!isLifetimeActive && (
-              <div style={{ marginBottom: 24 }}>
+              <div style={{ marginBottom: 26 }}>
                 <div className="sw-sec" style={{ marginTop: 0 }}>
                   <h2>One-Time Lifetime Membership</h2>
                   <span>Pay once, get perpetual school license with included paper credits</span>
                 </div>
                 <div className="sw-grid" style={{ marginBottom: 16 }}>
-                  <div className="sw-card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div className="sw-card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span className="sw-sub" style={{ textTransform: 'uppercase', fontWeight: 700 }}>
                         Starter Lifetime
@@ -1165,21 +1207,22 @@ export default function BillingPage() {
                       border: '2px solid var(--pri)',
                       display: 'flex',
                       flexDirection: 'column',
-                      gap: 8,
+                      gap: 10,
                       position: 'relative',
                     }}
                   >
                     <span
                       style={{
                         position: 'absolute',
-                        top: -10,
-                        right: 12,
-                        background: 'var(--acc)',
-                        color: '#2a1d00',
+                        top: -11,
+                        right: 14,
+                        background: 'var(--pri)',
+                        color: '#ffffff',
                         fontSize: 11,
-                        fontWeight: 700,
-                        padding: '2px 10px',
+                        fontWeight: 800,
+                        padding: '3px 12px',
                         borderRadius: 99,
+                        boxShadow: '0 2px 8px rgba(223, 105, 81, 0.35)',
                       }}
                     >
                       Recommended
@@ -1220,12 +1263,13 @@ export default function BillingPage() {
                 const freeGens = p[2];
                 const bonusPercentStr = p[3];
                 const hasTag = i === 1 || i === 4;
-                const tagLabel = i === 1 ? 'Popular' : '+50% free';
+                const isPopular = i === 1;
+                const tagLabel = isPopular ? 'Popular' : '+50% free';
                 const effectiveRate = (amt / gens).toFixed(2);
 
                 return (
-                  <div key={amt} className={`sw-pack ${i === 1 ? 'pop' : ''}`}>
-                    {hasTag && <span className="tag">{tagLabel}</span>}
+                  <div key={amt} className={`sw-pack ${isPopular ? 'pop' : ''}`}>
+                    {hasTag && <span className={`tag ${!isPopular ? 'gold' : ''}`}>{tagLabel}</span>}
                     <div className="sw-sub">{PACK_NAMES[i]} pack</div>
                     <div className="amt">₹{amt}</div>
                     <div className="gens">{gens} generations</div>
@@ -1255,11 +1299,15 @@ export default function BillingPage() {
             <div className="sw-card sw-custom">
               <div className="sw-calc" id="calc">
                 Pay <b>₹{parsedAmt}</b> → Credit <b>₹{totalCred}</b> ={' '}
-                <b>{genCount} generations</b>
-                {bonusAmt > 0 ? ` (₹${bonusAmt} free bonus)` : ''}
+                <b style={{ color: 'var(--pri)' }}>{genCount} generations</b>
+                {bonusAmt > 0 ? (
+                  <span style={{ color: 'var(--pos)', fontWeight: 700 }}> (₹{bonusAmt} free bonus)</span>
+                ) : (
+                  ''
+                )}
               </div>
 
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                 <label htmlFor="amt" className="sw-sub">
                   Amount ₹
                 </label>
@@ -1347,7 +1395,7 @@ export default function BillingPage() {
                 <tbody id="rows">
                   {filteredRows.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="sw-sub" style={{ textAlign: 'center', padding: '24px' }}>
+                      <td colSpan={5} className="sw-sub" style={{ textAlign: 'center', padding: '28px' }}>
                         Is filter me koi entry nahi hai.
                       </td>
                     </tr>
