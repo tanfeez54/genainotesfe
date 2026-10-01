@@ -319,7 +319,10 @@ export default function ScanPage() {
       });
 
       const createData = await createRes.json();
-      if (!createRes.ok) throw new Error(createData.error || 'Failed to create scan record');
+      if (!createRes.ok) {
+        const msg = createData.details?.message || (typeof createData.details === 'string' ? createData.details : null) || createData.error || 'Failed to create scan record';
+        throw new Error(msg);
+      }
 
       const scanDoc = createData.data;
       setCurrentScanId(scanDoc.id);
@@ -338,7 +341,10 @@ export default function ScanPage() {
       });
 
       const processData = await processRes.json();
-      if (!processRes.ok) throw new Error(processData.error || 'Failed to extract text');
+      if (!processRes.ok) {
+        const msg = processData.details ? `${processData.error}: ${processData.details}` : (processData.error || 'Failed to extract text');
+        throw new Error(msg);
+      }
 
       const rawText = processData.raw_ocr_text || processData.data?.raw_ocr_text || '';
       setExtractedText(rawText);
