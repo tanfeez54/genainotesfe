@@ -15,10 +15,8 @@ export const autoFormatMath = (text: string) => {
     // 1. Decode literal unicode escapes (e.g. \u2018 -> ‘)
     str = str.replace(/\\u([0-9a-fA-F]{4})/g, (_, grp) => String.fromCharCode(parseInt(grp, 16)));
 
-    // 2. Fix swallowed \text where JSON parser converted \t to a literal tab or missing backslash before ext{
-    // E.g. "ext{BA}" -> "\text{BA}", or literal tab character before "ext{"
-    str = str.replace(/\t\s*ext\{/g, '\\text{');
-    str = str.replace(/(?<!\\)ext\{([^\}]+)\}/g, '\\text{$1}');
+    // Fix standalone ext{ preceded by whitespace, =, $, or start of string
+    str = str.replace(/(^|[\s\=\+\-\(\[\$])ext\{([^\}]+)\}/g, '$1\\text{$2}');
 
     // 3. Normalize quadruple or double backslashes in front of common LaTeX commands
     str = str.replace(/\\\\([a-zA-Z]+)/g, '\\$1');
