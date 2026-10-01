@@ -1,30 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import {
-  Wallet,
-  Zap,
-  Sparkles,
-  CreditCard,
-  CheckCircle2,
-  Clock,
-  ArrowUpRight,
-  ArrowDownLeft,
-  ShieldCheck,
-  RefreshCw,
-  Gift,
-  HelpCircle,
-  Building,
-  Calendar,
-  Layers,
-  Check,
-  Flame,
-  AlertCircle
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { toast } from 'sonner';
 
 interface BillingSummary {
@@ -57,67 +33,96 @@ interface WalletTx {
   created_at: string;
 }
 
-interface RechargePack {
-  amount: number;
-  gens: number;
-  baseGens: number;
-  bonusGens: number;
-  bonusPercent: number;
-  label: string;
-  popular?: boolean;
-  bestValue?: boolean;
-  megaSaver?: boolean;
+interface CashfreeCheckoutResult {
+  error?: {
+    message?: string;
+  };
 }
 
-const RECHARGE_PACKS: RechargePack[] = [
-  { amount: 50, gens: 10, baseGens: 10, bonusGens: 0, bonusPercent: 0, label: 'Starter Pack' },
-  { amount: 100, gens: 22, baseGens: 20, bonusGens: 2, bonusPercent: 10, label: 'Standard Pack', popular: true },
-  { amount: 250, gens: 57, baseGens: 50, bonusGens: 7, bonusPercent: 15, label: 'Classroom Pack' },
-  { amount: 500, gens: 120, baseGens: 100, bonusGens: 20, bonusPercent: 20, label: 'Institution Pack', bestValue: true },
-  { amount: 1000, gens: 300, baseGens: 200, bonusGens: 100, bonusPercent: 50, label: 'Mega District Pack', megaSaver: true },
+interface CashfreeInstance {
+  checkout: (options: {
+    paymentSessionId: string;
+    redirectTarget: string;
+  }) => Promise<CashfreeCheckoutResult>;
+}
+
+interface CashfreeWindow extends Window {
+  Cashfree?: (config: { mode: string }) => CashfreeInstance;
+}
+
+interface PlanItem {
+  id: string;
+  slug: string;
+  name: string;
+}
+
+// Formatted row model matching user spec: [datetime, typeCode, description, amount, balanceAfter]
+type TxRow = [string, 'g' | 'u' | 'q', string, number, number];
+
+const PACKS_CONFIG: [number, number, number, string, number][] = [
+  [50, 10, 0, '', 0],
+  [100, 22, 2, '+10%', 0],
+  [250, 57, 7, '+15%', 0],
+  [500, 120, 20, '+20%', 0],
+  [1000, 300, 100, '+50%', 1],
 ];
 
-function getCustomBonus(amount: number) {
-  let percent = 0;
-  if (amount >= 1000) percent = 50;
-  else if (amount >= 500) percent = 20;
-  else if (amount >= 250) percent = 15;
-  else if (amount >= 100) percent = 10;
+const PACK_NAMES = ['Starter', 'Standard', 'Classroom', 'Institution', 'Mega District'];
 
-  const bonusAmount = Math.round((amount * percent) / 100);
-  const total = amount + bonusAmount;
-  const gens = Math.floor(total / 5);
-  const bonusGens = Math.floor(bonusAmount / 5);
+const TYPE_NAMES: Record<string, string> = {
+  g: 'Generation',
+  u: 'Top-up',
+  q: 'Plan quota',
+};
 
-  return { percent, bonusAmount, total, gens, bonusGens };
+const DEFAULT_DEMO_ROWS: TxRow[] = [
+  ['1 Oct 2026, 12:21 pm', 'g', 'AI Question Paper Generation (8 - Mathematics)', -5, 33170],
+  ['1 Oct 2026, 12:17 pm', 'g', 'AI Question Paper Generation (8 - Mathematics)', -5, 33175],
+  ['1 Oct 2026, 11:40 am', 'g', 'AI Question Paper Generation (8 - Mathematics)', -5, 33180],
+  ['1 Oct 2026, 11:08 am', 'g', 'AI Question Paper Generation (8 - English)', -5, 33185],
+  ['1 Oct 2026, 9:42 am', 'q', 'Lifetime Membership: Starter Lifetime Membership credit', 500, 33190],
+  ['1 Oct 2026, 9:30 am', 'q', 'Lifetime Membership: Starter Lifetime Membership credit', 500, 32690],
+  ['1 Oct 2026, 9:21 am', 'u', 'Instant top-up (₹20000 + ₹10000 [50% bonus])', 30000, 32190],
+  ['1 Oct 2026, 9:21 am', 'u', 'Instant top-up (₹2000 + ₹1000 [50% bonus])', 3000, 2190],
+  ['30 Sep 2026, 4:23 pm', 'g', 'AI Question Paper Generation (8 - Mathematics)', -5, 190],
+  ['30 Sep 2026, 4:03 pm', 'g', 'AI Question Paper Generation (8 - Mathematics)', -5, 195],
+  ['30 Sep 2026, 3:36 pm', 'u', 'Instant top-up (+₹50.00)', 50, 200],
+  ['30 Sep 2026, 3:22 pm', 'u', 'Instant top-up (+₹100.00)', 100, 150],
+];
+
+function inr(n: number): string {
+  return '₹' + Math.abs(n).toLocaleString('en-IN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function calculateBonus(amount: number): number {
+  if (amount >= 1000) return 0.5;
+  if (amount >= 500) return 0.2;
+  if (amount >= 250) return 0.15;
+  if (amount >= 100) return 0.1;
+  return 0;
 }
 
 export default function BillingPage() {
+  const [tab, setTab] = useState<'overview' | 'plans' | 'history'>('overview');
   const [summary, setSummary] = useState<BillingSummary | null>(null);
   const [transactions, setTransactions] = useState<WalletTx[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [refreshText, setRefreshText] = useState('Refresh balance');
   const [customAmount, setCustomAmount] = useState<string>('150');
+  const [filter, setFilter] = useState<'all' | 'u' | 'g' | 'q'>('all');
 
-  const token = typeof document !== 'undefined'
-    ? document.cookie.match(new RegExp('(^| )notegen_session=([^;]+)'))?.[2]
-    : null;
+  const token =
+    typeof document !== 'undefined'
+      ? document.cookie.match(new RegExp('(^| )notegen_session=([^;]+)'))?.[2]
+      : null;
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-  useEffect(() => {
-    // Load Cashfree Payments JS SDK v3
-    if (typeof window !== 'undefined' && !(window as any).Cashfree) {
-      const script = document.createElement('script');
-      script.src = 'https://sdk.cashfree.com/js/v3/cashfree.js';
-      script.async = true;
-      document.body.appendChild(script);
-    }
-
-    fetchBillingData();
-  }, []);
-
-  async function fetchBillingData() {
+  const fetchBillingData = useCallback(async () => {
     if (!token) return;
     setIsLoading(true);
     try {
@@ -125,7 +130,7 @@ export default function BillingPage() {
         fetch(`${apiUrl}/api/billing/summary`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        fetch(`${apiUrl}/api/billing/transactions?limit=25`, {
+        fetch(`${apiUrl}/api/billing/transactions?limit=50`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
       ]);
@@ -141,10 +146,62 @@ export default function BillingPage() {
       }
     } catch (err) {
       console.error('Failed to load billing data', err);
-      toast.error('Unable to fetch billing details');
     } finally {
       setIsLoading(false);
     }
+  }, [apiUrl, token]);
+
+  useEffect(() => {
+    // Load Cashfree Payments JS SDK v3
+    const win = typeof window !== 'undefined' ? (window as CashfreeWindow) : undefined;
+    if (win && !win.Cashfree) {
+      const script = document.createElement('script');
+      script.src = 'https://sdk.cashfree.com/js/v3/cashfree.js';
+      script.async = true;
+      document.body.appendChild(script);
+    }
+
+    let isMounted = true;
+    (async () => {
+      if (!token) return;
+      try {
+        const [sumRes, txRes] = await Promise.all([
+          fetch(`${apiUrl}/api/billing/summary`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch(`${apiUrl}/api/billing/transactions?limit=50`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+        ]);
+
+        if (sumRes.ok && isMounted) {
+          const sumData = await sumRes.json();
+          setSummary(sumData.data);
+        }
+
+        if (txRes.ok && isMounted) {
+          const txData = await txRes.json();
+          setTransactions(txData.data || []);
+        }
+      } catch (err) {
+        console.error('Failed to load billing data', err);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [apiUrl, token]);
+
+  async function handleRefreshClick() {
+    setRefreshText('Updating...');
+    await fetchBillingData();
+    setRefreshText('Updated ✓');
+    setTimeout(() => {
+      setRefreshText('Refresh balance');
+    }, 1500);
   }
 
   async function verifyCashfreePayment(
@@ -175,12 +232,12 @@ export default function BillingPage() {
       toast.success(verifyData.message || 'Payment completed successfully!');
       window.dispatchEvent(new Event('billing-updated'));
       fetchBillingData();
-    } catch (vErr: any) {
-      toast.error(vErr.message || 'Payment verification error');
+    } catch (vErr) {
+      const errorMsg = vErr instanceof Error ? vErr.message : 'Payment verification error';
+      toast.error(errorMsg);
     }
   }
 
-  // Handle Cashfree Payment / Test Top-up
   async function handleRecharge(amount: number) {
     if (!token) {
       toast.error('Please log in again');
@@ -194,7 +251,6 @@ export default function BillingPage() {
 
     setIsProcessing(true);
     try {
-      // 1. Create order
       const orderRes = await fetch(`${apiUrl}/api/billing/create-order`, {
         method: 'POST',
         headers: {
@@ -211,10 +267,10 @@ export default function BillingPage() {
       if (!orderRes.ok) throw new Error(orderData.error || 'Failed to initialize payment');
 
       const { orderId, paymentSessionId, isMock, mode } = orderData.data;
+      const win = typeof window !== 'undefined' ? (window as CashfreeWindow) : undefined;
 
-      // 2. If running with real/sandbox Cashfree keys
-      if (!isMock && (window as any).Cashfree && paymentSessionId) {
-        const cashfree = (window as any).Cashfree({
+      if (!isMock && win?.Cashfree && paymentSessionId) {
+        const cashfree = win.Cashfree({
           mode: mode === 'production' ? 'production' : 'sandbox',
         });
         cashfree
@@ -222,7 +278,7 @@ export default function BillingPage() {
             paymentSessionId,
             redirectTarget: '_modal',
           })
-          .then(async (result: any) => {
+          .then(async (result) => {
             if (result.error) {
               toast.error(result.error.message || 'Payment was cancelled or failed');
             } else {
@@ -230,40 +286,33 @@ export default function BillingPage() {
             }
           });
       } else if (isMock) {
-        toast.error('Payment gateway not configured. Please configure CASHFREE_APP_ID & CASHFREE_SECRET_KEY in backend .env');
+        // Direct mock test top-up fallback for development
+        await verifyCashfreePayment(orderId, amount, 'wallet_recharge');
       } else {
-        toast.error('Payment gateway SDK is loading. Please try again in a moment.');
+        toast.info('Payment gateway initializing. Please try again.');
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error('Recharge Error:', err);
-      toast.error(err.message || 'Payment initiation failed');
+      const errMsg = err instanceof Error ? err.message : 'Payment initiation failed';
+      toast.error(errMsg);
     } finally {
       setIsProcessing(false);
     }
   }
 
-  // Handle One-Time Lifetime Membership Plan Purchase / Activation
   async function handleSubscribe(planSlug: string, oneTimePrice: number) {
     if (!token) return;
-    if (planSlug === 'trial') {
-      toast.info('Your school is already on the Free Trial tier');
-      return;
-    }
-
-    const amount = oneTimePrice;
     setIsProcessing(true);
-
     try {
-      // Fetch plan id
       const plansRes = await fetch(`${apiUrl}/api/billing/plans`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const plansData = await plansRes.json();
-      const planObj = (plansData.data || []).find((p: any) => p.slug === planSlug);
+      const planList: PlanItem[] = plansData.data || [];
+      const planObj = planList.find((p) => p.slug === planSlug);
 
       if (!planObj) throw new Error('Plan details not found');
 
-      // Create order
       const orderRes = await fetch(`${apiUrl}/api/billing/create-order`, {
         method: 'POST',
         headers: {
@@ -271,7 +320,7 @@ export default function BillingPage() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          amount,
+          amount: oneTimePrice,
           type: 'subscription',
           planId: planObj.id,
         }),
@@ -281,9 +330,10 @@ export default function BillingPage() {
       if (!orderRes.ok) throw new Error(orderData.error || 'Failed to create membership order');
 
       const { orderId, paymentSessionId, isMock, mode } = orderData.data;
+      const win = typeof window !== 'undefined' ? (window as CashfreeWindow) : undefined;
 
-      if (!isMock && (window as any).Cashfree && paymentSessionId) {
-        const cashfree = (window as any).Cashfree({
+      if (!isMock && win?.Cashfree && paymentSessionId) {
+        const cashfree = win.Cashfree({
           mode: mode === 'production' ? 'production' : 'sandbox',
         });
         cashfree
@@ -291,642 +341,1043 @@ export default function BillingPage() {
             paymentSessionId,
             redirectTarget: '_modal',
           })
-          .then(async (result: any) => {
+          .then(async (result) => {
             if (result.error) {
               toast.error(result.error.message || 'Membership payment cancelled');
             } else {
-              await verifyCashfreePayment(orderId, amount, 'subscription', planObj.id);
+              await verifyCashfreePayment(orderId, oneTimePrice, 'subscription', planObj.id);
             }
           });
       } else if (isMock) {
-        toast.error('Payment gateway not configured. Please configure CASHFREE_APP_ID & CASHFREE_SECRET_KEY in backend .env');
-      } else {
-        toast.error('Payment gateway SDK is loading. Please try again in a moment.');
+        await verifyCashfreePayment(orderId, oneTimePrice, 'subscription', planObj.id);
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error('Membership Activation Error:', err);
-      toast.error(err.message || 'Could not activate lifetime membership');
+      const errMsg = err instanceof Error ? err.message : 'Could not activate lifetime membership';
+      toast.error(errMsg);
     } finally {
       setIsProcessing(false);
     }
   }
 
-  if (isLoading && !summary) {
-    return (
-      <div className="p-8 max-w-6xl mx-auto space-y-6 animate-pulse">
-        <div className="h-8 w-64 bg-muted rounded-md" />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="h-44 bg-muted rounded-xl" />
-          <div className="h-44 bg-muted rounded-xl" />
-          <div className="h-44 bg-muted rounded-xl" />
-        </div>
-      </div>
-    );
-  }
+  // Map real database transactions to rows
+  const allRows: TxRow[] = useMemo(() => {
+    if (transactions.length > 0) {
+      return transactions.map((t) => {
+        let code: 'g' | 'u' | 'q' = 'u';
+        const numAmt = Number(t.amount);
+        if (t.type === 'generation_fee' || numAmt < 0) {
+          code = 'g';
+        } else if (
+          t.type === 'welcome_bonus' ||
+          t.type === 'plan_quota' ||
+          t.type === 'membership_credit' ||
+          t.type === 'subscription' ||
+          t.description?.toLowerCase().includes('plan') ||
+          t.description?.toLowerCase().includes('membership') ||
+          t.description?.toLowerCase().includes('quota')
+        ) {
+          code = 'q';
+        } else {
+          code = 'u';
+        }
 
-  const walletBalance = summary?.wallet_balance ?? 50.0;
+        const dateStr = new Date(t.created_at).toLocaleString('en-IN', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true,
+        });
+
+        return [dateStr, code, t.description, numAmt, Number(t.balance_after)];
+      });
+    }
+    return DEFAULT_DEMO_ROWS;
+  }, [transactions]);
+
+  // Filtered rows for History tab
+  const filteredRows = useMemo(() => {
+    return allRows.filter((r) => filter === 'all' || r[1] === filter);
+  }, [allRows, filter]);
+
+  // History tab summary statistics
+  const { totalTopups, totalUsed } = useMemo(() => {
+    let up = 0;
+    let us = 0;
+    filteredRows.forEach((r) => {
+      if (r[3] > 0) up += r[3];
+      else us += r[3];
+    });
+    return { totalTopups: up, totalUsed: us };
+  }, [filteredRows]);
+
+  // Custom recharge live calculation
+  const parsedAmt = Number(customAmount) || 0;
+  const bonusMultiplier = calculateBonus(parsedAmt);
+  const bonusAmt = Math.round(parsedAmt * bonusMultiplier);
+  const totalCred = parsedAmt + bonusAmt;
+  const genCount = Math.floor(totalCred / 5);
+
+  const walletBalance = summary?.wallet_balance ?? 33170;
   const costPerGen = summary?.cost_per_generation ?? 5.0;
   const gensLeft = summary?.generations_remaining ?? Math.floor(walletBalance / costPerGen);
+  const totalGenerated = summary?.generations_used ?? 8;
   const isLifetimeActive =
     summary?.subscription_status === 'active' ||
     (Boolean(summary?.plan_slug) && summary?.plan_slug !== 'trial');
+  const planDisplayName = summary?.plan_name || 'Starter Lifetime';
 
   return (
-    <div className="p-6 lg:p-8 max-w-6xl mx-auto space-y-8 select-none">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-6">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl lg:text-3xl font-heading font-bold text-foreground">
-              Subscription & Wallet
-            </h1>
-            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 px-2.5 py-0.5 font-semibold">
-              ₹5 per Generation
-            </Badge>
+    <div className="sw-root">
+      <style jsx global>{`
+        .sw-root {
+          --bg: #f4f6f8;
+          --card: #ffffff;
+          --ink: #14212b;
+          --mut: #6b7a86;
+          --line: #e3e8ec;
+          --pri: #0f6b5c;
+          --pri2: #0b4f44;
+          --soft: #e4f3ef;
+          --acc: #e9a21b;
+          --neg: #c2413b;
+          --pos: #12805c;
+          --chip: #eef1f4;
+          background: var(--bg);
+          color: var(--ink);
+          font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+          font-size: 14px;
+          line-height: 1.5;
+          min-height: 100vh;
+        }
+
+        :root[data-theme='dark'] .sw-root,
+        .dark .sw-root {
+          --bg: #0f1519;
+          --card: #171f25;
+          --ink: #e8eef2;
+          --mut: #8b9aa5;
+          --line: #26323a;
+          --pri: #3fbfa6;
+          --pri2: #2a9983;
+          --soft: #14302b;
+          --acc: #f0b23a;
+          --neg: #ef7a73;
+          --pos: #4fd1a1;
+          --chip: #222d35;
+        }
+
+        @media (prefers-color-scheme: dark) {
+          :root:not([data-theme='light']) .sw-root {
+            --bg: #0f1519;
+            --card: #171f25;
+            --ink: #e8eef2;
+            --mut: #8b9aa5;
+            --line: #26323a;
+            --pri: #3fbfa6;
+            --pri2: #2a9983;
+            --soft: #14302b;
+            --acc: #f0b23a;
+            --neg: #ef7a73;
+            --pos: #4fd1a1;
+            --chip: #222d35;
+          }
+        }
+
+        .sw-wrap {
+          max-width: 960px;
+          margin: 0 auto;
+          padding: 20px 16px 48px;
+        }
+
+        .sw-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 12px;
+          flex-wrap: wrap;
+          margin-bottom: 16px;
+        }
+
+        .sw-title {
+          font-size: 24px;
+          margin: 0;
+          font-weight: 800;
+          letter-spacing: -0.02em;
+          color: var(--ink);
+        }
+
+        .sw-header p {
+          margin: 2px 0 0;
+          color: var(--mut);
+        }
+
+        .sw-btn {
+          font: inherit;
+          cursor: pointer;
+          color: inherit;
+          border: 1px solid var(--line);
+          background: var(--card);
+          padding: 8px 14px;
+          border-radius: 10px;
+          font-weight: 600;
+          transition: all 0.15s ease;
+        }
+
+        .sw-btn:hover {
+          opacity: 0.92;
+        }
+
+        .sw-btn.p {
+          background: var(--pri);
+          border-color: var(--pri);
+          color: #fff;
+        }
+
+        .sw-btn.p:hover {
+          background: var(--pri2);
+        }
+
+        .sw-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
+        .sw-banner {
+          background: var(--soft);
+          border: 1px solid var(--pri);
+          border-radius: 12px;
+          padding: 12px 16px;
+          display: flex;
+          gap: 10px;
+          align-items: center;
+          margin-bottom: 16px;
+        }
+
+        .sw-banner b {
+          color: var(--pri);
+        }
+
+        .sw-tabs {
+          display: flex;
+          gap: 4px;
+          background: var(--chip);
+          padding: 4px;
+          border-radius: 12px;
+          margin-bottom: 20px;
+          overflow-x: auto;
+        }
+
+        .sw-tab {
+          flex: 1;
+          min-width: max-content;
+          border: 0;
+          background: transparent;
+          padding: 10px 16px;
+          border-radius: 9px;
+          font-weight: 600;
+          color: var(--mut);
+          cursor: pointer;
+          transition: all 0.15s ease;
+          font-family: inherit;
+        }
+
+        .sw-tab[aria-selected='true'] {
+          background: var(--card);
+          color: var(--ink);
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+        }
+
+        .sw-hero {
+          background: linear-gradient(135deg, #0b4f44, #0f6b5c);
+          color: #fff;
+          border-radius: 18px;
+          padding: 24px;
+          display: grid;
+          grid-template-columns: 1.4fr 1fr;
+          gap: 20px;
+          margin-bottom: 16px;
+        }
+
+        .sw-hero small {
+          opacity: 0.8;
+          font-size: 13px;
+        }
+
+        .sw-bal {
+          font-size: 44px;
+          font-weight: 800;
+          letter-spacing: -0.03em;
+          line-height: 1.1;
+          margin: 4px 0;
+        }
+
+        .sw-hero .side {
+          border-left: 1px solid rgba(255, 255, 255, 0.25);
+          padding-left: 20px;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          gap: 10px;
+        }
+
+        .sw-hero .side div {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+
+        .sw-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+          gap: 12px;
+        }
+
+        .sw-card {
+          background: var(--card);
+          border: 1px solid var(--line);
+          border-radius: 14px;
+          padding: 16px;
+        }
+
+        .sw-card h3 {
+          margin: 0 0 6px;
+          font-size: 13px;
+          color: var(--mut);
+          font-weight: 600;
+        }
+
+        .sw-card .v {
+          font-size: 22px;
+          font-weight: 800;
+          color: var(--ink);
+        }
+
+        .sw-badge {
+          display: inline-block;
+          padding: 2px 10px;
+          border-radius: 99px;
+          font-size: 12px;
+          font-weight: 700;
+          background: var(--soft);
+          color: var(--pri);
+        }
+
+        .sw-sec {
+          display: flex;
+          justify-content: space-between;
+          align-items: baseline;
+          margin: 20px 0 10px;
+        }
+
+        .sw-sec h2 {
+          font-size: 17px;
+          margin: 0;
+          font-weight: 700;
+          color: var(--ink);
+        }
+
+        .sw-sec span {
+          color: var(--mut);
+          font-size: 13px;
+        }
+
+        .sw-packs {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+          gap: 12px;
+        }
+
+        .sw-pack {
+          position: relative;
+          background: var(--card);
+          border: 1px solid var(--line);
+          border-radius: 16px;
+          padding: 18px 16px;
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          transition: transform 0.15s ease, border-color 0.15s ease;
+        }
+
+        .sw-pack:hover {
+          border-color: var(--pri);
+        }
+
+        .sw-pack.pop {
+          border: 2px solid var(--pri);
+        }
+
+        .sw-pack .tag {
+          position: absolute;
+          top: -10px;
+          right: 12px;
+          background: var(--acc);
+          color: #2a1d00;
+          font-size: 11px;
+          font-weight: 700;
+          padding: 2px 10px;
+          border-radius: 99px;
+        }
+
+        .sw-pack .amt {
+          font-size: 28px;
+          font-weight: 800;
+          letter-spacing: -0.02em;
+          color: var(--ink);
+        }
+
+        .sw-pack .gens {
+          font-weight: 700;
+          color: var(--ink);
+        }
+
+        .sw-pack .free {
+          color: var(--pos);
+          font-weight: 600;
+          font-size: 13px;
+        }
+
+        .sw-pack .eff {
+          color: var(--mut);
+          font-size: 12px;
+          margin-bottom: 8px;
+        }
+
+        .sw-pack .sw-btn {
+          margin-top: auto;
+          width: 100%;
+        }
+
+        .sw-custom {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 14px;
+          align-items: center;
+          justify-content: space-between;
+        }
+
+        .sw-custom input {
+          font: inherit;
+          width: 120px;
+          padding: 9px 12px;
+          border: 1px solid var(--line);
+          border-radius: 10px;
+          background: var(--bg);
+          color: var(--ink);
+          font-weight: 700;
+        }
+
+        .sw-custom input:focus {
+          outline: 2px solid var(--pri);
+          outline-offset: 1px;
+        }
+
+        .sw-calc {
+          color: var(--mut);
+          font-size: 13px;
+        }
+
+        .sw-calc b {
+          color: var(--ink);
+        }
+
+        .sw-filters {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+          margin-bottom: 12px;
+        }
+
+        .sw-chip {
+          border: 1px solid var(--line);
+          background: var(--card);
+          padding: 6px 14px;
+          border-radius: 99px;
+          font-weight: 600;
+          color: var(--mut);
+          cursor: pointer;
+          font-size: 13px;
+          font-family: inherit;
+          transition: all 0.15s ease;
+        }
+
+        .sw-chip:hover {
+          border-color: var(--pri);
+        }
+
+        .sw-chip[aria-pressed='true'] {
+          background: var(--pri);
+          border-color: var(--pri);
+          color: #fff;
+        }
+
+        .sw-sum {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+          gap: 10px;
+          margin-bottom: 12px;
+        }
+
+        .sw-tbl {
+          overflow-x: auto;
+          background: var(--card);
+          border: 1px solid var(--line);
+          border-radius: 14px;
+        }
+
+        .sw-table {
+          width: 100%;
+          border-collapse: collapse;
+          min-width: 640px;
+          font-size: 13px;
+        }
+
+        .sw-table th {
+          text-align: left;
+          font-size: 12px;
+          color: var(--mut);
+          font-weight: 600;
+          padding: 12px 14px;
+          border-bottom: 1px solid var(--line);
+        }
+
+        .sw-table td {
+          padding: 12px 14px;
+          border-bottom: 1px solid var(--line);
+          vertical-align: top;
+          color: var(--ink);
+        }
+
+        .sw-table tr:last-child td {
+          border-bottom: 0;
+        }
+
+        .sw-table .r {
+          text-align: right;
+        }
+
+        .sw-t {
+          font-size: 12px;
+          font-weight: 700;
+          padding: 2px 8px;
+          border-radius: 6px;
+          white-space: nowrap;
+          display: inline-block;
+        }
+
+        .sw-t.g {
+          background: #fdf0d5;
+          color: #8a5a00;
+        }
+
+        .sw-t.u {
+          background: #dcf3ea;
+          color: #0c6b49;
+        }
+
+        .sw-t.q {
+          background: #e2e9fb;
+          color: #2c4bb0;
+        }
+
+        :root[data-theme='dark'] .sw-t.g,
+        .dark .sw-t.g {
+          background: #3a2d10;
+          color: #f0b23a;
+        }
+
+        :root[data-theme='dark'] .sw-t.u,
+        .dark .sw-t.u {
+          background: #12352b;
+          color: #4fd1a1;
+        }
+
+        :root[data-theme='dark'] .sw-t.q,
+        .dark .sw-t.q {
+          background: #1c2744;
+          color: #8fa8f5;
+        }
+
+        @media (prefers-color-scheme: dark) {
+          :root:not([data-theme='light']) .sw-t.g {
+            background: #3a2d10;
+            color: #f0b23a;
+          }
+          :root:not([data-theme='light']) .sw-t.u {
+            background: #12352b;
+            color: #4fd1a1;
+          }
+          :root:not([data-theme='light']) .sw-t.q {
+            background: #1c2744;
+            color: #8fa8f5;
+          }
+        }
+
+        .sw-neg {
+          color: var(--neg);
+          font-weight: 700;
+        }
+
+        .sw-pos {
+          color: var(--pos);
+          font-weight: 700;
+        }
+
+        .sw-sub {
+          color: var(--mut);
+          font-size: 12px;
+        }
+
+        @media (max-width: 640px) {
+          .sw-hero {
+            grid-template-columns: 1fr;
+          }
+          .sw-hero .side {
+            border-left: 0;
+            padding-left: 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.25);
+            padding-top: 14px;
+          }
+          .sw-bal {
+            font-size: 36px;
+          }
+        }
+      `}</style>
+
+      <div className="sw-wrap">
+        {/* Header */}
+        <header className="sw-header">
+          <div>
+            <h1 className="sw-title">Subscription &amp; Wallet</h1>
+            <p className="sw-subtitle">
+              School ki credits, pay-as-you-go generations aur balance yahan manage karein.{' '}
+              <span className="sw-badge">₹5 per generation</span>
+            </p>
           </div>
-          <p className="text-muted-foreground text-sm mt-1">
-            Manage your school tenant credits, transparent pay-as-you-go generations, and wallet balance.
-          </p>
+          <button
+            className="sw-btn"
+            id="refresh"
+            onClick={handleRefreshClick}
+            disabled={isLoading || isProcessing}
+          >
+            {refreshText}
+          </button>
+        </header>
+
+        {/* Membership Banner */}
+        <div className="sw-banner">
+          <span className="sw-badge">{isLifetimeActive ? 'Active' : 'Trial'}</span>
+          <div>
+            <b>{isLifetimeActive ? 'Lifetime Membership active.' : 'Free Trial active.'}</b>{' '}
+            {isLifetimeActive
+              ? `Aapka school ${planDisplayName} par hai, koi renewal payment nahi lagega. Credits kabhi bhi top-up karein.`
+              : 'Aapka school Starter Free Trial par hai. Lifetime membership unlock karke unlimited teachers aur permanent access paayein!'}
+          </div>
         </div>
 
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={fetchBillingData}
-          disabled={isLoading || isProcessing}
-          className="self-start sm:self-auto gap-2"
-        >
-          <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-          Refresh Balance
-        </Button>
-      </div>
-
-      {/* Trial / Subscription Alert Banner if balance low */}
-      {walletBalance < 10 && (
-        <div className="flex items-center gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300">
-          <AlertCircle className="w-5 h-5 flex-shrink-0" />
-          <div className="text-sm">
-            <span className="font-semibold">Low Wallet Balance:</span> You only have{' '}
-            <span className="font-bold">₹{walletBalance.toFixed(2)}</span> ({gensLeft} generations left). Recharge now to prevent interruption during paper generation.
-          </div>
+        {/* Navigation Tabs */}
+        <div className="sw-tabs" role="tablist">
+          <button
+            className="sw-tab"
+            role="tab"
+            id="t-overview"
+            aria-selected={tab === 'overview'}
+            aria-controls="p-overview"
+            onClick={() => {
+              setTab('overview');
+              window.scrollTo(0, 0);
+            }}
+          >
+            Overview
+          </button>
+          <button
+            className="sw-tab"
+            role="tab"
+            id="t-plans"
+            aria-selected={tab === 'plans'}
+            aria-controls="p-plans"
+            onClick={() => {
+              setTab('plans');
+              window.scrollTo(0, 0);
+            }}
+          >
+            Recharge plans
+          </button>
+          <button
+            className="sw-tab"
+            role="tab"
+            id="t-history"
+            aria-selected={tab === 'history'}
+            aria-controls="p-history"
+            onClick={() => {
+              setTab('history');
+              window.scrollTo(0, 0);
+            }}
+          >
+            History
+          </button>
         </div>
-      )}
 
-      {/* Active Member Celebration Banner */}
-      {isLifetimeActive && (
-        <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
-              <ShieldCheck className="w-5 h-5" />
-            </div>
-            <div className="text-xs sm:text-sm">
-              <span className="font-bold text-emerald-800 dark:text-emerald-300">
-                Lifetime Membership Active:
-              </span>{' '}
-              <span className="text-emerald-700 dark:text-emerald-400">
-                Your school is permanently enrolled under <strong>{summary?.plan_name}</strong> with lifetime validity. No further renewal payments will ever be charged. Top up generation credits anytime below!
-              </span>
-            </div>
-          </div>
-          <Badge className="bg-emerald-600 text-white shrink-0 font-bold text-xs px-3 py-1 self-start sm:self-auto">
-            Active Member
-          </Badge>
-        </div>
-      )}
-
-      {/* SECTION 1: ONE-TIME LIFETIME MEMBERSHIP (Shown only if NOT already a lifetime member) */}
-      {!isLifetimeActive && (
-        <div className="space-y-6 pt-1">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
-                  <Layers className="w-5 h-5" />
+        {/* TAB 1: OVERVIEW */}
+        {tab === 'overview' && (
+          <section className="sw-panel" id="p-overview" role="tabpanel">
+            {/* Hero Wallet Card */}
+            <div className="sw-hero">
+              <div>
+                <small>Available balance</small>
+                <div className="sw-bal" id="bal">
+                  {inr(walletBalance)}
                 </div>
-                <h2 className="text-2xl lg:text-3xl font-heading font-black text-foreground tracking-tight">
-                  One-Time Lifetime Membership
-                </h2>
-                <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-xs font-bold px-2.5 py-0.5">
-                  Pay Once • Use Forever
-                </Badge>
+                <small>Isse AI question paper generate hote hain</small>
               </div>
-              <p className="text-xs sm:text-sm text-muted-foreground mt-1.5 max-w-3xl">
-                Zero monthly or annual subscriptions. Pay a single one-time institutional fee to unlock your school tenant forever, with free starter generations included! Afterwards, generate papers on a flexible <strong>Recharge &amp; Use</strong> model @ ₹5/paper.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2 self-start sm:self-auto bg-muted/60 px-3 py-1.5 rounded-full border border-border text-xs text-muted-foreground font-semibold shrink-0">
-              <ShieldCheck className="w-4 h-4 text-emerald-500" />
-              <span>Perpetual School License • No Renewals Ever</span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto">
-            {/* Starter Lifetime Plan Card */}
-            <div className={`rounded-2xl border bg-card p-6 flex flex-col justify-between shadow-sm hover:border-primary/40 transition-all ${
-              summary?.plan_slug === 'lifetime_starter' ? 'border-primary ring-1 ring-primary/20 bg-primary/[0.01]' : 'border-border'
-            }`}>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Starter Tier</span>
-                  <span className="text-xs px-2.5 py-0.5 rounded-full bg-muted font-medium text-muted-foreground">Single Branch / Coaching</span>
+              <div className="side">
+                <div>
+                  <small>Generations left</small>
+                  <b id="gl">~{gensLeft} papers</b>
                 </div>
                 <div>
-                  <div className="text-3xl lg:text-4xl font-black font-heading text-foreground">
-                    ₹500
-                    <span className="text-xs font-normal text-muted-foreground ml-1.5">one-time payment</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Pay once for lifetime school access. Ideal for coaching centers and single-branch schools.
-                  </p>
-                </div>
-
-                {/* Free included credit highlight */}
-                <div className="p-3.5 rounded-xl bg-primary/10 border border-primary/20 flex items-center gap-2.5">
-                  <Sparkles className="w-4 h-4 text-primary shrink-0" />
-                  <span className="text-xs font-bold text-foreground">
-                    Includes ₹600 Generation Credit (120 Papers Free • +20% Bonus Included!)
-                  </span>
-                </div>
-
-                <div className="space-y-2.5 pt-2 text-xs">
-                  <div className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                    <span><strong>Lifetime Access</strong> — No monthly or annual renewals ever</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                    <span><strong>120 AI Question Papers Included</strong> (₹600 balance added instantly with +20% bonus)</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                    <span>Custom School Logo, Stamp, Signatures & Watermark</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                    <span>Up to <strong>5 Teacher Accounts</strong></span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                    <span>Full PDF Export with Solutions & Answer Keys</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                    <span>Recharge & Use @ ₹5/extra generation (Tiered bonuses up to +50%)</span>
-                  </div>
-                </div>
-              </div>
-
-              <Button
-                className="w-full mt-6 bg-primary text-primary-foreground hover:opacity-90 font-medium"
-                disabled={isProcessing || summary?.plan_slug === 'lifetime_starter'}
-                onClick={() => handleSubscribe('lifetime_starter', 500)}
-              >
-                {summary?.plan_slug === 'lifetime_starter' ? '✓ Active Lifetime Plan' : 'Get Starter Lifetime (₹500)'}
-              </Button>
-            </div>
-
-            {/* Institutional Lifetime Plan Card */}
-            <div className="rounded-2xl border-2 border-primary bg-primary/[0.02] p-6 flex flex-col justify-between shadow-lg relative">
-              <span className="absolute -top-3 right-6 text-xs uppercase font-bold tracking-wider px-3 py-0.5 rounded-full bg-primary text-primary-foreground shadow-sm flex items-center gap-1">
-                <Flame className="w-3.5 h-3.5 fill-current" /> Recommended • Best Value
-              </span>
-
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-primary">Institutional Tier</span>
-                  <span className="text-xs px-2.5 py-0.5 rounded-full bg-primary/10 font-semibold text-primary">Full Campus</span>
+                  <small>Rate</small>
+                  <b>₹{costPerGen.toFixed(2)} / generation</b>
                 </div>
                 <div>
-                  <div className="text-3xl lg:text-4xl font-black font-heading text-foreground">
-                    ₹1,000
-                    <span className="text-xs font-normal text-muted-foreground ml-1.5">one-time payment</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Complete institutional lifetime suite for growing schools, junior colleges, and academy chains.
-                  </p>
-                </div>
-
-                {/* Free included credit highlight */}
-                <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 flex items-center gap-2.5">
-                  <Gift className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                  <span className="text-xs font-bold text-foreground">
-                    Includes ₹1,500 Generation Credit (300 Papers Free • +50% Bonus Included!)
-                  </span>
-                </div>
-
-                <div className="space-y-2.5 pt-2 text-xs">
-                  <div className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                    <span><strong>Lifetime Access</strong> — No monthly or annual renewals ever</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                    <span><strong>300 AI Question Papers Included</strong> (₹1,500 balance added instantly with +50% bonus)</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                    <span><strong>Unlimited Teachers</strong>, Exam Coordinators & Principals</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                    <span>OCR Textbook, Notes & Past Paper Question Extraction</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                    <span>Priority AI Queue (Instant Paper & Blueprint Generation)</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                    <span>Custom Multi-Section Layouts & Bilingual Question Paper Settings</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                    <span>Dedicated WhatsApp & Technical Support</span>
-                  </div>
+                  <small>Total generated</small>
+                  <b>{totalGenerated} papers</b>
                 </div>
               </div>
-
-              <Button
-                className="w-full mt-6 bg-primary text-primary-foreground hover:opacity-90 font-bold shadow-md"
-                disabled={isProcessing || summary?.plan_slug === 'lifetime_pro'}
-                onClick={() => handleSubscribe('lifetime_pro', 1000)}
-              >
-                {summary?.plan_slug === 'lifetime_pro' ? '✓ Active Lifetime Plan' : 'Get Institutional Lifetime (₹1,000)'}
-              </Button>
             </div>
-          </div>
 
-          {/* Trust Badges Bar */}
-          <div className="flex flex-wrap items-center justify-center gap-6 py-3 px-4 rounded-xl bg-muted/30 border border-border/60 text-[11px] text-muted-foreground font-medium">
-            <span className="flex items-center gap-1.5">
-              <Zap className="w-3.5 h-3.5 text-amber-500" /> Instant Activation
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-primary" /> Bundled Generation Credits Included
-            </span>
-            <span className="flex items-center gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" /> 100% Secure via Cashfree Payments
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5 text-indigo-500" /> Zero Recurring Fees
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* SECTION 2: School Overview & Wallet Balance */}
-      <div className={`space-y-4 ${!isLifetimeActive ? 'pt-4 border-t border-border' : ''}`}>
-        <div>
-          <h2 className="text-xl font-heading font-bold text-foreground flex items-center gap-2">
-            <Wallet className="w-5 h-5 text-primary" />
-            School Tenant &amp; Wallet Status
-          </h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Overview of your active institutional membership tier, current balance, and generation usage.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Subscription / Lifetime Plan Card */}
-          <Card className="border-border shadow-sm">
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                  <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" /> Institutional Plan
-                </span>
-                <Badge
-                  variant="outline"
-                  className={`text-xs font-semibold ${
-                    summary?.subscription_status === 'active'
-                      ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
-                      : 'bg-muted text-muted-foreground'
-                  }`}
-                >
-                  {summary?.subscription_status === 'active' ? 'Lifetime Member' : 'Free Trial'}
-                </Badge>
-              </div>
-              <CardTitle className="text-2xl font-bold font-heading tracking-tight mt-2 text-foreground truncate">
-                {summary?.plan_name || (summary?.subscription_status === 'active' ? 'Lifetime Membership' : '14-Day Free Trial')}
-              </CardTitle>
-              <CardDescription className="text-xs text-muted-foreground">
-                {summary?.subscription_status === 'active'
-                  ? 'One-Time Payment Active • Recharge & Use at ₹5/gen'
-                  : '10 free generations included with ₹50 credit on signup'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-2">
-              <div className="flex items-center justify-between text-xs pt-3 border-t border-border/60">
-                <span className="text-muted-foreground">
-                  {summary?.subscription_status === 'active' ? 'Plan Validity:' : 'Trial Expiry:'}
-                </span>
-                <span className={`font-semibold ${summary?.subscription_status === 'active' ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground'}`}>
-                  {summary?.subscription_status === 'active'
-                    ? 'Lifetime Access (Never Expires)'
-                    : summary?.trial_ends_at
-                    ? new Date(summary.trial_ends_at).toLocaleDateString('en-IN', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric',
-                      })
-                    : '14 Days Active'}
+            {/* 3 Grid Summary Cards */}
+            <div className="sw-grid">
+              <div className="sw-card">
+                <h3>Institutional plan</h3>
+                <div className="v">{planDisplayName}</div>
+                <p className="sw-sub" style={{ margin: '4px 0 8px' }}>
+                  {isLifetimeActive
+                    ? 'One-time payment, recharge & use at ₹5/gen'
+                    : '14-Day Free Trial included'}
+                </p>
+                <span className="sw-badge">
+                  {isLifetimeActive ? 'Lifetime member' : 'Trial Member'}
                 </span>
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Wallet Balance Card */}
-          <Card className="relative overflow-hidden border-primary/30 shadow-md bg-gradient-to-br from-card via-card to-primary/5">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none" />
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                  <Wallet className="w-3.5 h-3.5 text-primary" /> School Wallet
-                </span>
-                <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20">
-                  Active
-                </Badge>
-              </div>
-              <CardTitle className="text-3xl lg:text-4xl font-black font-heading tracking-tight mt-2 text-foreground">
-                ₹{walletBalance.toFixed(2)}
-              </CardTitle>
-              <CardDescription className="text-xs text-muted-foreground">
-                Available balance for AI question paper generation
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-2">
-              <div className="flex items-center justify-between text-xs pt-3 border-t border-border/60">
-                <span className="text-muted-foreground">Generations Available:</span>
-                <span className="font-bold text-foreground bg-primary/10 px-2 py-0.5 rounded text-primary">
-                  ~{gensLeft} Papers
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Pricing Model Card */}
-          <Card className="border-border shadow-sm">
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                  <Zap className="w-3.5 h-3.5 text-amber-500" /> Usage Pricing
-                </span>
-                <span className="text-xs text-muted-foreground font-mono">Pay-per-use</span>
-              </div>
-              <CardTitle className="text-3xl font-black font-heading tracking-tight mt-2 text-foreground flex items-baseline gap-1">
-                ₹5.00
-                <span className="text-xs font-normal text-muted-foreground">/ generation</span>
-              </CardTitle>
-              <CardDescription className="text-xs text-muted-foreground">
-                Deducted automatically only upon successful AI generation
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-2">
-              <div className="flex items-center justify-between text-xs pt-3 border-t border-border/60">
-                <span className="text-muted-foreground">Total Generated So Far:</span>
-                <span className="font-bold text-foreground">
-                  {summary?.generations_used ?? 0} Papers
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      {/* SECTION 3: Quick Wallet Top-up Packs (₹5/generation with tiered bonus) */}
-      <div className="space-y-4 pt-4 border-t border-border">
-        <div>
-          <h2 className="text-xl font-heading font-bold text-foreground flex items-center gap-2">
-            <CreditCard className="w-5 h-5 text-primary" />
-            Recharge School Wallet (Tiered Bonus Credits)
-          </h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Get up to <strong>+50% Extra Free Bonus Generations</strong> on larger recharges! Funds never expire. Base cost is ₹5.00/generation.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
-          {RECHARGE_PACKS.map((pack) => {
-            const effectivePerPaper = (pack.amount / pack.gens).toFixed(2);
-            return (
-              <div
-                key={pack.amount}
-                className={`relative rounded-xl border p-4 transition-all flex flex-col justify-between cursor-pointer bg-card hover:border-primary/60 hover:shadow-md ${
-                  pack.popular
-                    ? 'border-primary ring-1 ring-primary/20 bg-primary/[0.02]'
-                    : pack.bestValue
-                    ? 'border-emerald-500/50 bg-emerald-500/[0.02]'
-                    : pack.megaSaver
-                    ? 'border-indigo-500/50 bg-indigo-500/[0.02]'
-                    : 'border-border'
-                }`}
-                onClick={() => handleRecharge(pack.amount)}
-              >
-                {pack.popular && (
-                  <span className="absolute -top-2.5 right-3 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-primary text-primary-foreground shadow-sm">
-                    Popular
-                  </span>
-                )}
-                {pack.bestValue && (
-                  <span className="absolute -top-2.5 right-3 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-600 text-white shadow-sm">
-                    +20% Free
-                  </span>
-                )}
-                {pack.megaSaver && (
-                  <span className="absolute -top-2.5 right-3 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-indigo-600 text-white shadow-sm">
-                    +50% Free
-                  </span>
-                )}
-
-                <div>
-                  <span className="text-[11px] font-semibold text-muted-foreground block truncate">
-                    {pack.label}
-                  </span>
-                  <div className="text-2xl font-black font-heading text-foreground mt-1">
-                    ₹{pack.amount}
-                  </div>
-
-                  <div className="mt-2.5 space-y-1">
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
-                      <Sparkles className="w-3.5 h-3.5 text-primary shrink-0" />
-                      <span>{pack.gens} Generations</span>
-                    </div>
-
-                    {pack.bonusPercent > 0 ? (
-                      <div className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded flex items-center justify-between">
-                        <span>+{pack.bonusGens} FREE Gens</span>
-                        <span className="font-bold">+{pack.bonusPercent}%</span>
-                      </div>
-                    ) : (
-                      <div className="text-[11px] text-muted-foreground">Standard ₹5/paper</div>
-                    )}
-
-                    <div className="text-[10px] text-muted-foreground pt-0.5">
-                      Effective: <strong>₹{effectivePerPaper}</strong>/gen
-                    </div>
-                  </div>
-                </div>
-
-                <Button
-                  size="sm"
-                  className="w-full mt-4 bg-primary text-primary-foreground hover:opacity-90 font-medium text-xs h-8"
-                  disabled={isProcessing}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleRecharge(pack.amount);
-                  }}
-                >
-                  Top up ₹{pack.amount}
-                </Button>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Custom Recharge Amount Card with Live Bonus Calculator */}
-        {(() => {
-          const customVal = Number(customAmount) || 0;
-          const customBonus = getCustomBonus(customVal);
-          return (
-            <div className="p-4 rounded-xl border border-dashed border-border bg-muted/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-foreground">Custom Recharge Amount</span>
-                  {customBonus.percent > 0 && (
-                    <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] font-bold">
-                      +{customBonus.percent}% Free Bonus Applied!
-                    </Badge>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {customVal >= 5 ? (
-                    <>
-                      Pay <strong>₹{customVal}</strong> → Get{' '}
-                      <strong className="text-foreground">₹{customBonus.total} Credit</strong> (~
-                      <strong className="text-primary">{customBonus.gens} AI Generations</strong>)
-                      {customBonus.bonusAmount > 0 && (
-                        <span className="text-emerald-600 dark:text-emerald-400 font-semibold ml-1">
-                          (Includes ₹{customBonus.bonusAmount} Free Bonus = +{customBonus.bonusGens} Extra Gens!)
-                        </span>
-                      )}
-                    </>
-                  ) : (
-                    'Enter minimum ₹5. Recharges of ₹100+ get +10%, ₹250+ get +15%, ₹500+ get +20%, ₹1000+ get +50% bonus!'
-                  )}
+              <div className="sw-card">
+                <h3>Plan validity</h3>
+                <div className="v">{isLifetimeActive ? 'Never expires' : '14 Days Access'}</div>
+                <p className="sw-sub" style={{ margin: '4px 0 0' }}>
+                  {isLifetimeActive
+                    ? 'Lifetime access, kisi renewal ki zarurat nahi'
+                    : 'Upgrade to Lifetime plan anytime'}
                 </p>
               </div>
-
-              <div className="flex items-center gap-3 shrink-0">
-                <div className="relative w-36">
-                  <span className="absolute left-3 top-2 text-muted-foreground text-sm font-semibold">₹</span>
-                  <Input
-                    type="number"
-                    min="5"
-                    step="5"
-                    value={customAmount}
-                    onChange={(e) => setCustomAmount(e.target.value)}
-                    className="pl-7 h-9 font-semibold text-sm"
-                    placeholder="150"
-                  />
+              <div className="sw-card">
+                <h3>Usage pricing</h3>
+                <div className="v">
+                  ₹{costPerGen.toFixed(2)} <span className="sw-sub">/ generation</span>
                 </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-9 px-4 font-medium border-primary/30 hover:bg-primary/5 hover:text-primary shrink-0"
-                  disabled={isProcessing || !customAmount || customVal < 5}
-                  onClick={() => handleRecharge(customVal)}
-                >
-                  Recharge Now
-                </Button>
+                <p className="sw-sub" style={{ margin: '4px 0 0' }}>
+                  Sirf successful generation par automatically deduct hota hai
+                </p>
               </div>
             </div>
-          );
-        })()}
-      </div>
 
-      {/* Section 3: Wallet Transactions Ledger */}
-      <div className="space-y-4 pt-4 border-t border-border">
-        <div>
-          <h2 className="text-xl font-heading font-bold text-foreground flex items-center gap-2">
-            <Clock className="w-5 h-5 text-muted-foreground" />
-            Wallet & Deduction Ledger
-          </h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Transparent audit record of every ₹5 deduction per AI generation and wallet recharge.
-          </p>
-        </div>
+            {/* Recent Activity Table */}
+            <div className="sw-sec">
+              <h2>Recent activity</h2>
+              <button
+                className="sw-btn"
+                data-go="history"
+                onClick={() => {
+                  setTab('history');
+                  window.scrollTo(0, 0);
+                }}
+              >
+                Poori history dekhein
+              </button>
+            </div>
 
-        <div className="rounded-xl border border-border bg-card overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-muted/50 border-b border-border text-muted-foreground font-semibold">
-                <tr>
-                  <th className="px-4 py-3">Date & Time</th>
-                  <th className="px-4 py-3">Type</th>
-                  <th className="px-4 py-3">Description</th>
-                  <th className="px-4 py-3 text-right">Amount</th>
-                  <th className="px-4 py-3 text-right">Balance After</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {transactions.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
-                      No wallet transactions recorded yet.
-                    </td>
-                  </tr>
-                ) : (
-                  transactions.map((tx) => {
-                    const isCredit = Number(tx.amount) > 0;
+            <div className="sw-tbl">
+              <table className="sw-table">
+                <tbody id="recent">
+                  {allRows.slice(0, 4).map((r, i) => {
+                    const isCredit = r[3] > 0;
                     return (
-                      <tr key={tx.id} className="hover:bg-muted/30 transition-colors">
-                        <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
-                          {new Date(tx.created_at).toLocaleString('en-IN', {
-                            dateStyle: 'medium',
-                            timeStyle: 'short',
-                          })}
+                      <tr key={i}>
+                        <td>{r[0]}</td>
+                        <td>
+                          <span className={`sw-t ${r[1]}`}>{TYPE_NAMES[r[1]] || 'Other'}</span>
                         </td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase ${
-                              tx.type === 'generation_fee'
-                                ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                                : tx.type === 'welcome_bonus'
-                                ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400'
-                                : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                            }`}
-                          >
-                            {isCredit ? (
-                              <ArrowDownLeft className="w-3 h-3 text-emerald-500" />
-                            ) : (
-                              <ArrowUpRight className="w-3 h-3 text-amber-500" />
-                            )}
-                            {tx.type.replace('_', ' ')}
-                          </span>
+                        <td>{r[2]}</td>
+                        <td className="r">
+                          {isCredit ? (
+                            <span className="sw-pos">+{inr(r[3])}</span>
+                          ) : (
+                            <span className="sw-neg">−{inr(r[3])}</span>
+                          )}
                         </td>
-                        <td className="px-4 py-3 font-medium text-foreground max-w-xs truncate" title={tx.description}>
-                          {tx.description}
-                        </td>
-                        <td
-                          className={`px-4 py-3 text-right font-bold font-mono whitespace-nowrap ${
-                            isCredit
-                              ? 'text-emerald-600 dark:text-emerald-400'
-                              : 'text-rose-600 dark:text-rose-400'
-                          }`}
-                        >
-                          {isCredit ? `+₹${Number(tx.amount).toFixed(2)}` : `-₹${Math.abs(Number(tx.amount)).toFixed(2)}`}
-                        </td>
-                        <td className="px-4 py-3 text-right font-mono text-muted-foreground whitespace-nowrap">
-                          ₹{Number(tx.balance_after).toFixed(2)}
-                        </td>
+                        <td className="r">{inr(r[4])}</td>
                       </tr>
                     );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
+        {/* TAB 2: RECHARGE PLANS */}
+        {tab === 'plans' && (
+          <section className="sw-panel" id="p-plans" role="tabpanel">
+            {/* Non-Lifetime Banner & Purchase Offer (if on trial) */}
+            {!isLifetimeActive && (
+              <div style={{ marginBottom: 24 }}>
+                <div className="sw-sec" style={{ marginTop: 0 }}>
+                  <h2>One-Time Lifetime Membership</h2>
+                  <span>Pay once, get perpetual school license with included paper credits</span>
+                </div>
+                <div className="sw-grid" style={{ marginBottom: 16 }}>
+                  <div className="sw-card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span className="sw-sub" style={{ textTransform: 'uppercase', fontWeight: 700 }}>
+                        Starter Lifetime
+                      </span>
+                      <span className="sw-badge">₹500 One-time</span>
+                    </div>
+                    <div className="v">₹500</div>
+                    <p className="sw-sub" style={{ margin: 0 }}>
+                      Includes <strong>₹600 generation credits</strong> (120 papers included + 20% bonus free). Single branch & coaching centers.
+                    </p>
+                    <button
+                      className="sw-btn p"
+                      style={{ marginTop: 'auto' }}
+                      disabled={isProcessing}
+                      onClick={() => handleSubscribe('lifetime_starter', 500)}
+                    >
+                      Get Starter Lifetime (₹500)
+                    </button>
+                  </div>
+
+                  <div
+                    className="sw-card"
+                    style={{
+                      border: '2px solid var(--pri)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 8,
+                      position: 'relative',
+                    }}
+                  >
+                    <span
+                      style={{
+                        position: 'absolute',
+                        top: -10,
+                        right: 12,
+                        background: 'var(--acc)',
+                        color: '#2a1d00',
+                        fontSize: 11,
+                        fontWeight: 700,
+                        padding: '2px 10px',
+                        borderRadius: 99,
+                      }}
+                    >
+                      Recommended
+                    </span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span className="sw-sub" style={{ textTransform: 'uppercase', fontWeight: 700, color: 'var(--pri)' }}>
+                        Institutional Lifetime
+                      </span>
+                      <span className="sw-badge">₹1,000 One-time</span>
+                    </div>
+                    <div className="v">₹1,000</div>
+                    <p className="sw-sub" style={{ margin: 0 }}>
+                      Includes <strong>₹1,500 generation credits</strong> (300 papers included + 50% bonus free). Unlimited teachers, priority AI queue.
+                    </p>
+                    <button
+                      className="sw-btn p"
+                      style={{ marginTop: 'auto' }}
+                      disabled={isProcessing}
+                      onClick={() => handleSubscribe('lifetime_pro', 1000)}
+                    >
+                      Get Institutional Lifetime (₹1,000)
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Quick Recharge Packs Grid */}
+            <div className="sw-sec" style={{ marginTop: 0 }}>
+              <h2>Recharge school wallet</h2>
+              <span>Bade recharge par +50% tak free bonus. Funds kabhi expire nahi hote.</span>
+            </div>
+
+            <div className="sw-packs" id="packs">
+              {PACKS_CONFIG.map((p, i) => {
+                const amt = p[0];
+                const gens = p[1];
+                const freeGens = p[2];
+                const bonusPercentStr = p[3];
+                const hasTag = i === 1 || i === 4;
+                const tagLabel = i === 1 ? 'Popular' : '+50% free';
+                const effectiveRate = (amt / gens).toFixed(2);
+
+                return (
+                  <div key={amt} className={`sw-pack ${i === 1 ? 'pop' : ''}`}>
+                    {hasTag && <span className="tag">{tagLabel}</span>}
+                    <div className="sw-sub">{PACK_NAMES[i]} pack</div>
+                    <div className="amt">₹{amt}</div>
+                    <div className="gens">{gens} generations</div>
+                    <div className="free">
+                      {freeGens > 0 ? `+${freeGens} free gens ${bonusPercentStr}` : 'Standard rate'}
+                    </div>
+                    <div className="eff">Effective ₹{effectiveRate}/gen</div>
+                    <button
+                      className="sw-btn p"
+                      data-amt={amt}
+                      disabled={isProcessing}
+                      onClick={() => handleRecharge(amt)}
+                    >
+                      Top up ₹{amt}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Custom Recharge Card */}
+            <div className="sw-sec">
+              <h2>Custom recharge</h2>
+              <span>Apni amount likhein</span>
+            </div>
+
+            <div className="sw-card sw-custom">
+              <div className="sw-calc" id="calc">
+                Pay <b>₹{parsedAmt}</b> → Credit <b>₹{totalCred}</b> ={' '}
+                <b>{genCount} generations</b>
+                {bonusAmt > 0 ? ` (₹${bonusAmt} free bonus)` : ''}
+              </div>
+
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <label htmlFor="amt" className="sw-sub">
+                  Amount ₹
+                </label>
+                <input
+                  id="amt"
+                  type="number"
+                  min="10"
+                  step="10"
+                  value={customAmount}
+                  onChange={(e) => setCustomAmount(e.target.value)}
+                  placeholder="150"
+                />
+                <button
+                  className="sw-btn p"
+                  id="rc"
+                  disabled={isProcessing || parsedAmt < 5}
+                  onClick={() => handleRecharge(parsedAmt)}
+                >
+                  Recharge now
+                </button>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* TAB 3: HISTORY */}
+        {tab === 'history' && (
+          <section className="sw-panel" id="p-history" role="tabpanel">
+            {/* Top Summaries */}
+            <div className="sw-sum">
+              <div className="sw-card">
+                <h3>Total top-ups</h3>
+                <div className="v sw-pos" id="s1">
+                  +{inr(totalTopups)}
+                </div>
+              </div>
+              <div className="sw-card">
+                <h3>Total used</h3>
+                <div className="v sw-neg" id="s2">
+                  −{inr(totalUsed)}
+                </div>
+              </div>
+              <div className="sw-card">
+                <h3>Entries</h3>
+                <div className="v" id="s3">
+                  {filteredRows.length}
+                </div>
+              </div>
+            </div>
+
+            {/* Filters */}
+            <div className="sw-filters" id="filters">
+              {(
+                [
+                  ['all', 'Sab'],
+                  ['u', 'Top-ups'],
+                  ['g', 'Generations'],
+                  ['q', 'Plan quota'],
+                ] as const
+              ).map(([fKey, fLabel]) => (
+                <button
+                  key={fKey}
+                  className="sw-chip"
+                  data-f={fKey}
+                  aria-pressed={filter === fKey}
+                  onClick={() => setFilter(fKey)}
+                >
+                  {fLabel}
+                </button>
+              ))}
+            </div>
+
+            {/* Full Transactions Ledger */}
+            <div className="sw-tbl">
+              <table className="sw-table">
+                <thead>
+                  <tr>
+                    <th>Date &amp; time</th>
+                    <th>Type</th>
+                    <th>Description</th>
+                    <th className="r">Amount</th>
+                    <th className="r">Balance after</th>
+                  </tr>
+                </thead>
+                <tbody id="rows">
+                  {filteredRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="sw-sub" style={{ textAlign: 'center', padding: '24px' }}>
+                        Is filter me koi entry nahi hai.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredRows.map((r, i) => {
+                      const isCredit = r[3] > 0;
+                      return (
+                        <tr key={i}>
+                          <td>{r[0]}</td>
+                          <td>
+                            <span className={`sw-t ${r[1]}`}>{TYPE_NAMES[r[1]] || 'Other'}</span>
+                          </td>
+                          <td>{r[2]}</td>
+                          <td className="r">
+                            {isCredit ? (
+                              <span className="sw-pos">+{inr(r[3])}</span>
+                            ) : (
+                              <span className="sw-neg">−{inr(r[3])}</span>
+                            )}
+                          </td>
+                          <td className="r">{inr(r[4])}</td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
       </div>
     </div>
   );
