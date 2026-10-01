@@ -39,7 +39,8 @@ import {
   GripVertical,
   ChevronDown,
   ChevronUp,
-  ChevronRight
+  ChevronRight,
+  Copy
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -1880,121 +1881,159 @@ export default function GeneratePaperPage() {
       {/* ========================================================================= */}
       {viewMode === 'preview' && (
         <div className="max-w-5xl mx-auto space-y-4 animate-fade-in">
-          {/* Active Edit / Auto-Saved Banner */}
-          {editingPaperId && (
-            <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs print:hidden">
-              <div className="flex items-center gap-2.5 text-emerald-800 dark:text-emerald-300">
-                <div className="w-7 h-7 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-700 dark:text-emerald-300 shrink-0">
-                  <CheckCircle2 className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-sm block text-emerald-950 dark:text-emerald-200">
-                      Paper Auto-Saved in Library
-                    </span>
-                    <Badge variant="outline" className="bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-400/40 text-[10px] font-bold px-2 py-0">
-                      Auto-Saved ✓
-                    </Badge>
-                  </div>
-                  <p className="text-[11px] text-emerald-800/80 dark:text-emerald-400">
-                    Saved as <strong>"{examTitle}"</strong>. Further edits, questions, and mark adjustments are completely free: <strong className="text-emerald-900 dark:text-emerald-200">0 Credits Used</strong>.
-                  </p>
+          {/* Unified Professional Document Control Bar */}
+          <div className="bg-card border border-border/80 rounded-2xl p-3.5 sm:p-4 shadow-xs space-y-3 print:hidden">
+            {/* Top Tier: Navigation, Title & Live Status */}
+            <div className="flex flex-wrap items-center justify-between gap-2.5">
+              {/* Back & Document Title */}
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0 max-w-full">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setViewMode('config')}
+                  className="h-8 px-2.5 sm:px-3 text-xs font-semibold rounded-xl border-border text-foreground hover:bg-muted cursor-pointer shrink-0 shadow-2xs"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5 mr-1 sm:mr-1.5 text-muted-foreground" />
+                  <span>Setup Form</span>
+                </Button>
+
+                <div className="h-4 w-px bg-border shrink-0 hidden sm:block" />
+
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <FileText className="w-4 h-4 text-primary shrink-0" />
+                  <h2
+                    className="text-xs sm:text-sm font-bold text-foreground truncate max-w-[150px] sm:max-w-[260px] md:max-w-sm"
+                    title={examTitle}
+                  >
+                    {examTitle || 'Exam Paper'}
+                  </h2>
                 </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <Button
-                  size="sm"
+
+              {/* Status Pills & Metrics */}
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                <Badge
                   variant="outline"
-                  onClick={() => handleSavePaper(true)}
-                  disabled={isSaving || paperQuestions.length === 0}
-                  className="h-8 text-xs font-semibold border-emerald-500/40 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/10 cursor-pointer"
-                  title="Save as a new separate question paper instead of updating this one"
+                  className="h-7 text-xs font-semibold text-foreground bg-muted/70 border-border px-2.5 rounded-lg shadow-2xs"
                 >
-                  Save as New Copy
+                  {paperQuestions.length} Questions • {totalMarks} Marks
+                </Badge>
+
+                {isSaving ? (
+                  <Badge
+                    variant="outline"
+                    className="h-7 text-xs font-semibold text-amber-700 dark:text-amber-300 bg-amber-500/10 border-amber-500/30 flex items-center gap-1.5 px-2.5 rounded-lg animate-pulse"
+                  >
+                    <RefreshCw className="w-3 h-3 animate-spin text-amber-600 dark:text-amber-400" />
+                    <span>Saving...</span>
+                  </Badge>
+                ) : editingPaperId || isAutoSaved ? (
+                  <Badge
+                    variant="outline"
+                    className="h-7 text-xs font-medium text-emerald-800 dark:text-emerald-300 bg-emerald-500/10 border-emerald-500/30 flex items-center gap-1.5 px-2.5 rounded-lg shadow-2xs"
+                    title="Auto-saved to your library. Edits, questions, and mark adjustments are completely free (0 credits used)"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <span>Auto-Saved {lastSavedAt ? `(${lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})` : ''}</span>
+                    <span className="hidden md:inline text-[11px] text-emerald-700/80 dark:text-emerald-400 font-normal pl-1.5 border-l border-emerald-500/30">
+                      0 Credits Used
+                    </span>
+                  </Badge>
+                ) : null}
+              </div>
+            </div>
+
+            {/* Bottom Tier: View Controls & Document Actions */}
+            <div className="border-t border-border/70 pt-2.5 flex flex-wrap items-center justify-between gap-2.5">
+              {/* View Layout Controls */}
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsTwoColumn(!isTwoColumn)}
+                  className={`h-8 px-2.5 sm:px-3 text-xs font-semibold rounded-lg cursor-pointer transition-colors shadow-2xs ${
+                    isTwoColumn
+                      ? 'bg-secondary text-primary border-primary/40 font-bold'
+                      : 'text-muted-foreground hover:text-foreground border-border hover:bg-muted'
+                  }`}
+                  title="Toggle 2-column examination layout"
+                >
+                  <Columns className="w-3.5 h-3.5 mr-1.5 text-primary" />
+                  <span>{isTwoColumn ? '2 Columns (Active)' : '2 Columns'}</span>
                 </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowAnswerKey(!showAnswerKey)}
+                  className={`h-8 px-2.5 sm:px-3 text-xs font-semibold rounded-lg cursor-pointer transition-colors shadow-2xs ${
+                    showAnswerKey
+                      ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/40 font-bold'
+                      : 'text-muted-foreground hover:text-foreground border-border hover:bg-muted'
+                  }`}
+                  title="Toggle display of Answer Key"
+                >
+                  <Key className="w-3.5 h-3.5 mr-1.5 text-amber-600" />
+                  <span>{showAnswerKey ? 'Hide Answers' : 'Answer Key'}</span>
+                </Button>
+              </div>
+
+              {/* Document Actions */}
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                {editingPaperId && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleSavePaper(true)}
+                    disabled={isSaving || paperQuestions.length === 0}
+                    className="h-8 px-2.5 sm:px-3 text-xs font-semibold rounded-lg border-border text-foreground hover:bg-muted cursor-pointer shadow-2xs"
+                    title="Save as a new separate question paper in your library"
+                  >
+                    <Copy className="w-3.5 h-3.5 mr-1 text-muted-foreground" />
+                    <span>Save as Copy</span>
+                  </Button>
+                )}
+
                 <Button
                   size="sm"
                   variant="ghost"
                   onClick={handleStartNewPaper}
-                  className="h-8 text-xs text-slate-600 hover:text-slate-900 cursor-pointer"
+                  className="h-8 px-2.5 sm:px-3 text-xs font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer"
+                  title="Start creating a fresh paper"
                 >
-                  Exit / New Paper
+                  <Plus className="w-3.5 h-3.5 mr-1" />
+                  <span>New Paper</span>
+                </Button>
+
+                <Button
+                  onClick={() => handleSavePaper(false)}
+                  disabled={isSaving || paperQuestions.length === 0}
+                  size="sm"
+                  variant="outline"
+                  className={`h-8 px-3 text-xs font-bold rounded-lg cursor-pointer shadow-2xs ${
+                    editingPaperId
+                      ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/20'
+                      : 'border-border text-foreground hover:bg-muted'
+                  }`}
+                >
+                  {isSaving ? (
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                  ) : (
+                    <Save className="w-3.5 h-3.5 mr-1.5 text-emerald-600" />
+                  )}
+                  <span>{editingPaperId ? 'Update (0 Credits)' : 'Save Paper'}</span>
+                </Button>
+
+                <Button
+                  onClick={handlePrint}
+                  disabled={paperQuestions.length === 0}
+                  size="sm"
+                  className="h-8 px-3.5 sm:px-4 text-xs font-bold rounded-xl gradient-brand text-white shadow-sm hover:opacity-95 cursor-pointer active:scale-98 transition-all"
+                >
+                  <Printer className="w-3.5 h-3.5 mr-1.5" />
+                  <span>Print / Save PDF</span>
                 </Button>
               </div>
-            </div>
-          )}
-
-          {/* Top Control Bar for Preview Mode */}
-          <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs print:hidden">
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setViewMode('config')}
-                className="h-8 text-xs font-bold rounded-lg border-slate-300 text-slate-700 cursor-pointer"
-              >
-                <ArrowLeft className="w-3.5 h-3.5 mr-1" />
-                Edit Setup
-              </Button>
-              <Badge variant="outline" className="text-xs font-bold text-indigo-700 bg-indigo-50 border-indigo-200">
-                {paperQuestions.length} Questions
-              </Badge>
-              {isAutoSaved && (
-                <Badge variant="outline" className="text-xs font-bold text-emerald-700 bg-emerald-50 border-emerald-300 flex items-center gap-1 shadow-2xs">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                  Auto-Saved {lastSavedAt ? `(${lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})` : ''}
-                </Badge>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsTwoColumn(!isTwoColumn)}
-                className={`h-8 text-xs font-semibold rounded-lg cursor-pointer ${
-                  isTwoColumn ? 'bg-indigo-50 border-indigo-300 text-indigo-900 font-bold' : 'text-slate-700'
-                }`}
-                title="Toggle 2-column examination layout"
-              >
-                <Columns className="w-3.5 h-3.5 mr-1 text-indigo-600" />
-                {isTwoColumn ? '2 Columns (Active)' : '2-Column Layout'}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowAnswerKey(!showAnswerKey)}
-                className={`h-8 text-xs font-semibold rounded-lg cursor-pointer ${
-                  showAnswerKey ? 'bg-amber-50 border-amber-300 text-amber-900 font-bold' : 'text-slate-700'
-                }`}
-              >
-                <Key className="w-3.5 h-3.5 mr-1 text-amber-600" />
-                {showAnswerKey ? 'Hide Answer Key' : 'Show Answer Key'}
-              </Button>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Button
-                onClick={() => handleSavePaper(false)}
-                disabled={isSaving || paperQuestions.length === 0}
-                size="sm"
-                variant="outline"
-                className={`h-8 text-xs font-bold rounded-lg cursor-pointer ${
-                  editingPaperId
-                    ? 'border-emerald-400 bg-emerald-50/60 text-emerald-800 hover:bg-emerald-100'
-                    : 'border-emerald-300 text-emerald-700 hover:bg-emerald-50'
-                }`}
-              >
-                {isSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin mr-1" /> : <Save className="w-3.5 h-3.5 mr-1" />}
-                {editingPaperId ? 'Update Paper (0 Credits)' : 'Save Paper'}
-              </Button>
-
-              <Button
-                onClick={handlePrint}
-                disabled={paperQuestions.length === 0}
-                size="sm"
-                className="h-8 text-xs font-bold rounded-lg gradient-brand text-white shadow-xs hover:opacity-90 cursor-pointer"
-              >
-                <Printer className="w-3.5 h-3.5 mr-1" />
-                Print / Save PDF
-              </Button>
             </div>
           </div>
 
