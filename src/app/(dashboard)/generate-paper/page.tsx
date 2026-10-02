@@ -40,7 +40,9 @@ import {
   ChevronDown,
   ChevronUp,
   ChevronRight,
-  Copy
+  Copy,
+  Cloud,
+  Search
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -61,12 +63,15 @@ export type QuestionType =
   | 'fill_blank'
   | 'true_false'
   | 'match_the_following'
+  | 'picture_based'
   | 'short_answer'
   | 'long_answer';
 
 export interface SectionConfigItem {
   id: string;
   section_name: string;
+  sub_section?: string;
+  instructions?: string;
   type: QuestionType;
   count: number;
   marks_per_question: number;
@@ -89,11 +94,25 @@ interface ChapterItem {
   id: string;
   title: string;
   subject_id: string;
+  has_pdf?: boolean;
+  pdf_url?: string | null;
+  documents_count?: number;
+  pdf_scans?: any[];
+  subjects?: {
+    id?: string;
+    name?: string;
+    class_id?: string;
+    classes?: {
+      id?: string;
+      name?: string;
+    };
+  };
 }
 
 interface QuestionItem {
   id: string;
   section_name?: string;
+  sub_section?: string;
   chapter_id?: string;
   chapter_title?: string;
   type: string;
@@ -105,6 +124,15 @@ interface QuestionItem {
   image_url?: string | null;
   marks?: number;
   difficulty?: string;
+}
+
+export interface UploadedPdfItem {
+  id: string;
+  name: string;
+  size: string;
+  dataUrl: string;
+  file?: File;
+  isCloudflare?: boolean;
 }
 
 const SECTION_TYPE_METADATA: Record<
@@ -138,6 +166,13 @@ const SECTION_TYPE_METADATA: Record<
     defaultCount: 2,
     badgeColor: 'bg-purple-50 text-purple-700 border-purple-200',
     icon: Shuffle,
+  },
+  picture_based: {
+    label: 'Picture / Diagram Based (चित्र आधारित प्रश्न)',
+    defaultMarks: 3,
+    defaultCount: 2,
+    badgeColor: 'bg-cyan-50 text-cyan-700 border-cyan-200',
+    icon: ImageIcon,
   },
   short_answer: {
     label: 'Short Answer Questions',
@@ -194,7 +229,16 @@ const DEFAULT_SECTIONS: SectionConfigItem[] = [
   },
   {
     id: 'sec-5',
-    section_name: 'Section E: Short Answer Questions',
+    section_name: 'Section E: Picture / Diagram Based Questions (चित्र आधारित प्रश्न)',
+    type: 'picture_based',
+    count: 2,
+    marks_per_question: 3,
+    difficulty: 'medium',
+    enabled: true,
+  },
+  {
+    id: 'sec-6',
+    section_name: 'Section F: Short Answer Questions',
     type: 'short_answer',
     count: 4,
     marks_per_question: 3,
@@ -202,8 +246,8 @@ const DEFAULT_SECTIONS: SectionConfigItem[] = [
     enabled: true,
   },
   {
-    id: 'sec-6',
-    section_name: 'Section F: Long Answer Questions',
+    id: 'sec-7',
+    section_name: 'Section G: Long Answer Questions',
     type: 'long_answer',
     count: 2,
     marks_per_question: 5,
@@ -235,6 +279,27 @@ const formatQuestionNumber = (secIdx: number, qIdx: number): string => {
     case 3: return alphaChar.toUpperCase(); // A, B, C
     case 4: return toRoman(n).toLowerCase(); // i, ii, iii
     default: return `${n}`;
+  }
+};
+
+const getDefaultSectionInstruction = (type: string): string => {
+  switch (type) {
+    case 'mcq':
+      return 'Choose and write the correct option for each question:';
+    case 'fill_blank':
+      return 'Fill in the blanks with suitable words / phrases:';
+    case 'match_the_following':
+      return 'Match the items in Column A with Column B:';
+    case 'true_false':
+      return 'State whether the following statements are True or False:';
+    case 'picture_based':
+      return 'Observe the given pictures / diagrams carefully and answer the questions (चित्रों को देखकर उत्तर दीजिए):';
+    case 'short_answer':
+      return 'Answer the following short answer questions:';
+    case 'long_answer':
+      return 'Answer the following questions in detail:';
+    default:
+      return 'Answer the following questions:';
   }
 };
 
@@ -286,17 +351,435 @@ export default function GeneratePaperPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [activeQuestionIdxForImage, setActiveQuestionIdxForImage] = useState<number | null>(null);
 
-  // Inline Question Editing
+  // Dedicated Gen with PDF State (Supports Multi-Chapter PDFs)
+  const [generationSource, setGenerationSource] = useState<'blueprint' | 'pdf'>('blueprint');
+  const [pdfFilesList, setPdfFilesList] = useState<UploadedPdfItem[]>([]);
+  const [pdfMode, setPdfMode] = useState<'verbatim_paper' | 'generate_from_content'>('generate_from_content');
+  const [pdfCustomInstructions, setPdfCustomInstructions] = useState<string>('');
+  const [pdfCustomClass, setPdfCustomClass] = useState<string>('');
+  const [pdfCustomSubject, setPdfCustomSubject] = useState<string>('');
+  const [isPdfDragOver, setIsPdfDragOver] = useState(false);
+  const pdfFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Cloudflare Library State with Class & Subject Cascading
+  const [isCloudflareLibraryOpen, setIsCloudflareLibraryOpen] = useState(false);
+  const [modalClassId, setModalClassId] = useState('');
+  const [modalSubjectId, setModalSubjectId] = useState('');
+  const [modalSubjects, setModalSubjects] = useState<SubjectItem[]>([]);
+  const [modalChapters, setModalChapters] = useState<ChapterItem[]>([]);
+  const [modalSelectedChapterIds, setModalSelectedChapterIds] = useState<string[]>([]);
+  const [isLoadingModalChapters, setIsLoadingModalChapters] = useState(false);
+
+  // Chapter loading and inline upload states
+  const [isLoadingChapters, setIsLoadingChapters] = useState(false);
+  const [isUploadingChapterPdfId, setIsUploadingChapterPdfId] = useState<string | null>(null);
+  const chapterPdfUploadInputRef = useRef<HTMLInputElement | null>(null);
+  const [targetUploadChapter, setTargetUploadChapter] = useState<ChapterItem | null>(null);
+
+  const handleOpenCloudflareLibrary = async () => {
+    setIsCloudflareLibraryOpen(true);
+    const initialClassId =
+      selectedClassId && selectedClassId !== '__custom__' ? selectedClassId : classes[0]?.id || '';
+    setModalClassId(initialClassId);
+
+    if (initialClassId) {
+      try {
+        const resSub = await fetch(`${API_URL}/api/subjects?class_id=${initialClassId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const dataSub = await resSub.json();
+        const subs: SubjectItem[] = dataSub.data || [];
+        setModalSubjects(subs);
+
+        const initialSubId =
+          selectedSubjectId &&
+          selectedSubjectId !== '__custom__' &&
+          subs.some((s) => s.id === selectedSubjectId)
+            ? selectedSubjectId
+            : subs[0]?.id || '';
+        setModalSubjectId(initialSubId);
+
+        if (initialSubId) {
+          fetchModalChapters(initialSubId);
+        } else {
+          setModalChapters([]);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  };
+
+  const handleModalClassChange = async (classId: string) => {
+    setModalClassId(classId);
+    setModalSubjectId('');
+    setModalChapters([]);
+    setModalSelectedChapterIds([]);
+
+    if (classId) {
+      try {
+        const res = await fetch(`${API_URL}/api/subjects?class_id=${classId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        const subs: SubjectItem[] = data.data || [];
+        setModalSubjects(subs);
+        if (subs.length > 0) {
+          setModalSubjectId(subs[0].id);
+          fetchModalChapters(subs[0].id);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    } else {
+      setModalSubjects([]);
+    }
+  };
+
+  const handleModalSubjectChange = (subjectId: string) => {
+    setModalSubjectId(subjectId);
+    setModalSelectedChapterIds([]);
+    if (subjectId) {
+      fetchModalChapters(subjectId);
+    } else {
+      setModalChapters([]);
+    }
+  };
+
+  const fetchModalChapters = async (subjectId: string) => {
+    setIsLoadingModalChapters(true);
+    try {
+      const res = await fetch(`${API_URL}/api/chapters?subject_id=${subjectId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      setModalChapters(data.data || []);
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to fetch chapters');
+    } finally {
+      setIsLoadingModalChapters(false);
+    }
+  };
+
+  const handleToggleModalChapterSelect = (chapterId: string) => {
+    setModalSelectedChapterIds((prev) =>
+      prev.includes(chapterId) ? prev.filter((id) => id !== chapterId) : [...prev, chapterId]
+    );
+  };
+
+  const handleToggleModalSelectAll = () => {
+    const chaptersWithPdf = modalChapters.filter((c) => c.has_pdf && c.pdf_url);
+    if (modalSelectedChapterIds.length === chaptersWithPdf.length) {
+      setModalSelectedChapterIds([]);
+    } else {
+      setModalSelectedChapterIds(chaptersWithPdf.map((c) => c.id));
+    }
+  };
+
+  const handleAttachModalSelectedChapters = () => {
+    const chaptersToAttach = modalChapters.filter((c) => modalSelectedChapterIds.includes(c.id));
+    if (chaptersToAttach.length === 0) {
+      toast.error('Please select at least one chapter with a saved PDF.');
+      return;
+    }
+
+    const missingPdfs = chaptersToAttach.filter((c) => !c.pdf_url);
+    if (missingPdfs.length > 0) {
+      toast.error(`"${missingPdfs[0].title}" does not have a PDF in Cloudflare yet.`);
+      return;
+    }
+
+    const chosenClass = classes.find((c) => c.id === modalClassId);
+    const chosenSubject = modalSubjects.find((s) => s.id === modalSubjectId);
+    const newItems: UploadedPdfItem[] = [];
+
+    chaptersToAttach.forEach((chap) => {
+      const already = pdfFilesList.some((p) => p.dataUrl === chap.pdf_url || p.id === `cf-${chap.id}`);
+      if (!already && chap.pdf_url) {
+        newItems.push({
+          id: `cf-${chap.id}`,
+          name: `${chosenClass?.name ? `${chosenClass.name} - ` : ''}${chap.title}.pdf`,
+          size: 'Cloudflare R2',
+          dataUrl: chap.pdf_url,
+          isCloudflare: true,
+        });
+      }
+    });
+
+    if (newItems.length > 0) {
+      setPdfFilesList((prev) => [...prev, ...newItems]);
+      toast.success(`Attached ${newItems.length} chapter PDF(s) from Cloudflare!`);
+    } else {
+      toast.info('Selected chapters are already attached.');
+    }
+
+    // Auto-sync class & subject in form if not selected
+    if (chosenClass && (!selectedClassId || selectedClassId === '__custom__')) {
+      setSelectedClassId(chosenClass.id);
+      fetchSubjects(chosenClass.id);
+    }
+    if (chosenSubject && (!selectedSubjectId || selectedSubjectId === '__custom__')) {
+      setSelectedSubjectId(chosenSubject.id);
+      fetchChapters(chosenSubject.id);
+    }
+
+    setIsCloudflareLibraryOpen(false);
+  };
+
+  // Direct upload of a textbook PDF for a specific chapter
+  const handleTriggerUploadPdfForChapter = (chap: ChapterItem) => {
+    setTargetUploadChapter(chap);
+    if (chapterPdfUploadInputRef.current) {
+      chapterPdfUploadInputRef.current.value = '';
+      chapterPdfUploadInputRef.current.click();
+    }
+  };
+
+  const handleDirectChapterPdfSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || !e.target.files[0] || !targetUploadChapter) return;
+    const file = e.target.files[0];
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      toast.error('Please upload a PDF document.');
+      return;
+    }
+
+    const chap = targetUploadChapter;
+    setIsUploadingChapterPdfId(chap.id);
+    toast.info(`Uploading "${file.name}" to Cloudflare R2 for "${chap.title}"...`);
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const base64 = reader.result as string;
+        const res = await fetch(`${API_URL}/api/scans`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            image_url: base64,
+            doc_type: 'chapter_page',
+            chapter_id: chap.id,
+            subject_id: chap.subject_id || selectedSubjectId,
+            class_id: selectedClassId,
+          }),
+        });
+        const scanData = await res.json();
+        if (!res.ok) throw new Error(scanData.error || 'Failed to upload PDF');
+
+        toast.success(`PDF saved to Cloudflare R2 for "${chap.title}"!`);
+
+        // Refresh chapters
+        if (selectedSubjectId) {
+          await fetchChapters(selectedSubjectId);
+        }
+
+        // Auto select this chapter
+        setSelectedChapterIds((prev) => (prev.includes(chap.id) ? prev : [...prev, chap.id]));
+      } catch (err: any) {
+        console.error(err);
+        toast.error(err.message || 'Failed to upload PDF');
+      } finally {
+        setIsUploadingChapterPdfId(null);
+        setTargetUploadChapter(null);
+      }
+    };
+    reader.onerror = () => {
+      setIsUploadingChapterPdfId(null);
+      setTargetUploadChapter(null);
+      toast.error('Failed to read PDF file');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Toggle chapter PDF in Card 1 directly
+  const handleTogglePdfChapter = (chap: ChapterItem) => {
+    if (!chap.pdf_url) {
+      toast.error(`"${chap.title}" does not have a PDF uploaded to Cloudflare yet. You can upload one in Classes & Curriculum or upload a local PDF below.`);
+      return;
+    }
+
+    const isAlreadyAttached = pdfFilesList.some((p) => p.dataUrl === chap.pdf_url || p.id === `cf-${chap.id}`);
+
+    if (isAlreadyAttached) {
+      setPdfFilesList((prev) => prev.filter((p) => p.dataUrl !== chap.pdf_url && p.id !== `cf-${chap.id}`));
+      toast.info(`Removed "${chap.title}"`);
+    } else {
+      const newItem: UploadedPdfItem = {
+        id: `cf-${chap.id}`,
+        name: `${chap.title}.pdf`,
+        size: 'Cloudflare R2',
+        dataUrl: chap.pdf_url,
+        isCloudflare: true,
+      };
+      setPdfFilesList((prev) => [...prev, newItem]);
+      toast.success(`Attached "${chap.title}" from Cloudflare R2!`);
+    }
+  };
+
+  const handleSelectAllPdfChapters = () => {
+    const chaptersWithPdfs = chapters.filter((c) => c.has_pdf && c.pdf_url);
+    if (chaptersWithPdfs.length === 0) {
+      toast.error('No chapters with saved Cloudflare PDFs found for this subject.');
+      return;
+    }
+
+    const allAttached = chaptersWithPdfs.every((c) =>
+      pdfFilesList.some((p) => p.dataUrl === c.pdf_url || p.id === `cf-${c.id}`)
+    );
+
+    if (allAttached) {
+      const urlsToRemove = new Set(chaptersWithPdfs.map((c) => c.pdf_url));
+      const idsToRemove = new Set(chaptersWithPdfs.map((c) => `cf-${c.id}`));
+      setPdfFilesList((prev) => prev.filter((p) => !urlsToRemove.has(p.dataUrl) && !idsToRemove.has(p.id)));
+      toast.info('Deselected all chapters for this subject');
+    } else {
+      const newItems: UploadedPdfItem[] = [];
+
+      chaptersWithPdfs.forEach((c) => {
+        const exists = pdfFilesList.some((p) => p.dataUrl === c.pdf_url || p.id === `cf-${c.id}`);
+        if (!exists && c.pdf_url) {
+          newItems.push({
+            id: `cf-${c.id}`,
+            name: `${c.title}.pdf`,
+            size: 'Cloudflare R2',
+            dataUrl: c.pdf_url,
+            isCloudflare: true,
+          });
+        }
+      });
+
+      setPdfFilesList((prev) => [...prev, ...newItems]);
+      toast.success(`Attached ${chaptersWithPdfs.length} chapters from Cloudflare R2!`);
+    }
+  };
+
+  // Section Title & Description Editing States in Preview Mode
+  const [editingSectionName, setEditingSectionName] = useState<string | null>(null);
+  const [editSecTitle, setEditSecTitle] = useState('');
+  const [editSecInstruction, setEditSecInstruction] = useState('');
+  const [sectionCustomMeta, setSectionCustomMeta] = useState<Record<string, { subSection?: string; instruction?: string }>>({});
+
+  // Enhanced Inline Question Editing States
   const [editingQuestionIdx, setEditingQuestionIdx] = useState<number | null>(null);
   const [editingQuestionText, setEditingQuestionText] = useState('');
+  const [editingQuestionSection, setEditingQuestionSection] = useState('');
+  const [editingQuestionSubSection, setEditingQuestionSubSection] = useState('');
+  const [editingQuestionMarks, setEditingQuestionMarks] = useState<number>(1);
+  const [editingQuestionOptions, setEditingQuestionOptions] = useState<string[]>([]);
+
+  const handleStartEditQuestion = (globalIdx: number) => {
+    const q = paperQuestions[globalIdx];
+    setEditingQuestionIdx(globalIdx);
+    setEditingQuestionText(q.question_text || '');
+    setEditingQuestionSection(q.section_name || 'General Questions');
+    setEditingQuestionSubSection(q.sub_section || '');
+    setEditingQuestionMarks(q.marks || 1);
+    setEditingQuestionOptions(
+      Array.isArray(q.options)
+        ? q.options.map((o: any) => (typeof o === 'string' ? o : o.text || ''))
+        : []
+    );
+  };
 
   const handleSaveEditedQuestion = () => {
     if (editingQuestionIdx === null) return;
     const newQuestions = [...paperQuestions];
-    newQuestions[editingQuestionIdx].question_text = editingQuestionText;
+    const targetQ = newQuestions[editingQuestionIdx];
+
+    let updatedOptions = targetQ.options;
+    if (targetQ.type === 'mcq' && editingQuestionOptions.length > 0) {
+      if (Array.isArray(targetQ.options) && typeof targetQ.options[0] === 'object') {
+        updatedOptions = editingQuestionOptions.map((optText, oIdx) => ({
+          label: targetQ.options[oIdx]?.label || String.fromCharCode(65 + oIdx),
+          text: optText,
+        }));
+      } else {
+        updatedOptions = editingQuestionOptions;
+      }
+    }
+
+    newQuestions[editingQuestionIdx] = {
+      ...targetQ,
+      question_text: editingQuestionText,
+      section_name: editingQuestionSection.trim() || 'General Questions',
+      sub_section: editingQuestionSubSection.trim() || undefined,
+      marks: Number(editingQuestionMarks) || 1,
+      options: updatedOptions,
+    };
+
     setPaperQuestions(newQuestions);
     setEditingQuestionIdx(null);
     setEditingQuestionText('');
+    setEditingQuestionSection('');
+    setEditingQuestionSubSection('');
+    setEditingQuestionOptions([]);
+    toast.success('Question updated successfully!');
+    handleSavePaper(false, newQuestions, true);
+  };
+
+  const handleStartEditSection = (
+    secName: string,
+    currentInst?: string,
+    defaultInst?: string
+  ) => {
+    setEditingSectionName(secName);
+    setEditSecTitle(secName);
+    const resolvedInst = currentInst || defaultInst || 'Answer the following questions:';
+    setEditSecInstruction(resolvedInst);
+  };
+
+  const handleSaveEditedSection = () => {
+    if (!editingSectionName) return;
+    const oldName = editingSectionName;
+    const newName = editSecTitle.trim() || oldName;
+    const newInst = editSecInstruction.trim();
+
+    // 1. Update questions in this section
+    const updatedQuestions = paperQuestions.map((q) => {
+      const qSec = q.section_name || 'General Questions';
+      if (qSec === oldName) {
+        return {
+          ...q,
+          section_name: newName,
+          sub_section: newInst ? newInst : undefined,
+        };
+      }
+      return q;
+    });
+
+    // 2. Update blueprint sections
+    setSections((prev) =>
+      prev.map((s) => {
+        if (s.section_name === oldName) {
+          return {
+            ...s,
+            section_name: newName,
+            instructions: newInst ? newInst : undefined,
+            sub_section: newInst ? newInst : undefined,
+          };
+        }
+        return s;
+      })
+    );
+
+    // 3. Update custom metadata
+    setSectionCustomMeta((prev) => {
+      const copy = { ...prev };
+      delete copy[oldName];
+      copy[newName] = {
+        instruction: newInst || undefined,
+        subSection: newInst || undefined,
+      };
+      return copy;
+    });
+
+    setPaperQuestions(updatedQuestions);
+    setEditingSectionName(null);
+    toast.success(`Updated "${newName}"!`);
+    handleSavePaper(false, updatedQuestions, true);
   };
 
   const handleDeleteQuestion = (idx: number) => {
@@ -372,6 +855,9 @@ export default function GeneratePaperPage() {
         if (bp.sections && Array.isArray(bp.sections)) {
           setSections(bp.sections);
         }
+        if (bp.sectionCustomMeta && typeof bp.sectionCustomMeta === 'object') {
+          setSectionCustomMeta(bp.sectionCustomMeta);
+        }
 
         // Questions can be in bp.selected_questions or p.selected_questions
         const loadedQuestions = bp.selected_questions || p.selected_questions;
@@ -429,17 +915,47 @@ export default function GeneratePaperPage() {
   }
 
   async function fetchChapters(subjectId: string, authToken = token) {
+    setIsLoadingChapters(true);
     try {
       const res = await fetch(`${API_URL}/api/chapters?subject_id=${subjectId}`, {
         headers: { Authorization: `Bearer ${authToken}` },
       });
       const data = await res.json();
       if (data.data) {
-        setChapters(data.data);
-        setSelectedChapterIds(data.data.map((c: ChapterItem) => c.id));
+        const fetchedChapters: ChapterItem[] = data.data;
+        setChapters(fetchedChapters);
+        const allIds = fetchedChapters.map((c: ChapterItem) => c.id);
+        setSelectedChapterIds(allIds);
+
+        // Also sync any Cloudflare PDFs into pdfFilesList
+        const newPdfItems: UploadedPdfItem[] = [];
+        fetchedChapters.forEach((c: ChapterItem) => {
+          if (c.has_pdf && c.pdf_url) {
+            newPdfItems.push({
+              id: `cf-${c.id}`,
+              name: `${c.title}.pdf`,
+              size: 'Cloudflare R2',
+              dataUrl: c.pdf_url,
+              isCloudflare: true,
+            });
+          }
+        });
+        if (newPdfItems.length > 0) {
+          setPdfFilesList((prev) => {
+            const existingIds = new Set(prev.map((p) => p.id));
+            const filteredNew = newPdfItems.filter((item) => !existingIds.has(item.id));
+            return [...prev, ...filteredNew];
+          });
+        }
+      } else {
+        setChapters([]);
+        setSelectedChapterIds([]);
       }
     } catch (e) {
       console.error(e);
+      toast.error('Failed to load chapters for this subject');
+    } finally {
+      setIsLoadingChapters(false);
     }
   }
 
@@ -449,28 +965,78 @@ export default function GeneratePaperPage() {
     setSelectedChapterIds([]);
     setSubjects([]);
     setChapters([]);
-    if (classId) fetchSubjects(classId);
+    // Remove previous cloudflare chapters from pdfFilesList when class changes
+    setPdfFilesList((prev) => prev.filter((p) => !p.isCloudflare));
+    if (classId && classId !== '__custom__') fetchSubjects(classId);
   };
 
   const handleSubjectChange = (subjectId: string) => {
     setSelectedSubjectId(subjectId);
     setSelectedChapterIds([]);
-    if (subjectId) fetchChapters(subjectId);
+    setChapters([]);
+    // Remove previous cloudflare chapters from pdfFilesList when subject changes
+    setPdfFilesList((prev) => prev.filter((p) => !p.isCloudflare));
+    if (subjectId && subjectId !== '__custom__') fetchChapters(subjectId);
   };
 
   const toggleChapter = (chapterId: string) => {
+    let nextIds: string[];
     if (selectedChapterIds.includes(chapterId)) {
-      setSelectedChapterIds(selectedChapterIds.filter((id) => id !== chapterId));
+      nextIds = selectedChapterIds.filter((id) => id !== chapterId);
     } else {
-      setSelectedChapterIds([...selectedChapterIds, chapterId]);
+      nextIds = [...selectedChapterIds, chapterId];
+    }
+    setSelectedChapterIds(nextIds);
+
+    // Sync with pdfFilesList for PDF mode
+    const chap = chapters.find((c) => c.id === chapterId);
+    if (chap && chap.has_pdf && chap.pdf_url) {
+      if (nextIds.includes(chapterId)) {
+        if (!pdfFilesList.some((p) => p.dataUrl === chap.pdf_url || p.id === `cf-${chap.id}`)) {
+          setPdfFilesList((prev) => [
+            ...prev,
+            {
+              id: `cf-${chap.id}`,
+              name: `${chap.title}.pdf`,
+              size: 'Cloudflare R2',
+              dataUrl: chap.pdf_url!,
+              isCloudflare: true,
+            },
+          ]);
+        }
+      } else {
+        setPdfFilesList((prev) => prev.filter((p) => p.dataUrl !== chap.pdf_url && p.id !== `cf-${chap.id}`));
+      }
     }
   };
 
   const toggleSelectAllChapters = () => {
     if (selectedChapterIds.length === chapters.length) {
       setSelectedChapterIds([]);
+      const cfUrls = new Set(chapters.map((c) => c.pdf_url).filter(Boolean));
+      const cfIds = new Set(chapters.map((c) => `cf-${c.id}`));
+      setPdfFilesList((prev) => prev.filter((p) => !cfUrls.has(p.dataUrl) && !cfIds.has(p.id)));
     } else {
-      setSelectedChapterIds(chapters.map((c) => c.id));
+      const allIds = chapters.map((c) => c.id);
+      setSelectedChapterIds(allIds);
+      const newItems: UploadedPdfItem[] = [];
+      chapters.forEach((c) => {
+        if (c.has_pdf && c.pdf_url) {
+          const exists = pdfFilesList.some((p) => p.dataUrl === c.pdf_url || p.id === `cf-${c.id}`);
+          if (!exists) {
+            newItems.push({
+              id: `cf-${c.id}`,
+              name: `${c.title}.pdf`,
+              size: 'Cloudflare R2',
+              dataUrl: c.pdf_url,
+              isCloudflare: true,
+            });
+          }
+        }
+      });
+      if (newItems.length > 0) {
+        setPdfFilesList((prev) => [...prev, ...newItems]);
+      }
     }
   };
 
@@ -668,13 +1234,18 @@ export default function GeneratePaperPage() {
         // AUTO-SAVE: Automatically save newly generated paper immediately to DB
         await handleSavePaper(false, data.data, true);
 
+        const isCloudflarePdfGen = data.meta?.engine === 'cloudflare_pdf';
         if (data.billing) {
           toast.success(
-            `Generated & Auto-Saved ${data.data.length} questions! (₹${data.billing.cost_deducted} deducted • Balance: ₹${Number(data.billing.new_balance).toFixed(2)})`
+            isCloudflarePdfGen
+              ? `Generated from Cloudflare PDFs via Gemini Vision! (${data.data.length} questions • ₹${data.billing.cost_deducted} deducted • Balance: ₹${Number(data.billing.new_balance).toFixed(2)})`
+              : `Generated & Auto-Saved ${data.data.length} questions! (₹${data.billing.cost_deducted} deducted • Balance: ₹${Number(data.billing.new_balance).toFixed(2)})`
           );
         } else {
           toast.success(
-            `Generated & Auto-Saved ${data.data.length} questions across ${activeSections.length} sections!`
+            isCloudflarePdfGen
+              ? `Generated directly from Cloudflare chapter PDFs via Gemini Vision! (${data.data.length} questions)`
+              : `Generated & Auto-Saved ${data.data.length} questions across ${activeSections.length} sections!`
           );
         }
       } else {
@@ -683,6 +1254,187 @@ export default function GeneratePaperPage() {
     } catch (err: any) {
       console.error('Generation Error:', err);
       toast.error(err.message || 'Error occurred while generating paper');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  // Direct PDF Handlers (Supports Multiple Chapter PDFs for Term Exams)
+  const handlePdfFilesSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      handleProcessPdfFiles(Array.from(files));
+    }
+  };
+
+  const handleProcessPdfFiles = (files: File[]) => {
+    if (!files || files.length === 0) return;
+
+    const validPdfs: File[] = [];
+    for (const file of files) {
+      if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+        toast.error(`"${file.name}" is not a PDF file. Please upload PDF documents only.`);
+        continue;
+      }
+      if (file.size > 25 * 1024 * 1024) {
+        toast.error(`"${file.name}" exceeds the 25MB limit.`);
+        continue;
+      }
+      validPdfs.push(file);
+    }
+
+    if (validPdfs.length === 0) return;
+
+    let processedCount = 0;
+    const newItems: UploadedPdfItem[] = [];
+
+    validPdfs.forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        newItems.push({
+          id: `pdf-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          name: file.name,
+          size: (file.size / (1024 * 1024)).toFixed(2) + ' MB',
+          dataUrl: reader.result as string,
+          file,
+        });
+        processedCount++;
+        if (processedCount === validPdfs.length) {
+          setPdfFilesList((prev) => {
+            const combined = [...prev, ...newItems];
+            toast.success(`Attached ${newItems.length} PDF(s). Total: ${combined.length} chapter(s) ready!`);
+            return combined;
+          });
+
+          // Auto-populate exam title if default
+          if (!examTitle || examTitle === 'Annual Examination - 2026') {
+            const firstClean = validPdfs[0].name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+            if (firstClean) {
+              setExamTitle(firstClean.charAt(0).toUpperCase() + firstClean.slice(1));
+            }
+          }
+        }
+      };
+      reader.onerror = () => {
+        toast.error(`Failed to read "${file.name}"`);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleRemovePdfItem = (id: string) => {
+    setPdfFilesList((prev) => prev.filter((p) => p.id !== id));
+    toast.info('Removed PDF chapter');
+  };
+
+  const handleClearAllPdfs = () => {
+    setPdfFilesList([]);
+    if (pdfFileInputRef.current) {
+      pdfFileInputRef.current.value = '';
+    }
+  };
+
+  const handleGenerateFromPdf = async () => {
+    if (pdfFilesList.length === 0) {
+      toast.error('Please upload at least one PDF chapter/document first');
+      return;
+    }
+
+    const activeSections = sections.filter((s) => s.enabled && Number(s.count) > 0);
+    if (pdfMode === 'generate_from_content' && activeSections.length === 0) {
+      toast.error('Please enable at least one section with at least 1 question in the blueprint below');
+      return;
+    }
+
+    setIsGenerating(true);
+    toast.info(`Sending ${pdfFilesList.length} chapter PDF(s) directly to Gemini AI Vision... Formulating exam paper...`);
+
+    try {
+      const payloadSections = activeSections.map((s) => ({
+        section_name: s.section_name,
+        type: s.type,
+        count: Number(s.count),
+        marks_per_question: Number(s.marks_per_question),
+        difficulty: s.difficulty,
+      }));
+
+      const currentClassName = classes.find((c) => c.id === selectedClassId)?.name || '';
+      const currentSubjectName = subjects.find((s) => s.id === selectedSubjectId)?.name || '';
+
+      const finalClassName =
+        (selectedClassId === '__custom__' ? pdfCustomClass.trim() : (currentClassName || pdfCustomClass.trim())) ||
+        'General Grade';
+      const finalSubjectName =
+        (selectedSubjectId === '__custom__' ? pdfCustomSubject.trim() : (currentSubjectName || pdfCustomSubject.trim())) ||
+        'General Subject';
+
+      const payloadFiles = pdfFilesList.map((p) => ({
+        name: p.name,
+        data: p.dataUrl,
+      }));
+
+      const res = await fetch(`${API_URL}/api/question-papers/ai-generate-from-pdf`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          pdf_files: payloadFiles,
+          mode: pdfMode,
+          class_name: finalClassName,
+          subject_name: finalSubjectName,
+          sections: payloadSections,
+          custom_instructions: pdfCustomInstructions || undefined,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        if (res.status === 402) {
+          toast.error(
+            data.error || 'Insufficient wallet balance. Each generation costs ₹5. Please recharge in Billing & Wallet.',
+            {
+              action: {
+                label: 'Recharge',
+                onClick: () => window.location.href = '/billing',
+              },
+              duration: 8000,
+            }
+          );
+          return;
+        }
+        throw new Error(data.error || 'Failed to generate questions from PDF');
+      }
+
+      if (data.data && Array.isArray(data.data)) {
+        setPaperQuestions(data.data);
+        const totalMarksGenerated = data.data.reduce((acc: number, q: any) => acc + (q.marks || 0), 0);
+        if (totalMarksGenerated > 0) {
+          setTotalMarks(String(totalMarksGenerated));
+        }
+
+        setViewMode('preview');
+
+        // Notify layout to update live wallet balance in header/sidebar
+        window.dispatchEvent(new Event('billing-updated'));
+
+        // AUTO-SAVE: Automatically save newly generated paper immediately to DB
+        await handleSavePaper(false, data.data, true);
+
+        if (data.billing) {
+          toast.success(
+            `Extracted & Auto-Saved ${data.data.length} questions from ${pdfFilesList.length} chapter(s)! (₹${data.billing.cost_deducted} deducted • Balance: ₹${Number(data.billing.new_balance).toFixed(2)})`
+          );
+        } else {
+          toast.success(`Generated & Auto-Saved ${data.data.length} questions across ${pdfFilesList.length} chapter(s)!`);
+        }
+      } else {
+        throw new Error('Invalid response format from AI');
+      }
+    } catch (err: any) {
+      console.error('PDF Paper Generation Error:', err);
+      toast.error(err.message || 'Error occurred while generating paper from PDF');
     } finally {
       setIsGenerating(false);
     }
@@ -727,6 +1479,7 @@ export default function GeneratePaperPage() {
           instructions,
           selectedChapterIds,
           sections: activeSections,
+          sectionCustomMeta,
           selected_questions: questions,
         },
         selected_questions: questions,
@@ -795,8 +1548,14 @@ export default function GeneratePaperPage() {
     });
   };
 
-  const selectedClassName = classes.find((c) => c.id === selectedClassId)?.name || '';
-  const selectedSubjectName = subjects.find((s) => s.id === selectedSubjectId)?.name || '';
+  const selectedClassName =
+    (selectedClassId === '__custom__' ? pdfCustomClass : classes.find((c) => c.id === selectedClassId)?.name) ||
+    pdfCustomClass ||
+    '';
+  const selectedSubjectName =
+    (selectedSubjectId === '__custom__' ? pdfCustomSubject : subjects.find((s) => s.id === selectedSubjectId)?.name) ||
+    pdfCustomSubject ||
+    '';
 
   // Helper to parse match_the_following questions into clean Column A and Column B data
   const parseMatchTheFollowing = (q: QuestionItem) => {
@@ -877,13 +1636,28 @@ export default function GeneratePaperPage() {
     return { colA, colB, cleanQuestionText };
   };
 
-  // Helper to group questions by section
-  const groupedSections: { sectionName: string; type: string; questions: QuestionItem[] }[] = [];
+  // Helper to group questions by section and sub-section
+  const groupedSections: {
+    sectionName: string;
+    subSection?: string;
+    instruction?: string;
+    type: string;
+    questions: QuestionItem[];
+  }[] = [];
+
   paperQuestions.forEach((q) => {
     const secName = q.section_name || 'General Questions';
     let group = groupedSections.find((g) => g.sectionName === secName);
     if (!group) {
-      group = { sectionName: secName, type: q.type, questions: [] };
+      const customMeta = sectionCustomMeta[secName] || {};
+      const bpSec = sections.find((s) => s.section_name === secName);
+      group = {
+        sectionName: secName,
+        subSection: customMeta.subSection || q.sub_section || bpSec?.sub_section,
+        instruction: customMeta.instruction || bpSec?.instructions,
+        type: q.type,
+        questions: [],
+      };
       groupedSections.push(group);
     }
     group.questions.push(q);
@@ -1009,113 +1783,649 @@ export default function GeneratePaperPage() {
       {/* ========================================================================= */}
       {viewMode === 'config' && (
         <div className="max-w-5xl mx-auto space-y-6 animate-fade-in print:hidden pb-24 md:pb-6">
-          {/* Row 1: Academic Selection & Paper Header Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {/* 1. Target Selection & Chapter Equal Weightage */}
-            <Card className="rounded-3xl border-border bg-card shadow-[0_10px_30px_rgba(24,30,75,0.03)] overflow-hidden">
-              <CardHeader
-                className="pb-3 cursor-pointer md:cursor-default select-none hover:bg-muted/40 md:hover:bg-transparent transition-colors"
-                onClick={() => setAccordionOpenClassSubject(!accordionOpenClassSubject)}
+          {/* Top Source Switcher: Standard Blueprint vs Gen with PDF */}
+          <div className="bg-card p-1.5 rounded-2xl border border-border shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-1.5 bg-muted/60 p-1 rounded-xl border border-border/50">
+              <button
+                type="button"
+                onClick={() => setGenerationSource('blueprint')}
+                className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  generationSource === 'blueprint'
+                    ? 'bg-white text-foreground shadow-xs font-extrabold'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-white/40'
+                }`}
               >
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base font-heading font-bold text-foreground flex items-center gap-2">
-                    <GraduationCap className="w-4 h-4 text-primary" /> 1. Class, Subject &amp; Chapters
-                  </CardTitle>
-                  <button
-                    type="button"
-                    className="p-1 text-slate-400 hover:text-slate-600 md:hidden cursor-pointer"
-                    aria-label="Toggle Class and Subject selection"
-                  >
-                    {accordionOpenClassSubject ? (
-                      <ChevronUp className="w-4 h-4" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4" />
-                    )}
-                  </button>
-                </div>
-                <CardDescription className="text-xs">
-                  Select chapters to distribute questions with equal weightage.
-                </CardDescription>
-              </CardHeader>
-              <div className={`${accordionOpenClassSubject ? 'block' : 'hidden md:block'}`}>
-                <CardContent className="space-y-4 pt-1">
-                  <div>
-                    <Label className="text-xs font-semibold text-slate-700">Class / Grade *</Label>
-                    <select
-                      value={selectedClassId}
-                      onChange={(e) => handleClassChange(e.target.value)}
-                      className="w-full mt-1.5 h-10 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                    >
-                      <option value="">Select a class...</option>
-                      {classes.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                <Sliders className="w-3.5 h-3.5 text-primary" />
+                <span>Standard Blueprint (Original)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setGenerationSource('pdf')}
+                className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  generationSource === 'pdf'
+                    ? 'gradient-brand text-white shadow-xs font-extrabold'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-white/40'
+                }`}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span className="flex items-center gap-1.5">
+                  Gen with PDF
+                  <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-black uppercase tracking-wider ${
+                    generationSource === 'pdf' ? 'bg-white/25 text-white' : 'bg-[#DF6951]/10 text-[#DF6951]'
+                  }`}>
+                    AI Vision
+                  </span>
+                </span>
+              </button>
+            </div>
 
-                  <div>
-                    <Label className="text-xs font-semibold text-slate-700">Subject *</Label>
-                    <select
-                      value={selectedSubjectId}
-                      onChange={(e) => handleSubjectChange(e.target.value)}
-                      disabled={!selectedClassId}
-                      className="w-full mt-1.5 h-10 px-3 rounded-xl border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none disabled:opacity-50"
-                    >
-                      <option value="">Select a subject...</option>
-                      {subjects.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+            <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground pr-2">
+              <Sparkles className="w-3.5 h-3.5 text-[#F1A501]" />
+              <span>Direct PDF Processing with Gemini Vision</span>
+            </div>
+          </div>
 
-                  {chapters.length > 0 && (
-                    <div className="space-y-2">
+              {/* Row 1: Academic Selection & Paper Header Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {generationSource === 'blueprint' ? (
+                  /* 1. Target Selection & Chapter Equal Weightage (Blueprint Mode) */
+                  <Card className="rounded-3xl border-border bg-card shadow-[0_10px_30px_rgba(24,30,75,0.03)] overflow-hidden">
+                    <CardHeader
+                      className="pb-3 cursor-pointer md:cursor-default select-none hover:bg-muted/40 md:hover:bg-transparent transition-colors"
+                      onClick={() => setAccordionOpenClassSubject(!accordionOpenClassSubject)}
+                    >
                       <div className="flex items-center justify-between">
-                        <Label className="text-xs font-semibold text-slate-700">Included Chapters</Label>
+                        <CardTitle className="text-base font-heading font-bold text-foreground flex items-center gap-2">
+                          <GraduationCap className="w-4 h-4 text-primary" /> 1. Class, Subject &amp; Chapters
+                        </CardTitle>
                         <button
                           type="button"
-                          onClick={toggleSelectAllChapters}
-                          className="text-[11px] font-bold text-indigo-600 hover:underline cursor-pointer"
+                          className="p-1 text-slate-400 hover:text-slate-600 md:hidden cursor-pointer"
+                          aria-label="Toggle Class and Subject selection"
                         >
-                          {selectedChapterIds.length === chapters.length ? 'Deselect All' : 'Select All'}
+                          {accordionOpenClassSubject ? (
+                            <ChevronUp className="w-4 h-4" />
+                          ) : (
+                            <ChevronDown className="w-4 h-4" />
+                          )}
                         </button>
                       </div>
+                      <CardDescription className="text-xs">
+                        Select chapters to distribute questions with equal weightage.
+                      </CardDescription>
+                    </CardHeader>
+                    <div className={`${accordionOpenClassSubject ? 'block' : 'hidden md:block'}`}>
+                      <CardContent className="space-y-4 pt-1">
+                        {/* Hidden file input for uploading PDF directly to a chapter */}
+                        <input
+                          type="file"
+                          ref={chapterPdfUploadInputRef}
+                          onChange={handleDirectChapterPdfSelected}
+                          accept="application/pdf"
+                          className="hidden"
+                        />
 
-                      {/* Equal Weightage Badge Indicator */}
-                      {selectedChapterIds.length > 0 && (
-                        <div className="flex items-center gap-1.5 p-2.5 bg-indigo-50/80 border border-indigo-100 rounded-xl text-xs text-indigo-900 font-semibold">
-                          <Scale className="w-4 h-4 text-indigo-600 shrink-0" />
-                          <span>
-                            {selectedChapterIds.length} Chapters Selected (~{approxPerChapterMarks} Marks / Chapter)
-                          </span>
+                        {/* Step 1 & Step 2: Class & Subject Selectors */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <Label className="text-xs font-bold text-foreground">1. Class / Grade *</Label>
+                            <select
+                              value={selectedClassId}
+                              onChange={(e) => handleClassChange(e.target.value)}
+                              className="w-full mt-1.5 h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                            >
+                              <option value="">Select a class...</option>
+                              {classes.map((c) => (
+                                <option key={c.id} value={c.id}>
+                                  {c.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div>
+                            <Label className="text-xs font-bold text-foreground">2. Subject *</Label>
+                            <select
+                              value={selectedSubjectId}
+                              onChange={(e) => handleSubjectChange(e.target.value)}
+                              disabled={!selectedClassId}
+                              className="w-full mt-1.5 h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none disabled:opacity-50"
+                            >
+                              <option value="">
+                                {!selectedClassId
+                                  ? 'First select class above...'
+                                  : subjects.length === 0
+                                  ? 'No subjects found'
+                                  : 'Select a subject...'}
+                              </option>
+                              {subjects.map((s) => (
+                                <option key={s.id} value={s.id}>
+                                  {s.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
                         </div>
-                      )}
 
-                      <div className="max-h-56 overflow-y-auto space-y-1.5 p-2.5 bg-slate-50 rounded-xl border border-slate-200">
-                        {chapters.map((chap) => (
-                          <label
-                            key={chap.id}
-                            className="flex items-center gap-2.5 text-xs text-slate-700 hover:bg-white p-2 rounded-lg cursor-pointer transition-colors"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selectedChapterIds.includes(chap.id)}
-                              onChange={() => toggleChapter(chap.id)}
-                              className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
-                            />
-                            <span className="font-medium">{chap.title}</span>
-                          </label>
-                        ))}
-                      </div>
+                        {/* Step 3: Chapter List Display (Staged) */}
+                        {!selectedClassId ? (
+                          <div className="p-4 rounded-2xl border border-dashed border-border bg-muted/20 text-center space-y-1.5">
+                            <div className="w-8 h-8 rounded-full bg-muted text-muted-foreground mx-auto flex items-center justify-center">
+                              <GraduationCap className="w-4 h-4" />
+                            </div>
+                            <p className="text-xs font-bold text-foreground">Step 1: Select a Class / Grade above</p>
+                            <p className="text-[11px] text-muted-foreground">Select a class to view its subjects and chapter curriculum.</p>
+                          </div>
+                        ) : !selectedSubjectId ? (
+                          <div className="p-4 rounded-2xl border border-dashed border-indigo-200 bg-indigo-50/40 text-center space-y-1.5 animate-fade-in">
+                            <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 mx-auto flex items-center justify-center">
+                              <BookOpen className="w-4 h-4" />
+                            </div>
+                            <p className="text-xs font-bold text-indigo-900">Step 2: Now select a Subject above</p>
+                            <p className="text-[11px] text-indigo-700/80">Once a subject is chosen, its chapter list will load immediately for selection.</p>
+                          </div>
+                        ) : isLoadingChapters ? (
+                          <div className="p-6 rounded-2xl border border-slate-200 bg-slate-50/60 flex flex-col items-center justify-center text-center space-y-2 animate-fade-in">
+                            <RefreshCw className="w-5 h-5 text-indigo-600 animate-spin" />
+                            <p className="text-xs font-bold text-slate-700">Loading chapter list &amp; Cloudflare PDFs...</p>
+                            <p className="text-[11px] text-muted-foreground">Checking saved textbook documents for high accuracy.</p>
+                          </div>
+                        ) : chapters.length === 0 ? (
+                          <div className="p-5 rounded-2xl border border-dashed border-amber-200 bg-amber-50/50 text-center space-y-2 animate-fade-in">
+                            <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-700 mx-auto flex items-center justify-center">
+                              <BookOpen className="w-4 h-4" />
+                            </div>
+                            <p className="text-xs font-bold text-amber-900">No chapters found for this subject</p>
+                            <p className="text-[11px] text-amber-700">
+                              You haven't created any chapters for this subject yet. You can add chapters and upload textbook PDFs in Classes &amp; Curriculum.
+                            </p>
+                            <Link href="/classes">
+                              <Button variant="outline" size="sm" className="h-8 text-xs font-bold text-amber-800 border-amber-300 hover:bg-amber-100/70 mt-1 cursor-pointer">
+                                Go to Classes &amp; Curriculum
+                              </Button>
+                            </Link>
+                          </div>
+                        ) : (
+                          <div className="space-y-2.5 animate-fade-in">
+                            {/* Chapter Selection Header */}
+                            <div className="flex items-center justify-between">
+                              <Label className="text-xs font-bold text-foreground">
+                                3. Select Chapters ({selectedChapterIds.length} of {chapters.length} Selected)
+                              </Label>
+                              <button
+                                type="button"
+                                onClick={toggleSelectAllChapters}
+                                className="text-[11px] font-bold text-indigo-600 hover:underline cursor-pointer"
+                              >
+                                {selectedChapterIds.length === chapters.length ? 'Deselect All' : 'Select All'}
+                              </button>
+                            </div>
+
+                            {/* Equal Weightage Badge Indicator */}
+                            {selectedChapterIds.length > 0 && (
+                              <div className="flex items-center justify-between p-2.5 bg-indigo-50/80 border border-indigo-100 rounded-xl text-xs text-indigo-900 font-semibold">
+                                <div className="flex items-center gap-1.5">
+                                  <Scale className="w-4 h-4 text-indigo-600 shrink-0" />
+                                  <span>
+                                    {selectedChapterIds.length} Chapters Selected (~{approxPerChapterMarks} Marks / Chapter)
+                                  </span>
+                                </div>
+                                {selectedChapterIds.some((id) => chapters.find((c) => c.id === id)?.has_pdf) && (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-black text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300 shrink-0">
+                                    <Cloud className="w-3 h-3 text-emerald-600" /> Cloudflare PDF Active
+                                  </span>
+                                )}
+                              </div>
+                            )}
+
+                            {selectedChapterIds.some((id) => chapters.find((c) => c.id === id)?.has_pdf) && (
+                              <div className="flex items-center gap-2 p-2 bg-emerald-50/90 border border-emerald-200 rounded-xl text-[11px] text-emerald-800 font-semibold animate-fade-in">
+                                <Sparkles className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                <span>
+                                  Cloudflare PDF Ready: Gemini AI will read saved textbook PDFs directly with full verbatim accuracy!
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Chapter Selection Checklist */}
+                            <div className="max-h-60 overflow-y-auto space-y-1.5 p-2 bg-slate-50/80 rounded-2xl border border-slate-200">
+                              {chapters.map((chap, idx) => {
+                                const isSelected = selectedChapterIds.includes(chap.id);
+                                const hasPdf = chap.has_pdf && chap.pdf_url;
+                                const isUploadingThis = isUploadingChapterPdfId === chap.id;
+
+                                return (
+                                  <div
+                                    key={chap.id}
+                                    onClick={() => toggleChapter(chap.id)}
+                                    className={`flex items-center justify-between text-xs p-2.5 rounded-xl border transition-all cursor-pointer select-none ${
+                                      isSelected
+                                        ? 'border-indigo-300 bg-white font-semibold text-foreground shadow-2xs'
+                                        : 'border-slate-200/80 bg-white/60 hover:bg-white text-slate-600'
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-2.5 min-w-0">
+                                      <input
+                                        type="checkbox"
+                                        checked={isSelected}
+                                        onChange={() => {}} // Handled via row click
+                                        className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                                      />
+                                      <span className="text-[11px] text-slate-400 font-bold w-4 shrink-0">
+                                        {idx + 1}.
+                                      </span>
+                                      <span className="truncate">{chap.title}</span>
+                                    </div>
+
+                                    <div className="flex items-center gap-1.5 shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
+                                      {hasPdf ? (
+                                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 shrink-0">
+                                          <Cloud className="w-2.5 h-2.5 text-emerald-600" /> Cloudflare PDF
+                                        </span>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleTriggerUploadPdfForChapter(chap)}
+                                          disabled={isUploadingThis}
+                                          className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded-full border border-indigo-200 transition-colors cursor-pointer"
+                                          title="Upload textbook PDF for this chapter to Cloudflare R2"
+                                        >
+                                          {isUploadingThis ? (
+                                            <>
+                                              <RefreshCw className="w-2.5 h-2.5 animate-spin" /> Uploading...
+                                            </>
+                                          ) : (
+                                            <>
+                                              <Upload className="w-2.5 h-2.5" /> + Upload PDF
+                                            </>
+                                          )}
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </CardContent>
                     </div>
-                  )}
-                </CardContent>
-              </div>
-            </Card>
+                  </Card>
+                ) : (
+                  /* 1. Upload Chapter PDFs (Same Card 1 layout & look in PDF Mode) */
+                  <Card className="rounded-3xl border-border bg-card shadow-[0_10px_30px_rgba(24,30,75,0.03)] overflow-hidden">
+                    <CardHeader
+                      className="pb-3 cursor-pointer md:cursor-default select-none hover:bg-muted/40 md:hover:bg-transparent transition-colors"
+                      onClick={() => setAccordionOpenClassSubject(!accordionOpenClassSubject)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-base font-heading font-bold text-foreground flex items-center gap-2">
+                          <FileText className="w-4 h-4 text-primary" /> 1. Select Class, Subject &amp; Chapters (AI Vision)
+                        </CardTitle>
+                        <div className="flex items-center gap-1.5">
+                          <Badge variant="outline" className="bg-[#FFF1DA]/60 text-primary border-[#F1A501]/30 text-[10px] font-bold">
+                            Gemini Vision
+                          </Badge>
+                          <button
+                            type="button"
+                            className="p-1 text-slate-400 hover:text-slate-600 md:hidden cursor-pointer"
+                            aria-label="Toggle PDF selection"
+                          >
+                            {accordionOpenClassSubject ? (
+                              <ChevronUp className="w-4 h-4" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                      <CardDescription className="text-xs">
+                        Select class and subject to view chapters. AI Vision generates questions directly from saved textbook PDFs.
+                      </CardDescription>
+                    </CardHeader>
+                    <div className={`${accordionOpenClassSubject ? 'block' : 'hidden md:block'}`}>
+                      <CardContent className="space-y-3.5 pt-1">
+                        <input
+                          type="file"
+                          ref={pdfFileInputRef}
+                          onChange={handlePdfFilesSelected}
+                          accept="application/pdf"
+                          multiple
+                          className="hidden"
+                        />
+
+                        {/* 1. Class & Subject Selectors (First) */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <Label className="text-xs font-bold text-foreground">1. Class / Grade *</Label>
+                            <select
+                              value={selectedClassId}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                handleClassChange(val);
+                                if (val !== '__custom__') {
+                                  setPdfCustomClass('');
+                                }
+                              }}
+                              className="w-full mt-1.5 h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-medium focus:ring-2 focus:ring-[#DF6951] focus:outline-none"
+                            >
+                              <option value="">Select a class...</option>
+                              {classes.map((c) => (
+                                <option key={c.id} value={c.id}>
+                                  {c.name}
+                                </option>
+                              ))}
+                              <option value="__custom__">➕ Type Custom Class...</option>
+                            </select>
+                            {selectedClassId === '__custom__' && (
+                              <Input
+                                value={pdfCustomClass}
+                                onChange={(e) => setPdfCustomClass(e.target.value)}
+                                placeholder="e.g. Class 10 or Grade 4"
+                                className="mt-1.5 h-9 rounded-lg text-sm bg-white border-[#DF6951]/40"
+                                autoFocus
+                              />
+                            )}
+                          </div>
+
+                          <div>
+                            <Label className="text-xs font-bold text-foreground">2. Subject *</Label>
+                            <select
+                              value={selectedClassId === '__custom__' ? '__custom__' : selectedSubjectId}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (val === '__custom__') {
+                                  setSelectedSubjectId('__custom__');
+                                } else {
+                                  handleSubjectChange(val);
+                                  setPdfCustomSubject('');
+                                }
+                              }}
+                              disabled={!selectedClassId && selectedClassId !== '__custom__'}
+                              className="w-full mt-1.5 h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-medium focus:ring-2 focus:ring-[#DF6951] focus:outline-none disabled:opacity-50"
+                            >
+                              <option value="">
+                                {selectedClassId ? 'Select a subject...' : 'First select class above...'}
+                              </option>
+                              {subjects.map((s) => (
+                                <option key={s.id} value={s.id}>
+                                  {s.name}
+                                </option>
+                              ))}
+                              <option value="__custom__">➕ Type Custom Subject...</option>
+                            </select>
+                            {(selectedSubjectId === '__custom__' || selectedClassId === '__custom__') && (
+                              <Input
+                                value={pdfCustomSubject}
+                                onChange={(e) => setPdfCustomSubject(e.target.value)}
+                                placeholder="e.g. Mathematics or Science"
+                                className="mt-1.5 h-9 rounded-lg text-sm bg-white border-[#DF6951]/40"
+                                autoFocus
+                              />
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Step 3: Chapter List Display (Staged) */}
+                        {!selectedClassId && selectedClassId !== '__custom__' ? (
+                          <div className="p-4 rounded-2xl border border-dashed border-border bg-muted/20 text-center space-y-1.5">
+                            <div className="w-8 h-8 rounded-full bg-muted text-muted-foreground mx-auto flex items-center justify-center">
+                              <GraduationCap className="w-4 h-4" />
+                            </div>
+                            <p className="text-xs font-bold text-foreground">Step 1: Select a Class / Grade above</p>
+                            <p className="text-[11px] text-muted-foreground">Select a class to view its subjects and chapter textbook PDFs.</p>
+                          </div>
+                        ) : !selectedSubjectId && selectedSubjectId !== '__custom__' ? (
+                          <div className="p-4 rounded-2xl border border-dashed border-[#F1A501]/40 bg-[#FFF1DA]/30 text-center space-y-1.5 animate-fade-in">
+                            <div className="w-8 h-8 rounded-full bg-[#FFF1DA] text-primary mx-auto flex items-center justify-center">
+                              <BookOpen className="w-4 h-4" />
+                            </div>
+                            <p className="text-xs font-bold text-foreground">Step 2: Now select a Subject above</p>
+                            <p className="text-[11px] text-muted-foreground">Chapters with saved Cloudflare PDFs will appear here for one-click selection.</p>
+                          </div>
+                        ) : isLoadingChapters ? (
+                          <div className="p-6 rounded-2xl border border-border bg-card flex flex-col items-center justify-center text-center space-y-2 animate-fade-in">
+                            <RefreshCw className="w-5 h-5 text-primary animate-spin" />
+                            <p className="text-xs font-bold text-foreground">Loading chapters from Cloudflare R2...</p>
+                            <p className="text-[11px] text-muted-foreground">Checking saved textbook documents.</p>
+                          </div>
+                        ) : chapters.length === 0 && selectedSubjectId !== '__custom__' ? (
+                          <div className="p-4 rounded-2xl border border-dashed border-border bg-muted/20 text-center space-y-2 animate-fade-in">
+                            <div className="w-8 h-8 rounded-full bg-muted text-muted-foreground mx-auto flex items-center justify-center">
+                              <Cloud className="w-4 h-4" />
+                            </div>
+                            <p className="text-xs font-bold text-foreground">No chapters found for this subject</p>
+                            <p className="text-[11px] text-muted-foreground">
+                              You can add chapters in Classes &amp; Curriculum or upload a local PDF below.
+                            </p>
+                          </div>
+                        ) : (
+                          selectedSubjectId !== '__custom__' && chapters.length > 0 && (
+                            <div className="space-y-2.5 p-3 rounded-2xl bg-[#FFF1DA]/30 border border-[#F1A501]/30 animate-fade-in">
+                              <div className="flex items-center justify-between">
+                                <Label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                                  <Cloud className="w-3.5 h-3.5 text-primary" /> 3. Select Chapters with Cloudflare PDFs
+                                </Label>
+                                <button
+                                  type="button"
+                                  onClick={toggleSelectAllChapters}
+                                  className="text-[11px] font-bold text-primary hover:underline cursor-pointer"
+                                >
+                                  {selectedChapterIds.length === chapters.length ? 'Deselect All' : 'Select All'}
+                                </button>
+                              </div>
+
+                              <div className="max-h-52 overflow-y-auto space-y-1.5">
+                                {chapters.map((chap, idx) => {
+                                  const isChecked = selectedChapterIds.includes(chap.id);
+                                  const hasPdf = chap.has_pdf && chap.pdf_url;
+                                  const isUploadingThis = isUploadingChapterPdfId === chap.id;
+
+                                  return (
+                                    <div
+                                      key={chap.id}
+                                      onClick={() => toggleChapter(chap.id)}
+                                      className={`flex items-center justify-between text-xs p-2.5 rounded-xl border transition-all cursor-pointer select-none ${
+                                        isChecked
+                                          ? 'border-emerald-400 bg-emerald-50/80 font-bold text-emerald-950 shadow-2xs'
+                                          : 'border-border bg-card hover:bg-muted/40 text-foreground'
+                                      }`}
+                                    >
+                                      <div className="flex items-center gap-2.5 min-w-0">
+                                        <input
+                                          type="checkbox"
+                                          checked={isChecked}
+                                          onChange={() => {}} // Handled via row click
+                                          className="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
+                                        />
+                                        <span className="text-[11px] text-slate-400 font-bold w-4 shrink-0">
+                                          {idx + 1}.
+                                        </span>
+                                        <span className="truncate">{chap.title}</span>
+                                      </div>
+
+                                      <div className="flex items-center gap-1.5 shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
+                                        {hasPdf ? (
+                                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-full border border-emerald-200 shrink-0">
+                                            <Cloud className="w-2.5 h-2.5 text-emerald-600" /> Cloudflare PDF Ready
+                                          </span>
+                                        ) : (
+                                          <button
+                                            type="button"
+                                            onClick={() => handleTriggerUploadPdfForChapter(chap)}
+                                            disabled={isUploadingThis}
+                                            className="inline-flex items-center gap-1 text-[10px] font-bold text-primary hover:text-primary/80 bg-[#FFF1DA] hover:bg-[#FFF1DA]/80 px-2 py-0.5 rounded-full border border-[#F1A501]/40 transition-colors cursor-pointer"
+                                            title="Upload textbook PDF for this chapter to Cloudflare R2"
+                                          >
+                                            {isUploadingThis ? (
+                                              <>
+                                                <RefreshCw className="w-2.5 h-2.5 animate-spin" /> Uploading...
+                                              </>
+                                            ) : (
+                                              <>
+                                                <Upload className="w-2.5 h-2.5" /> + Upload PDF
+                                              </>
+                                            )}
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )
+                        )}
+
+                        {/* Quick Cloudflare Library Browse Button */}
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={handleOpenCloudflareLibrary}
+                            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-muted/60 hover:bg-muted text-foreground font-bold text-xs border border-border transition-all cursor-pointer"
+                          >
+                            <Cloud className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Browse All Classes &amp; Chapters in Cloudflare Library</span>
+                          </button>
+                        </div>
+
+                        {/* 3. Attached PDF Chips & Summary */}
+                        {pdfFilesList.length > 0 && (
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between p-2 rounded-xl bg-[#FFF1DA]/40 border border-[#F1A501]/30">
+                              <span className="text-xs font-bold text-foreground">
+                                📚 Attached for Exam ({pdfFilesList.length} Chapters)
+                              </span>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => pdfFileInputRef.current?.click()}
+                                  className="text-[11px] font-bold text-primary hover:underline flex items-center gap-0.5 cursor-pointer"
+                                >
+                                  <Plus className="w-3 h-3" /> Add Local PDF
+                                </button>
+                                <span className="text-slate-300">•</span>
+                                <button
+                                  type="button"
+                                  onClick={handleClearAllPdfs}
+                                  className="text-[11px] font-semibold text-rose-600 hover:underline cursor-pointer"
+                                >
+                                  Clear
+                                </button>
+                              </div>
+                            </div>
+
+                            <div className="max-h-40 overflow-y-auto space-y-1.5 p-1">
+                              {pdfFilesList.map((item, idx) => (
+                                <div
+                                  key={item.id}
+                                  className="p-2 rounded-lg border border-emerald-200/80 bg-emerald-50/50 flex items-center justify-between gap-2"
+                                >
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <span className="w-5 h-5 rounded bg-emerald-600/10 text-emerald-700 text-[10px] font-bold flex items-center justify-center shrink-0">
+                                      {idx + 1}
+                                    </span>
+                                    <p className="text-xs font-medium text-foreground truncate" title={item.name}>
+                                      {item.name}
+                                    </p>
+                                  </div>
+                                  <div className="flex items-center gap-1.5 shrink-0">
+                                    {item.isCloudflare ? (
+                                      <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-emerald-800 bg-emerald-100/80 px-1.5 py-0.5 rounded-full border border-emerald-300">
+                                        <Cloud className="w-2.5 h-2.5 text-emerald-600" /> Cloudflare R2
+                                      </span>
+                                    ) : (
+                                      <span className="text-[10px] text-muted-foreground">{item.size}</span>
+                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemovePdfItem(item.id)}
+                                      className="text-slate-400 hover:text-rose-600 p-0.5 cursor-pointer"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Optional Local File Upload Dropzone */}
+                        <div
+                          onDragOver={(e) => { e.preventDefault(); setIsPdfDragOver(true); }}
+                          onDragLeave={() => setIsPdfDragOver(false)}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            setIsPdfDragOver(false);
+                            const droppedFiles = e.dataTransfer.files;
+                            if (droppedFiles && droppedFiles.length > 0) {
+                              handleProcessPdfFiles(Array.from(droppedFiles));
+                            }
+                          }}
+                          onClick={() => pdfFileInputRef.current?.click()}
+                          className={`border-2 border-dashed rounded-2xl p-4 text-center cursor-pointer transition-all duration-200 ${
+                            isPdfDragOver
+                              ? 'border-[#DF6951] bg-[#DF6951]/10 scale-[0.99]'
+                              : 'border-border/80 hover:border-[#DF6951]/50 bg-muted/20 hover:bg-[#FFF1DA]/20'
+                          }`}
+                        >
+                          <div className="w-8 h-8 mx-auto mb-1 rounded-xl bg-[#FFF1DA] text-primary flex items-center justify-center shadow-xs">
+                            <Upload className="w-4 h-4" />
+                          </div>
+                          <h4 className="text-xs font-bold text-foreground">
+                            {pdfFilesList.length > 0 ? '+ Upload additional local PDF from computer' : 'Or upload local PDF from computer'}
+                          </h4>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                            PDF documents up to 25MB
+                          </p>
+                        </div>
+
+                        {/* AI Mode Selector */}
+                        <div>
+                          <Label className="text-xs font-semibold text-slate-700">AI Mode</Label>
+                          <div className="grid grid-cols-2 gap-2 mt-1">
+                            <button
+                              type="button"
+                              onClick={() => setPdfMode('generate_from_content')}
+                              className={`p-2 rounded-xl border text-left cursor-pointer transition-all ${
+                                pdfMode === 'generate_from_content'
+                                  ? 'border-[#DF6951] bg-[#FFF1DA]/30 shadow-2xs'
+                                  : 'border-border bg-card hover:bg-muted/40'
+                              }`}
+                            >
+                              <p className="text-xs font-bold text-foreground">✨ Smart Generation</p>
+                              <p className="text-[10px] text-muted-foreground line-clamp-1">Formulate from textbook</p>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setPdfMode('verbatim_paper')}
+                              className={`p-2 rounded-xl border text-left cursor-pointer transition-all ${
+                                pdfMode === 'verbatim_paper'
+                                  ? 'border-[#DF6951] bg-[#FFF1DA]/30 shadow-2xs'
+                                  : 'border-border bg-card hover:bg-muted/40'
+                              }`}
+                            >
+                              <p className="text-xs font-bold text-foreground">📝 Verbatim Exam</p>
+                              <p className="text-[10px] text-muted-foreground line-clamp-1">Transcribe exact paper</p>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Special Instructions (Optional) */}
+                        <div>
+                          <Label className="text-xs font-semibold text-slate-700">Special AI Instructions (Optional)</Label>
+                          <Input
+                            value={pdfCustomInstructions}
+                            onChange={(e) => setPdfCustomInstructions(e.target.value)}
+                            placeholder="e.g. Emphasize numericals and derivations..."
+                            className="mt-1 h-9 rounded-lg text-xs bg-white"
+                          />
+                        </div>
+                      </CardContent>
+                    </div>
+                  </Card>
+                )}
 
             {/* 2. Paper Details */}
             <Card className="rounded-2xl border-slate-200 shadow-xs overflow-hidden">
@@ -1500,6 +2810,27 @@ export default function GeneratePaperPage() {
                             </button>
                           </div>
                         </div>
+
+                        {/* Desktop Section Description / Instructions Input */}
+                        <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center gap-2.5">
+                          <label className="text-[10.5px] uppercase font-bold text-slate-500 tracking-wider shrink-0">
+                            Description:
+                          </label>
+                          <div className="flex-1">
+                            <Input
+                              value={section.instructions || section.sub_section || ''}
+                              onChange={(e) =>
+                                handleUpdateSection(section.id, {
+                                  instructions: e.target.value,
+                                  sub_section: e.target.value,
+                                })
+                              }
+                              disabled={!section.enabled}
+                              className="h-7 text-xs bg-slate-50/70 border-slate-200 placeholder:text-slate-400 font-medium"
+                              placeholder={`Default: ${getDefaultSectionInstruction(section.type)}`}
+                            />
+                          </div>
+                        </div>
                       </div>
                     );
                   })}
@@ -1569,6 +2900,23 @@ export default function GeneratePaperPage() {
                                   })
                                 }
                                 className="mt-1 h-8 text-xs bg-white"
+                              />
+                            </div>
+
+                            <div>
+                              <Label className="text-[11px] font-semibold text-slate-600">
+                                Section Description / Instruction (Optional)
+                              </Label>
+                              <Input
+                                value={section.instructions || section.sub_section || ''}
+                                onChange={(e) =>
+                                  handleUpdateSection(section.id, {
+                                    instructions: e.target.value,
+                                    sub_section: e.target.value,
+                                  })
+                                }
+                                placeholder={`Default: ${getDefaultSectionInstruction(section.type)}`}
+                                className="mt-1 h-8 text-xs bg-white placeholder:text-slate-400"
                               />
                             </div>
 
@@ -1808,25 +3156,32 @@ export default function GeneratePaperPage() {
                 {/* Main Full-Width Action Button on Desktop */}
                 <div className="pt-3">
                   <Button
-                    onClick={handleGeneratePaper}
+                    onClick={generationSource === 'pdf' ? handleGenerateFromPdf : handleGeneratePaper}
                     disabled={
                       isGenerating ||
-                      !selectedClassId ||
-                      !selectedSubjectId ||
-                      selectedChapterIds.length === 0 ||
-                      activeSections.length === 0
+                      (generationSource === 'pdf'
+                        ? pdfFilesList.length === 0 || activeSections.length === 0
+                        : !selectedClassId || !selectedSubjectId || selectedChapterIds.length === 0 || activeSections.length === 0)
                     }
                     className="w-full h-12 rounded-xl gradient-brand text-white font-bold text-sm shadow-md hover:opacity-95 transition-opacity flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                   >
                     {isGenerating ? (
                       <>
                         <RefreshCw className="w-4 h-4 animate-spin" />
-                        <span>Generating Paper...</span>
+                        <span>
+                          {generationSource === 'pdf'
+                            ? `Gemini AI Reading ${pdfFilesList.length} Chapter(s) & Generating Paper...`
+                            : 'Generating Paper...'}
+                        </span>
                       </>
                     ) : (
                       <>
                         <Sparkles className="w-4 h-4" />
-                        <span>Generate Paper ({totalConfiguredMarks} Marks)</span>
+                        <span>
+                          {generationSource === 'pdf'
+                            ? `Generate Paper from PDF (${totalConfiguredMarks} Marks${pdfFilesList.length > 0 ? ` • ${pdfFilesList.length} Chapter${pdfFilesList.length > 1 ? 's' : ''}` : ''})`
+                            : `Generate Paper (${totalConfiguredMarks} Marks)`}
+                        </span>
                       </>
                     )}
                   </Button>
@@ -1842,23 +3197,22 @@ export default function GeneratePaperPage() {
             </div>
           </Card>
 
-          {/* Sticky Bottom Action Bar for Mobile and Tablet (Matches Mockup!) */}
+          {/* Sticky Bottom Action Bar for Mobile and Tablet */}
           <div className="fixed bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-xl z-30 md:hidden print:hidden">
             <Button
-              onClick={handleGeneratePaper}
+              onClick={generationSource === 'pdf' ? handleGenerateFromPdf : handleGeneratePaper}
               disabled={
                 isGenerating ||
-                !selectedClassId ||
-                !selectedSubjectId ||
-                selectedChapterIds.length === 0 ||
-                activeSections.length === 0
+                (generationSource === 'pdf'
+                  ? pdfFilesList.length === 0 || activeSections.length === 0
+                  : !selectedClassId || !selectedSubjectId || selectedChapterIds.length === 0 || activeSections.length === 0)
               }
               className="w-full h-12 rounded-xl gradient-brand text-white font-bold text-sm shadow-md hover:opacity-95 transition-opacity flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
               {isGenerating ? (
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>Generating Paper...</span>
+                  <span>Processing...</span>
                 </>
               ) : paperQuestions.length > 0 ? (
                 <>
@@ -1867,7 +3221,7 @@ export default function GeneratePaperPage() {
                 </>
               ) : (
                 <>
-                  <span>Preview Paper ({totalConfiguredMarks} Marks)</span>
+                  <span>{generationSource === 'pdf' ? `Generate from PDF (${totalConfiguredMarks}M)` : `Generate (${totalConfiguredMarks} Marks)`}</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
@@ -2129,37 +3483,109 @@ export default function GeneratePaperPage() {
                     return (
                       <div
                         key={secGroup.sectionName || secIdx}
-                        className={`print-section space-y-3 break-inside-avoid ${
-                          isTwoColumn ? 'mb-6' : ''
+                        className={`print-section space-y-2.5 print:space-y-1.5 ${
+                          isTwoColumn ? 'mb-4' : 'mb-3'
                         }`}
                       >
-                        {/* Section Header with Section Marks & Section Instruction */}
-                        <div className="border-b-2 border-slate-800 pb-1.5 space-y-0.5">
-                          <h4 className="font-bold text-sm uppercase tracking-wider text-slate-900">
-                            {secGroup.sectionName} ({secMarksTotal} Marks)
-                          </h4>
-                          {(() => {
-                            const inst =
-                              secGroup.type === 'mcq'
-                                ? 'Choose and write the correct option for each question:'
-                                : secGroup.type === 'fill_blank'
-                                ? 'Fill in the blanks with suitable words / phrases:'
-                                : secGroup.type === 'match_the_following'
-                                ? 'Match the items in Column A with Column B:'
-                                : secGroup.type === 'true_false'
-                                ? 'State whether the following statements are True or False:'
-                                : secGroup.type === 'short_answer'
-                                ? 'Answer the following short answer questions:'
-                                : secGroup.type === 'long_answer'
-                                ? 'Answer the following questions in detail:'
-                                : '';
-                            return inst ? (
-                              <p className="text-[11px] text-slate-600 italic font-medium">
-                                {inst}
-                              </p>
-                            ) : null;
-                          })()}
-                        </div>
+                        {/* Section Header with Section Marks, Description / Instructions, and Edit Controls */}
+                        {editingSectionName === secGroup.sectionName ? (
+                          <div className="border-2 border-indigo-500 bg-indigo-50/50 rounded-xl p-3.5 space-y-3 print:hidden shadow-xs">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-bold uppercase tracking-wider text-indigo-900 flex items-center gap-1.5">
+                                <Edit3 className="w-3.5 h-3.5 text-indigo-600" /> Edit Section & Description
+                              </span>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  size="sm"
+                                  onClick={handleSaveEditedSection}
+                                  className="h-7 text-xs bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer px-3"
+                                >
+                                  Save
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setEditingSectionName(null)}
+                                  className="h-7 text-xs cursor-pointer px-3"
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            </div>
+                            <div className="space-y-2.5">
+                              <div>
+                                <label className="text-[11px] font-semibold text-slate-700 block mb-1">
+                                  Section Title (e.g. SECTION A: SHORT ANSWER QUESTIONS)
+                                </label>
+                                <Input
+                                  value={editSecTitle}
+                                  onChange={(e) => setEditSecTitle(e.target.value)}
+                                  className="h-8 text-xs bg-white font-medium"
+                                  placeholder="Section Title"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[11px] font-semibold text-slate-700 block mb-1">
+                                  Section Description / Instruction (e.g. Answer the following questions / Attempt any 4 questions)
+                                </label>
+                                <Input
+                                  value={editSecInstruction}
+                                  onChange={(e) => setEditSecInstruction(e.target.value)}
+                                  className="h-8 text-xs bg-white"
+                                  placeholder="e.g. Answer the following questions:"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="border-b-2 border-slate-800 pb-1.5 space-y-0.5 group/sec relative">
+                            <div className="flex items-baseline justify-between gap-3">
+                              <h4 className="font-bold text-sm uppercase tracking-wider text-slate-900">
+                                {secGroup.sectionName} ({secMarksTotal} Marks)
+                              </h4>
+                              <div className="flex items-center gap-1.5 print:hidden opacity-0 group-hover/sec:opacity-100 transition-opacity">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleStartEditSection(
+                                      secGroup.sectionName,
+                                      secGroup.instruction,
+                                      getDefaultSectionInstruction(secGroup.type)
+                                    )
+                                  }
+                                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 cursor-pointer transition-colors"
+                                  title="Edit section title and description"
+                                >
+                                  <Edit3 className="w-3 h-3" /> Edit Section & Description
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Section Description / Instruction (e.g. "Answer the following questions:") */}
+                            {(() => {
+                              const displayInst =
+                                secGroup.instruction || getDefaultSectionInstruction(secGroup.type);
+                              return displayInst ? (
+                                <div
+                                  onClick={() =>
+                                    handleStartEditSection(
+                                      secGroup.sectionName,
+                                      secGroup.instruction,
+                                      getDefaultSectionInstruction(secGroup.type)
+                                    )
+                                  }
+                                  className="group/desc inline-flex items-center gap-1.5 cursor-pointer hover:bg-slate-100/70 rounded px-1 py-0.5 -mx-1 transition-colors"
+                                  title="Click to edit this description"
+                                >
+                                  <p className="text-[11px] text-slate-600 italic font-medium">
+                                    {displayInst}
+                                  </p>
+                                  <Edit3 className="w-2.5 h-2.5 text-slate-400 opacity-0 group-hover/desc:opacity-100 transition-opacity print:hidden" />
+                                </div>
+                              ) : null;
+                            })()}
+                          </div>
+                        )}
 
                         {/* Questions in this Section */}
                         <div className="space-y-4">
@@ -2175,24 +3601,121 @@ export default function GeneratePaperPage() {
                             return (
                               <div
                                 key={q.id || globalIdx}
-                                className={`print-question text-xs space-y-1.5 group relative ${
-                                  isTwoColumn ? 'break-inside-avoid print:break-inside-avoid mb-4' : ''
+                                className={`print-question text-xs space-y-1 group relative break-inside-avoid print:break-inside-avoid ${
+                                  isTwoColumn ? 'mb-4' : 'mb-2.5'
                                 }`}
                               >
-                                {/* Question Header Line without chapter name or per-question marks */}
+                                {/* Sub-section header if this question introduces a new subsection within the section */}
+                                {q.sub_section && q.sub_section !== secGroup.subSection && (qIdx === 0 || secQuestions[qIdx - 1]?.sub_section !== q.sub_section) && (
+                                  <div className="pt-2 pb-1 border-b border-dashed border-slate-300 mb-2">
+                                    <span className="font-bold text-xs uppercase tracking-wider text-indigo-900 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200 print:border-none print:bg-transparent print:p-0">
+                                      {q.sub_section}
+                                    </span>
+                                  </div>
+                                )}
+
+                                {/* Question Header Line */}
                                 <div className="flex items-start justify-between font-medium">
                                   <div className="flex-1 leading-relaxed flex items-start gap-1.5 w-full">
                                     <span className="font-bold shrink-0 min-w-[24px]">{qNumber}.</span>
                                     {editingQuestionIdx === globalIdx ? (
-                                      <div className="flex-1 space-y-2 print:hidden">
-                                        <Textarea
-                                          value={editingQuestionText}
-                                          onChange={(e) => setEditingQuestionText(e.target.value)}
-                                          className="text-xs min-h-[60px]"
-                                        />
-                                        <div className="flex gap-2">
-                                          <Button size="sm" onClick={handleSaveEditedQuestion} className="h-6 text-[10px] px-2 bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer">Save</Button>
-                                          <Button size="sm" variant="outline" onClick={() => setEditingQuestionIdx(null)} className="h-6 text-[10px] px-2 cursor-pointer">Cancel</Button>
+                                      <div className="flex-1 space-y-2.5 p-3 rounded-lg border-2 border-indigo-400 bg-indigo-50/30 print:hidden">
+                                        <div>
+                                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                                            Question Text
+                                          </label>
+                                          <Textarea
+                                            value={editingQuestionText}
+                                            onChange={(e) => setEditingQuestionText(e.target.value)}
+                                            className="text-xs min-h-[70px] bg-white"
+                                            placeholder="Type question text..."
+                                          />
+                                        </div>
+
+                                        {/* Section, Subsection & Marks row */}
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                          <div>
+                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                                              Section Name
+                                            </label>
+                                            <Input
+                                              value={editingQuestionSection}
+                                              onChange={(e) => setEditingQuestionSection(e.target.value)}
+                                              className="h-7 text-xs bg-white font-medium"
+                                              placeholder="Section Name"
+                                            />
+                                          </div>
+                                          <div>
+                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                                              Subsection / Part
+                                            </label>
+                                            <Input
+                                              value={editingQuestionSubSection}
+                                              onChange={(e) => setEditingQuestionSubSection(e.target.value)}
+                                              className="h-7 text-xs bg-white"
+                                              placeholder="e.g. Part 1: Grammar"
+                                            />
+                                          </div>
+                                          <div>
+                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                                              Marks
+                                            </label>
+                                            <Input
+                                              type="number"
+                                              min={1}
+                                              max={50}
+                                              value={editingQuestionMarks}
+                                              onChange={(e) => setEditingQuestionMarks(Number(e.target.value) || 1)}
+                                              className="h-7 text-xs bg-white font-bold"
+                                            />
+                                          </div>
+                                        </div>
+
+                                        {/* MCQ Options Editor if type is mcq */}
+                                        {q.type === 'mcq' && editingQuestionOptions.length > 0 && (
+                                          <div className="space-y-1.5 pt-1">
+                                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                                              Options (A, B, C, D)
+                                            </label>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                              {editingQuestionOptions.map((optVal, optIdx) => (
+                                                <div key={optIdx} className="flex items-center gap-1.5">
+                                                  <span className="font-bold text-xs text-indigo-700 w-5 text-center">
+                                                    ({String.fromCharCode(65 + optIdx)})
+                                                  </span>
+                                                  <Input
+                                                    value={optVal}
+                                                    onChange={(e) => {
+                                                      const updatedOpts = [...editingQuestionOptions];
+                                                      updatedOpts[optIdx] = e.target.value;
+                                                      setEditingQuestionOptions(updatedOpts);
+                                                    }}
+                                                    className="h-7 text-xs bg-white flex-1"
+                                                    placeholder={`Option ${String.fromCharCode(65 + optIdx)}`}
+                                                  />
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        )}
+
+                                        {/* Save and Cancel buttons */}
+                                        <div className="flex items-center gap-2 pt-1">
+                                          <Button
+                                            size="sm"
+                                            onClick={handleSaveEditedQuestion}
+                                            className="h-7 text-xs px-3 bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer"
+                                          >
+                                            Save Question
+                                          </Button>
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => setEditingQuestionIdx(null)}
+                                            className="h-7 text-xs px-3 cursor-pointer"
+                                          >
+                                            Cancel
+                                          </Button>
                                         </div>
                                       </div>
                                     ) : (
@@ -2202,14 +3725,11 @@ export default function GeneratePaperPage() {
                                   <div className="absolute top-0 right-0 flex items-center gap-2 print:hidden bg-white px-1.5 py-0.5 rounded shadow-sm opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none group-hover:pointer-events-auto">
                                     <button
                                       type="button"
-                                      onClick={() => {
-                                        setEditingQuestionIdx(globalIdx);
-                                        setEditingQuestionText(q.question_text);
-                                      }}
+                                      onClick={() => handleStartEditQuestion(globalIdx)}
                                       className="text-slate-600 hover:text-indigo-600 text-[11px] font-bold flex items-center gap-0.5 cursor-pointer border-r border-slate-200 pr-2 mr-0.5"
-                                      title="Edit Question Text"
+                                      title="Edit Question, Section, and Subsection"
                                     >
-                                      Edit
+                                      <Edit3 className="w-3 h-3" /> Edit
                                     </button>
                                     <button
                                       type="button"
@@ -2234,11 +3754,11 @@ export default function GeneratePaperPage() {
 
                                 {/* Attached Diagram / Image */}
                                 {q.image_url && (
-                                  <div className="relative inline-block my-2 border border-slate-300 rounded p-1 bg-white">
+                                  <div className="relative inline-block my-1 border border-slate-300 rounded p-1 bg-white">
                                     <img
                                       src={q.image_url}
                                       alt={`Figure for Q${qNumber}`}
-                                      className="max-h-48 max-w-sm object-contain rounded"
+                                      className="max-h-32 max-w-xs object-contain rounded"
                                     />
                                     <div className="text-[10px] text-center text-slate-500 font-serif italic mt-0.5">
                                       [Fig. Q{qNumber}]
@@ -2400,6 +3920,206 @@ export default function GeneratePaperPage() {
             >
               <Printer className="w-3.5 h-3.5 mr-1" /> Print / Save PDF
             </Button>
+          </div>
+        </div>
+      )}
+      {/* ========================================================================= */}
+      {/* CLOUDFLARE CHAPTER LIBRARY MODAL                                          */}
+      {/* ========================================================================= */}
+      {isCloudflareLibraryOpen && (
+        <div className="fixed inset-0 z-50 bg-[#181E4B]/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-card rounded-3xl shadow-2xl border border-border w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden animate-scale-up">
+            {/* Modal Header */}
+            <div className="p-5 border-b border-border flex items-center justify-between bg-muted/40">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2 text-[11px] font-bold text-emerald-700 uppercase tracking-wide">
+                  <Cloud className="w-4 h-4 text-emerald-600" /> Cloudflare R2 Chapter Library
+                </div>
+                <h2 className="text-lg font-heading font-black text-foreground">
+                  Saved Chapter PDFs
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  Select previously uploaded chapter PDFs to formulate exam papers instantly with zero re-uploading!
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsCloudflareLibraryOpen(false)}
+                className="w-8 h-8 rounded-full bg-muted hover:bg-border/40 flex items-center justify-center text-muted-foreground cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Step 1 & 2: Cascading Class & Subject Dropdowns */}
+            <div className="p-4 border-b border-border bg-card space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs font-bold text-foreground">1. Select Class / Grade *</Label>
+                  <select
+                    value={modalClassId}
+                    onChange={(e) => handleModalClassChange(e.target.value)}
+                    className="w-full mt-1.5 h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  >
+                    <option value="">Select a class...</option>
+                    {classes.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <Label className="text-xs font-bold text-foreground">2. Select Subject *</Label>
+                  <select
+                    value={modalSubjectId}
+                    onChange={(e) => handleModalSubjectChange(e.target.value)}
+                    disabled={!modalClassId || modalSubjects.length === 0}
+                    className="w-full mt-1.5 h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none disabled:opacity-50"
+                  >
+                    <option value="">
+                      {!modalClassId ? 'First select class above...' : modalSubjects.length === 0 ? 'No subjects found' : 'Select a subject...'}
+                    </option>
+                    {modalSubjects.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Quick chapter selection header when subject is chosen */}
+              {modalSubjectId && modalChapters.length > 0 && (
+                <div className="flex items-center justify-between gap-2 pt-2 border-t border-border/50">
+                  <div className="text-[11px] font-bold text-muted-foreground">
+                    3. Select Chapters with Cloudflare PDFs ({modalSelectedChapterIds.length}/{modalChapters.filter(c => c.has_pdf).length} selected)
+                  </div>
+                  {modalChapters.some(c => c.has_pdf) && (
+                    <button
+                      type="button"
+                      onClick={handleToggleModalSelectAll}
+                      className="text-[11px] font-bold text-emerald-700 hover:underline cursor-pointer"
+                    >
+                      {modalSelectedChapterIds.length === modalChapters.filter(c => c.has_pdf).length ? 'Deselect All' : 'Select All with PDFs'}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Body: Chapter Selection Grid */}
+            <div className="flex-1 overflow-y-auto p-5">
+              {!modalClassId ? (
+                <div className="h-52 flex flex-col items-center justify-center text-center p-6 border-2 border-dashed border-border rounded-2xl bg-muted/20 space-y-2">
+                  <GraduationCap className="w-8 h-8 text-muted-foreground" />
+                  <h4 className="text-xs font-bold text-foreground">Select Class First</h4>
+                  <p className="text-[11px] text-muted-foreground max-w-sm">
+                    Please select a Class / Grade above to view its available subjects and chapters.
+                  </p>
+                </div>
+              ) : !modalSubjectId ? (
+                <div className="h-52 flex flex-col items-center justify-center text-center p-6 border-2 border-dashed border-border rounded-2xl bg-muted/20 space-y-2">
+                  <BookOpen className="w-8 h-8 text-muted-foreground" />
+                  <h4 className="text-xs font-bold text-foreground">Select Subject</h4>
+                  <p className="text-[11px] text-muted-foreground max-w-sm">
+                    Now select a Subject to view all chapters with Cloudflare PDFs.
+                  </p>
+                </div>
+              ) : isLoadingModalChapters ? (
+                <div className="h-52 flex flex-col items-center justify-center space-y-2">
+                  <RefreshCw className="w-6 h-6 animate-spin text-primary" />
+                  <p className="text-xs text-muted-foreground font-medium">Fetching chapters from Cloudflare R2...</p>
+                </div>
+              ) : modalChapters.length === 0 ? (
+                <div className="h-52 flex flex-col items-center justify-center text-center p-6 border-2 border-dashed border-border rounded-2xl bg-muted/20 space-y-2">
+                  <Cloud className="w-8 h-8 text-muted-foreground" />
+                  <h4 className="text-xs font-bold text-foreground">No Chapters Found</h4>
+                  <p className="text-[11px] text-muted-foreground max-w-sm">
+                    No chapters exist for this subject yet. You can create chapters and upload PDFs in <strong>Classes &amp; Curriculum</strong>.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {modalChapters.map((chap) => {
+                    const isChecked = modalSelectedChapterIds.includes(chap.id);
+                    const hasPdf = chap.has_pdf && chap.pdf_url;
+                    const isAlreadyInPaper = pdfFilesList.some(
+                      (p) => p.dataUrl === chap.pdf_url || p.id === `cf-${chap.id}`
+                    );
+
+                    return (
+                      <label
+                        key={chap.id}
+                        className={`p-3 rounded-2xl border transition-all flex items-start gap-3 cursor-pointer ${
+                          !hasPdf
+                            ? 'border-slate-200 bg-white/50 opacity-60 cursor-not-allowed'
+                            : isChecked
+                            ? 'border-emerald-400 bg-emerald-50/70 shadow-xs ring-1 ring-emerald-400'
+                            : 'border-border bg-card hover:border-emerald-300'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          disabled={!hasPdf}
+                          checked={isChecked}
+                          onChange={() => handleToggleModalChapterSelect(chap.id)}
+                          className="mt-1 rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer disabled:cursor-not-allowed"
+                        />
+                        <div className="flex-1 min-w-0 space-y-1">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="text-xs font-bold text-foreground truncate">
+                              {chap.title}
+                            </span>
+                            {isAlreadyInPaper && (
+                              <span className="text-[9px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-full shrink-0">
+                                In Paper
+                              </span>
+                            )}
+                          </div>
+                          {hasPdf ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full border border-emerald-300">
+                              <Cloud className="w-2.5 h-2.5 text-emerald-600" /> Cloudflare PDF Ready
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-slate-400 italic">
+                              No PDF uploaded yet
+                            </span>
+                          )}
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-border bg-muted/20 flex items-center justify-between">
+              <span className="text-xs text-muted-foreground font-medium">
+                {modalSelectedChapterIds.length} chapter(s) selected
+              </span>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsCloudflareLibraryOpen(false)}
+                  className="h-8 px-3 text-xs rounded-xl cursor-pointer"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  disabled={modalSelectedChapterIds.length === 0}
+                  onClick={handleAttachModalSelectedChapters}
+                  className="h-8 px-4 text-xs font-bold rounded-xl gradient-brand text-white shadow-xs cursor-pointer disabled:opacity-50"
+                >
+                  <Plus className="w-3.5 h-3.5 mr-1" /> Attach Selected Chapters ({modalSelectedChapterIds.length})
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       )}

@@ -12,6 +12,47 @@ export const autoFormatMath = (text: string) => {
   try {
     let str = String(text);
 
+    // 0. Clean Devanagari / Hindi text from accidental LaTeX corruption or broken tags
+    // Remove broken tags like \</i> or </i>
+    str = str.replace(/\\?<\/?i>/gi, '');
+
+    // Strip \text{...} or $\text{...}$ that encloses Devanagari characters (\u0900-\u097F)
+    str = str.replace(/\$?\\\s*text\{([^}]*[\u0900-\u097F][^}]*)\}\$?(\s*)/g, '$1$2');
+
+    // Clean stray backslashes inside Devanagari words
+    str = str.replace(/([\u0900-\u097F])\s*\\\s*([\u0900-\u097F])/g, '$1$2');
+
+    // Strip $...$ math delimiters around purely Devanagari words (no math operators or numbers)
+    str = str.replace(/\$([^$]*[\u0900-\u097F][^$]*)\$/g, (match, inner) => {
+      if (!/[0-9\+\-\=\^\/\\_<>\\times\\div\\pm\\leq\\geq]/.test(inner)) {
+        return inner;
+      }
+      return match;
+    });
+
+    // Repair corrupted 'संख्या' fragments (e.g. 'सं \text{ख्\् याओं}', 'सं ख् याओं')
+    str = str.replace(/सं\s*[\\]?\s*ख्[\\\/]?[्\s]*या(ओं|ओ|ऑ|एँ|एं)?/g, (_m, end) => {
+      if (end === 'ओं' || end === 'ओ' || end === 'ऑ') return 'संख्याओं';
+      if (end === 'एँ' || end === 'एं') return 'संख्याएँ';
+      return 'संख्या';
+    });
+    str = str.replace(/(^|[^\u0900-\u097F])ख्[\\\/]?[्\s]*या(ओं|ओ|ऑ|एँ|एं)?/g, (_m, prefix, end) => {
+      if (end === 'ओं' || end === 'ओ' || end === 'ऑ') return prefix + 'ख्याओं';
+      if (end === 'एँ' || end === 'एं') return prefix + 'ख्याएँ';
+      return prefix + 'ख्या';
+    });
+
+    // Normalize duplicate anusvara/chandrabindu
+    str = str.replace(/[\u0902\u0901]{2,}/g, '\u0902');
+
+    // Clean textbook/page/chapter references so questions read like authentic exam questions
+    // e.g. 'अध्याय 3 (हमारे चारों ओर पैटर्न) के पृष्ठ 1 के चित्र को देखकर' -> 'दिए गए चित्र को देखकर'
+    str = str.replace(/(?:अध्याय|पाठ)\s*\d*(?:\s*\([^)]*\))?\s*(?:के|पर)?\s*(?:पृष्ठ|पेज)\s*\d*\s*(?:पर|के)?\s*(?:दिए\s*गए\s*)?चित्र\s*को\s*देखकर/g, 'दिए गए चित्र को देखकर');
+    str = str.replace(/चित्र\s*\d+(?:\.\d+)?\s*को\s*देखकर/g, 'दिए गए चित्र को देखकर');
+    str = str.replace(/(?:अध्याय|पाठ)\s*\d*(?:\s*\([^)]*\))?\s*(?:के|पर)?\s*(?:पृष्ठ|पेज)\s*\d*\s*(?:पर|के|में)?/g, '');
+    str = str.replace(/(?:in\s+)?(?:chapter|lesson|unit)\s*\d*(?:\s*\([^)]*\))?,?\s*(?:page|pg\.?)\s*\d*,?\s*look\s+at\s+the\s+(?:picture|figure|diagram)/gi, 'Look at the given picture below');
+    str = str.replace(/(?:figure|fig\.?)\s*\d+(?:\.\d+)?/gi, 'the given figure');
+
     // 1. Decode literal unicode escapes (e.g. \u2018 -> ‘)
     str = str.replace(/\\u([0-9a-fA-F]{4})/g, (_, grp) => String.fromCharCode(parseInt(grp, 16)));
 
@@ -126,54 +167,95 @@ export function printExamPaper(data: ExamPaperData) {
   const cleanDocTitle = `${schoolName}_${examTitle}_${subjectName}`.replace(/[^a-zA-Z0-9_-]/g, '_');
 
   // Group questions by section
-  const sectionGroups: { sectionName: string; type: string; instruction: string; questions: any[] }[] = [];
-  const sectionTypeOrder = ['mcq', 'fill_blank', 'match_the_following', 'true_false', 'short_answer', 'long_answer'];
+  // Group questions by section (preserving custom section names and subsections)
+  const sectionGroups: { sectionName: string; subSection?: string; type: string; instruction: string; questions: any[] }[] = [];
+  const hasCustomSectionNames = questions.some((q) => q.section_name);
 
-  sectionTypeOrder.forEach((t) => {
-    const matched = questions.filter((q) => q.type === t);
-    if (matched.length > 0) {
-      let secTitle = '';
-      let secInstruction = '';
-      if (t === 'mcq') {
-        secTitle = 'SECTION A: MULTIPLE CHOICE QUESTIONS';
-        secInstruction = 'Choose and write the correct option for each question:';
-      } else if (t === 'fill_blank') {
-        secTitle = 'SECTION B: FILL IN THE BLANKS';
-        secInstruction = 'Fill in the blanks with suitable words / phrases:';
-      } else if (t === 'match_the_following') {
-        secTitle = 'SECTION C: MATCH THE FOLLOWING';
-        secInstruction = 'Match the items in Column A with Column B:';
-      } else if (t === 'true_false') {
-        secTitle = 'SECTION D: TRUE OR FALSE';
-        secInstruction = 'State whether the following statements are True or False:';
-      } else if (t === 'short_answer') {
-        secTitle = 'SECTION E: SHORT ANSWER QUESTIONS';
-        secInstruction = 'Answer the following short answer questions:';
-      } else {
-        secTitle = 'SECTION F: LONG ANSWER QUESTIONS';
-        secInstruction = 'Answer the following questions in detail:';
+  if (hasCustomSectionNames) {
+    questions.forEach((q) => {
+      const secName = q.section_name || 'General Questions';
+      let grp = sectionGroups.find((g) => g.sectionName.toLowerCase() === secName.toLowerCase());
+      if (!grp) {
+        let secInstruction = '';
+        const t = q.type;
+        if (t === 'mcq') secInstruction = 'Choose and write the correct option for each question:';
+        else if (t === 'fill_blank') secInstruction = 'Fill in the blanks with suitable words / phrases:';
+        else if (t === 'match_the_following') secInstruction = 'Match the items in Column A with Column B:';
+        else if (t === 'true_false') secInstruction = 'State whether the following statements are True or False:';
+        else if (t === 'picture_based') secInstruction = 'Observe the given pictures / diagrams carefully and answer the questions (चित्रों को देखकर उत्तर दीजिए):';
+        else if (t === 'short_answer') secInstruction = 'Answer the following short answer questions:';
+        else if (t === 'long_answer') secInstruction = 'Answer the following questions in detail:';
+        else secInstruction = 'Answer the following questions:';
+
+        grp = {
+          sectionName: secName,
+          subSection: q.sub_section,
+          type: q.type,
+          instruction: secInstruction,
+          questions: [],
+        };
+        sectionGroups.push(grp);
       }
+      grp.questions.push(q);
+    });
 
-      const totalSecMarks = matched.reduce((acc, q) => acc + (Number(q.marks) || 1), 0);
+    // Format sectionName with total marks
+    sectionGroups.forEach((grp) => {
+      const totalSecMarks = grp.questions.reduce((acc, q) => acc + (Number(q.marks) || 1), 0);
+      grp.sectionName = `${grp.sectionName.toUpperCase()} (${totalSecMarks} MARKS)`;
+    });
+  } else {
+    const sectionTypeOrder = ['mcq', 'fill_blank', 'match_the_following', 'true_false', 'picture_based', 'short_answer', 'long_answer'];
+
+    sectionTypeOrder.forEach((t) => {
+      const matched = questions.filter((q) => q.type === t);
+      if (matched.length > 0) {
+        let secTitle = '';
+        let secInstruction = '';
+        if (t === 'mcq') {
+          secTitle = 'SECTION A: MULTIPLE CHOICE QUESTIONS';
+          secInstruction = 'Choose and write the correct option for each question:';
+        } else if (t === 'fill_blank') {
+          secTitle = 'SECTION B: FILL IN THE BLANKS';
+          secInstruction = 'Fill in the blanks with suitable words / phrases:';
+        } else if (t === 'match_the_following') {
+          secTitle = 'SECTION C: MATCH THE FOLLOWING';
+          secInstruction = 'Match the items in Column A with Column B:';
+        } else if (t === 'true_false') {
+          secTitle = 'SECTION D: TRUE OR FALSE';
+          secInstruction = 'State whether the following statements are True or False:';
+        } else if (t === 'picture_based') {
+          secTitle = 'SECTION E: PICTURE / DIAGRAM BASED QUESTIONS (चित्र आधारित प्रश्न)';
+          secInstruction = 'Observe the given pictures / diagrams carefully and answer the questions (चित्रों को देखकर उत्तर दीजिए):';
+        } else if (t === 'short_answer') {
+          secTitle = 'SECTION F: SHORT ANSWER QUESTIONS';
+          secInstruction = 'Answer the following short answer questions:';
+        } else {
+          secTitle = 'SECTION G: LONG ANSWER QUESTIONS';
+          secInstruction = 'Answer the following questions in detail:';
+        }
+
+        const totalSecMarks = matched.reduce((acc, q) => acc + (Number(q.marks) || 1), 0);
+        sectionGroups.push({
+          sectionName: `${secTitle} (${totalSecMarks} MARKS)`,
+          type: t,
+          instruction: secInstruction,
+          questions: matched,
+        });
+      }
+    });
+
+    // Any remaining custom question types
+    const remaining = questions.filter((q) => !sectionTypeOrder.includes(q.type));
+    if (remaining.length > 0) {
+      const totalSecMarks = remaining.reduce((acc, q) => acc + (Number(q.marks) || 1), 0);
       sectionGroups.push({
-        sectionName: `${secTitle} (${totalSecMarks} MARKS)`,
-        type: t,
-        instruction: secInstruction,
-        questions: matched,
+        sectionName: `ADDITIONAL QUESTIONS (${totalSecMarks} MARKS)`,
+        type: 'other',
+        instruction: 'Answer the following questions:',
+        questions: remaining,
       });
     }
-  });
-
-  // Any remaining custom question types
-  const remaining = questions.filter((q) => !sectionTypeOrder.includes(q.type));
-  if (remaining.length > 0) {
-    const totalSecMarks = remaining.reduce((acc, q) => acc + (Number(q.marks) || 1), 0);
-    sectionGroups.push({
-      sectionName: `ADDITIONAL QUESTIONS (${totalSecMarks} MARKS)`,
-      type: 'other',
-      instruction: 'Answer the following questions:',
-      questions: remaining,
-    });
   }
 
   // Parse match the following
@@ -314,7 +396,16 @@ export function printExamPaper(data: ExamPaperData) {
           // Question marks if available
           const marksHtml = q.marks ? `<span class="q-marks">[${q.marks}]</span>` : '';
 
+          // Question-level subsection header if it differs from section top-level subsection or previous question
+          const qSubSecHtml =
+            q.sub_section &&
+            q.sub_section !== sec.subSection &&
+            (qIdx === 0 || sec.questions[qIdx - 1]?.sub_section !== q.sub_section)
+              ? `<div style="font-weight: bold; font-size: 11px; text-transform: uppercase; margin: 4px 0 2px 0; border-bottom: 1px dashed #cbd5e1; padding-bottom: 2px; color: #1e1b4b;">${q.sub_section}</div>`
+              : '';
+
           return `
+            ${qSubSecHtml}
             <div class="question-block">
               <div class="q-head">
                 <span class="q-num">${qNum}.</span>
@@ -328,9 +419,14 @@ export function printExamPaper(data: ExamPaperData) {
         })
         .join('');
 
+      const subSecHtml = sec.subSection
+        ? `<div style="font-weight: bold; font-size: 11.5px; text-transform: uppercase; margin: 2px 0 4px 0; color: #1e1b4b;">${sec.subSection}</div>`
+        : '';
+
       return `
         <div class="section-container">
           <div class="sec-title">${sec.sectionName}</div>
+          ${subSecHtml}
           <div class="sec-inst">${sec.instruction}</div>
           <div class="sec-questions">
             ${qHtml}
@@ -363,12 +459,12 @@ export function printExamPaper(data: ExamPaperData) {
     <html lang="en">
       <head>
         <meta charset="UTF-8" />
-        <title>${cleanDocTitle}</title>
+        <title> </title>
         <link href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css" rel="stylesheet">
         <style>
           @page {
             size: A4 portrait;
-            margin: 15mm 15mm 20mm 15mm; /* Professional A4 Margins */
+            margin: 0mm; /* Zero @page margin completely suppresses browser default date, time, title, and URL */
           }
 
           * {
@@ -382,22 +478,51 @@ export function printExamPaper(data: ExamPaperData) {
             padding: 0;
             background: #ffffff !important;
             color: #000000 !important;
-            font-family: "Times New Roman", Times, serif; /* Classic Exam Font */
-            font-size: 11pt; /* Optimal readability */
-            line-height: 1.4;
+            font-family: "Times New Roman", Times, "Cambria", serif;
+            font-size: 10pt;
+            line-height: 1.35;
+          }
+
+          /* Repeating Table Layout ensures clean top and bottom margins on EVERY page */
+          .print-page-table {
+            width: 100%;
+            border-collapse: collapse;
+            border-spacing: 0;
+            margin: 0;
+            padding: 0;
+            border: none;
+          }
+
+          .page-top-margin-cell {
+            height: 10mm; /* Uniform 10mm top margin on Page 1, Page 2, Page 3... */
+            padding: 0;
+            margin: 0;
+            border: none;
+          }
+
+          .page-bottom-margin-cell {
+            height: 10mm; /* Uniform 10mm bottom margin on Page 1, Page 2, Page 3... */
+            padding: 0;
+            margin: 0;
+            border: none;
+          }
+
+          .page-content-cell {
+            padding: 0 10mm; /* Uniform 10mm left & right margins on all pages */
+            border: none;
+            vertical-align: top;
           }
 
           .paper-wrapper {
             width: 100%;
-            max-width: 210mm; /* A4 Width */
             margin: 0 auto;
           }
 
-          /* Header Styling */
+          /* Header Styling - Compact & Clean */
           .paper-header {
             border-bottom: 2px solid #000000;
-            padding-bottom: 8px;
-            margin-bottom: 12px;
+            padding-bottom: 4px;
+            margin-bottom: 6px;
             break-after: avoid;
             page-break-after: avoid;
           }
@@ -407,7 +532,7 @@ export function printExamPaper(data: ExamPaperData) {
             align-items: center;
             justify-content: center;
             position: relative;
-            margin-bottom: 8px;
+            margin-bottom: 4px;
           }
 
           .logo-box {
@@ -415,83 +540,85 @@ export function printExamPaper(data: ExamPaperData) {
             left: 0;
             top: 50%;
             transform: translateY(-50%);
-            width: 96px;
-            max-height: 96px;
+            width: 65px;
+            max-height: 65px;
             display: flex;
             align-items: center;
           }
 
           .logo-box img {
             max-width: 100%;
-            max-height: 96px;
+            max-height: 65px;
             object-fit: contain;
           }
 
           .header-titles {
             text-align: center;
-            max-width: calc(100% - 220px);
+            max-width: calc(100% - 150px);
             margin: 0 auto;
           }
 
           .school-name {
-            font-size: 20pt;
+            font-size: 16pt;
             font-weight: bold;
             text-transform: uppercase;
-            letter-spacing: 1px;
-            margin: 0 0 2px 0;
+            letter-spacing: 0.5px;
+            margin: 0 0 1px 0;
+            line-height: 1.2;
           }
 
           .school-address {
-            font-size: 10pt;
+            font-size: 8.5pt;
             font-weight: bold;
             text-transform: uppercase;
-            color: #444;
-            margin: 0 0 4px 0;
+            color: #333;
+            margin: 0 0 2px 0;
           }
 
           .exam-title {
-            font-size: 14pt;
+            font-size: 11.5pt;
             font-weight: bold;
             text-transform: uppercase;
-            margin: 0 0 8px 0;
+            margin: 0;
           }
 
           .meta-table {
             width: 100%;
-            border-top: 1.5px solid #000;
-            border-bottom: 1.5px solid #000;
-            margin-top: 8px;
-            padding: 4px 0;
-            font-size: 10.5pt;
+            border-top: 1.2px solid #000;
+            border-bottom: 1.2px solid #000;
+            margin-top: 4px;
+            padding: 2px 0;
+            font-size: 9pt;
             font-weight: bold;
             text-transform: uppercase;
           }
 
           .meta-table td {
-            padding: 4px 8px;
+            padding: 2px 4px;
           }
 
-          /* Candidate Box */
+          /* Candidate Details */
           .candidate-row {
             width: 100%;
-            margin-bottom: 15px;
-            font-size: 11pt;
+            margin-bottom: 6px;
+            font-size: 9pt;
             font-weight: bold;
             break-after: avoid;
             page-break-after: avoid;
           }
           
           .candidate-row td {
-            padding: 4px 0;
+            padding: 2px 0;
           }
 
-          /* Instructions */
+          /* General Instructions Box - Compact */
           .instructions-box {
-            padding: 10px 14px;
-            border: 1px solid #000;
+            padding: 5px 8px;
+            border: 1px solid #444;
             background: #fff;
-            font-size: 10.5pt;
-            margin-bottom: 20px;
+            font-size: 8.5pt;
+            line-height: 1.3;
+            margin-bottom: 8px;
             break-inside: avoid;
             page-break-inside: avoid;
           }
@@ -499,32 +626,31 @@ export function printExamPaper(data: ExamPaperData) {
           .instructions-box strong {
             font-weight: bold;
             text-transform: uppercase;
-            font-size: 11pt;
+            font-size: 8.5pt;
           }
 
-          /* Section Container */
+          /* Section Container - ALLOWS SEAMLESS FLOW ACROSS PAGES */
           .section-container {
-            margin-top: 20px;
-            margin-bottom: 15px;
-            break-inside: avoid;
-            page-break-inside: avoid;
+            margin-top: 8px;
+            margin-bottom: 6px;
           }
 
           .sec-title {
-            font-size: 12pt;
+            font-size: 10pt;
             font-weight: bold;
             text-transform: uppercase;
-            text-align: center;
-            margin: 0 0 6px 0;
+            border-bottom: 1px solid #000;
+            padding-bottom: 2px;
+            margin: 0 0 3px 0;
             break-after: avoid !important;
             page-break-after: avoid !important;
           }
 
           .sec-inst {
-            font-size: 11pt;
+            font-size: 8.5pt;
             font-style: italic;
-            font-weight: bold;
-            margin: 0 0 12px 0;
+            color: #333;
+            margin: 0 0 6px 0;
             break-after: avoid !important;
             page-break-after: avoid !important;
           }
@@ -535,21 +661,21 @@ export function printExamPaper(data: ExamPaperData) {
               ? `
           .sec-questions {
             column-count: 2;
-            column-gap: 20px;
+            column-gap: 16px;
             column-fill: balance;
           }
           .mcq-grid {
             display: flex !important;
             flex-direction: column;
-            gap: 4px !important;
+            gap: 2px !important;
           }
           `
               : ''
           }
 
-          /* Individual Question Block */
+          /* Individual Question Block - Only individual questions avoid break */
           .question-block {
-            margin-bottom: 14px;
+            margin-bottom: 7px;
             break-inside: avoid !important;
             page-break-inside: avoid !important;
           }
@@ -558,13 +684,13 @@ export function printExamPaper(data: ExamPaperData) {
             display: flex;
             align-items: flex-start;
             font-weight: normal;
-            font-size: 11pt;
-            line-height: 1.4;
+            font-size: 9.5pt;
+            line-height: 1.35;
           }
 
           .q-num {
             font-weight: bold;
-            min-width: 28px;
+            min-width: 22px;
             flex-shrink: 0;
           }
 
@@ -575,10 +701,10 @@ export function printExamPaper(data: ExamPaperData) {
           /* MCQ Options */
           .mcq-grid {
             display: grid;
-            padding-left: 28px;
-            margin-top: 6px;
-            font-size: 11pt; /* Increased text size for options */
-            gap: 6px 12px;
+            padding-left: 22px;
+            margin-top: 3px;
+            font-size: 9pt;
+            gap: 2px 10px;
           }
 
           .mcq-col {
@@ -588,62 +714,62 @@ export function printExamPaper(data: ExamPaperData) {
           /* True False */
           .tf-row {
             display: flex;
-            gap: 40px;
-            padding-left: 28px;
-            margin-top: 6px;
-            font-size: 10.5pt;
+            gap: 30px;
+            padding-left: 22px;
+            margin-top: 3px;
+            font-size: 9pt;
           }
 
           .box {
             display: inline-block;
-            width: 14px;
-            height: 14px;
+            width: 12px;
+            height: 12px;
             border: 1px solid #000;
-            margin-right: 6px;
+            margin-right: 4px;
             vertical-align: text-bottom;
           }
 
           /* Match the Following 2-Column Table */
           .match-table {
             width: 90%;
-            margin-left: 28px;
-            margin-top: 8px;
+            margin-left: 22px;
+            margin-top: 4px;
             border-collapse: collapse;
-            font-size: 10.5pt;
+            font-size: 9pt;
           }
 
           .match-table th {
             text-align: left;
             font-weight: bold;
-            padding: 4px;
+            padding: 2px 4px;
             border-bottom: 1px solid #000;
           }
 
           .match-table td {
             vertical-align: top;
-            padding: 6px 4px;
+            padding: 3px 4px;
           }
 
           .match-left {
             width: 50%;
-            padding-right: 15px;
+            padding-right: 10px;
           }
 
           .match-right {
             width: 50%;
-            padding-left: 15px;
+            padding-left: 10px;
           }
 
           /* Answer Lines for subjective questions */
           .answer-lines {
-            margin-top: 10px;
-            margin-bottom: 5px;
+            margin-top: 4px;
+            margin-bottom: 3px;
           }
 
           .ans-line {
-            border-bottom: 1px dashed #666;
-            height: 24px;
-            margin-bottom: 8px;
+            border-bottom: 1px dashed #777;
+            height: 18px;
+            margin-bottom: 4px;
             width: 95%;
           }
 
@@ -651,97 +777,129 @@ export function printExamPaper(data: ExamPaperData) {
           .q-marks {
             margin-left: auto;
             font-weight: bold;
-            font-size: 10pt;
-            padding-left: 15px;
+            font-size: 9pt;
+            padding-left: 10px;
           }
 
-          /* Figure Images */
+          /* Figure Images - COMPACT TO SAVE SPACE */
           .figure-box {
             text-align: center;
-            margin: 10px auto;
+            margin: 4px auto;
           }
 
           .figure-box img {
-            max-height: 180px;
-            max-width: 100%;
-            border: 1px solid #000;
+            max-height: 100px;
+            max-width: 80%;
+            border: 1px solid #888;
             padding: 2px;
             display: inline-block;
+            object-fit: contain;
           }
 
           .fig-caption {
-            font-size: 9pt;
+            font-size: 8pt;
             font-style: italic;
-            margin-top: 4px;
+            margin-top: 2px;
+            color: #444;
           }
 
           /* Footer */
           .paper-footer {
             text-align: center;
-            margin-top: 30px;
-            font-size: 10pt;
+            margin-top: 12px;
+            font-size: 8pt;
             font-weight: bold;
             text-transform: uppercase;
             break-inside: avoid;
             page-break-inside: avoid;
+            letter-spacing: 1px;
           }
         </style>
       </head>
       <body>
-        <div class="paper-wrapper">
-          <!-- School Paper Header -->
-          <div class="paper-header">
-            <div class="header-top">
-              ${schoolLogo ? `<div class="logo-box"><img src="${schoolLogo}" alt="School Logo" /></div>` : ''}
-              <div class="header-titles">
-                <div class="school-name">${schoolName}</div>
-                ${schoolAddress ? `<div class="school-address">${schoolAddress}</div>` : ''}
-                <div class="exam-title">${examTitle}</div>
-              </div>
-            </div>
-            <table class="meta-table">
-              <tr>
-                <td style="text-align: left;">CLASS: ${className}</td>
-                <td style="text-align: center;">SUBJECT: ${subjectName}</td>
-                <td style="text-align: center;">TIME: ${timeAllowed}</td>
-                <td style="text-align: right;">MAX. MARKS: ${totalMarks}</td>
-              </tr>
-            </table>
-          </div>
-
-          <!-- Candidate Details -->
-          <table class="candidate-row">
+        <table class="print-page-table">
+          <thead>
             <tr>
-              <td style="text-align: left;">Name of Candidate: ___________________________________</td>
-              <td style="text-align: right;">Roll No: _______________ &nbsp;&nbsp;&nbsp; Section: _______</td>
+              <td class="page-top-margin-cell"></td>
             </tr>
-          </table>
+          </thead>
+          <tfoot>
+            <tr>
+              <td class="page-bottom-margin-cell"></td>
+            </tr>
+          </tfoot>
+          <tbody>
+            <tr>
+              <td class="page-content-cell">
+                <div class="paper-wrapper">
+                  <!-- School Paper Header -->
+                  <div class="paper-header">
+                    <div class="header-top">
+                      ${schoolLogo ? `<div class="logo-box"><img src="${schoolLogo}" alt="School Logo" /></div>` : ''}
+                      <div class="header-titles">
+                        <div class="school-name">${schoolName}</div>
+                        ${schoolAddress ? `<div class="school-address">${schoolAddress}</div>` : ''}
+                        <div class="exam-title">${examTitle}</div>
+                      </div>
+                    </div>
+                    <table class="meta-table">
+                      <tr>
+                        <td style="text-align: left;">CLASS: ${className}</td>
+                        <td style="text-align: center;">SUBJECT: ${subjectName}</td>
+                        <td style="text-align: center;">TIME: ${timeAllowed}</td>
+                        <td style="text-align: right;">MAX. MARKS: ${totalMarks}</td>
+                      </tr>
+                    </table>
+                  </div>
 
-          <!-- Instructions -->
-          ${
-            instructions
-              ? `<div class="instructions-box"><strong>General Instructions:</strong><br/><br/>${instructions.replace(/\n/g, '<br/>')}</div>`
-              : ''
-          }
+                  <!-- Candidate Details -->
+                  <table class="candidate-row">
+                    <tr>
+                      <td style="text-align: left;">Name of Candidate: ___________________________________</td>
+                      <td style="text-align: right;">Roll No: _______________ &nbsp;&nbsp;&nbsp; Section: _______</td>
+                    </tr>
+                  </table>
 
-          <!-- All Sections & Questions -->
-          ${sectionsHtml}
+                  <!-- Instructions -->
+                  ${
+                    instructions
+                      ? `<div class="instructions-box"><strong>General Instructions:</strong><br/><br/>${instructions.replace(/\n/g, '<br/>')}</div>`
+                      : ''
+                  }
 
-          <!-- End of Paper -->
-          <div class="paper-footer">*** END OF PAPER ***</div>
-        </div>
+                  <!-- All Sections & Questions -->
+                  ${sectionsHtml}
+
+                  <!-- End of Paper -->
+                  <div class="paper-footer">*** END OF PAPER ***</div>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </body>
     </html>
   `);
   doc.close();
 
+  // Temporarily clear parent document.title so Chromium NEVER prints the site title
+  const originalTitle = document.title;
+  document.title = ' ';
+  if (doc) {
+    doc.title = ' ';
+  }
+
   // Wait briefly for KaTeX CSS and images to load
   setTimeout(() => {
-    if (!iframe.contentWindow) return;
+    if (!iframe.contentWindow) {
+      document.title = originalTitle;
+      return;
+    }
     iframe.contentWindow.focus();
     
-    // Clean up iframe only after printing is done or cancelled
+    // Restore title and clean up iframe only after printing is done or cancelled
     iframe.contentWindow.onafterprint = () => {
+      document.title = originalTitle;
       if (document.body.contains(iframe)) {
         document.body.removeChild(iframe);
       }
@@ -749,8 +907,9 @@ export function printExamPaper(data: ExamPaperData) {
 
     iframe.contentWindow.print();
 
-    // Fallback cleanup just in case onafterprint doesn't fire (e.g. some browsers)
+    // Fallback cleanup and title restore just in case onafterprint doesn't fire
     setTimeout(() => {
+      document.title = originalTitle;
       if (document.body.contains(iframe)) {
         document.body.removeChild(iframe);
       }

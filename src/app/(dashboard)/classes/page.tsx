@@ -437,12 +437,12 @@ export default function AcademicStructurePage() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-10 max-w-6xl mx-auto space-y-6 animate-fade-in">
-      {/* Hidden File Input for uploading pages into a chapter */}
+      {/* Hidden File Input for uploading pages/PDFs into a chapter */}
       <input
         type="file"
         ref={fileInputRef}
         onChange={handleFileSelectedForChapter}
-        accept="image/*"
+        accept="image/*,application/pdf"
         className="hidden"
       />
 
@@ -915,11 +915,11 @@ export default function AcademicStructurePage() {
                 >
                   {isUploadingScan ? (
                     <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> Uploading...
+                      <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> Saving to Cloudflare...
                     </>
                   ) : (
                     <>
-                      <Plus className="w-3.5 h-3.5 mr-1" /> + Add Next Page (Page {chapterScans.length + 1})
+                      <Plus className="w-3.5 h-3.5 mr-1" /> + Upload PDF / Page {chapterScans.length + 1}
                     </>
                   )}
                 </Button>
@@ -945,15 +945,15 @@ export default function AcademicStructurePage() {
                   <div className="w-12 h-12 rounded-2xl bg-[#FFF1DA] flex items-center justify-center">
                     <FileScan className="w-6 h-6 text-primary" />
                   </div>
-                  <h3 className="font-heading font-bold text-foreground text-sm">No Scanned Documents Yet</h3>
-                  <p className="text-xs text-muted-foreground max-w-xs">
-                    Upload photos of textbook pages or worksheets in the order you want them saved.
+                  <h3 className="font-heading font-bold text-foreground text-sm">No Chapter Documents Yet</h3>
+                  <p className="text-xs text-muted-foreground max-w-sm">
+                    Upload your Chapter PDF (textbook/notes) or photos of textbook pages. They are saved directly to Cloudflare R2 and will be used automatically by Gemini AI to generate exam papers!
                   </p>
                   <Button
                     onClick={() => fileInputRef.current?.click()}
                     className="h-8 text-xs gradient-brand text-white font-bold rounded-xl cursor-pointer shadow-[0_4px_12px_rgba(223,105,81,0.25)]"
                   >
-                    <Upload className="w-3.5 h-3.5 mr-1" /> Upload Page 1
+                    <Upload className="w-3.5 h-3.5 mr-1" /> Upload Chapter PDF / Pages
                   </Button>
                 </div>
               ) : (
