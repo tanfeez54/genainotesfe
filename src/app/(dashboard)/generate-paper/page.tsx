@@ -256,6 +256,73 @@ const DEFAULT_SECTIONS: SectionConfigItem[] = [
   },
 ];
 
+export interface ExamPreset {
+  id: string;
+  name: string;
+  badge: string;
+  defaultTime: string;
+  defaultMarks: string;
+  sections: SectionConfigItem[];
+}
+
+export const EXAM_PRESETS: ExamPreset[] = [
+  {
+    id: 'unit_test_20',
+    name: '20M Unit Test',
+    badge: 'Class Test',
+    defaultTime: '45 Mins',
+    defaultMarks: '20',
+    sections: [
+      { id: 'sec-1', section_name: 'Section A: Multiple Choice Questions', type: 'mcq', count: 5, marks_per_question: 1, difficulty: 'easy', enabled: true },
+      { id: 'sec-2', section_name: 'Section B: Fill in the Blanks', type: 'fill_blank', count: 5, marks_per_question: 1, difficulty: 'easy', enabled: true },
+      { id: 'sec-3', section_name: 'Section C: Short Answer Questions', type: 'short_answer', count: 2, marks_per_question: 2.5, difficulty: 'medium', enabled: true },
+      { id: 'sec-4', section_name: 'Section D: Long / Application Question', type: 'long_answer', count: 1, marks_per_question: 5, difficulty: 'medium', enabled: true },
+    ],
+  },
+  {
+    id: 'periodic_40',
+    name: '40M Periodic Test',
+    badge: 'Mid-Term',
+    defaultTime: '1.5 Hours',
+    defaultMarks: '40',
+    sections: [
+      { id: 'sec-1', section_name: 'Section A: Multiple Choice Questions', type: 'mcq', count: 8, marks_per_question: 1, difficulty: 'easy', enabled: true },
+      { id: 'sec-2', section_name: 'Section B: Fill in the Blanks', type: 'fill_blank', count: 5, marks_per_question: 1, difficulty: 'easy', enabled: true },
+      { id: 'sec-3', section_name: 'Section C: Match the Following', type: 'match_the_following', count: 1, marks_per_question: 4, difficulty: 'medium', enabled: true },
+      { id: 'sec-4', section_name: 'Section D: Short Answer Questions', type: 'short_answer', count: 5, marks_per_question: 3, difficulty: 'medium', enabled: true },
+      { id: 'sec-5', section_name: 'Section E: Long / Descriptive Questions', type: 'long_answer', count: 2, marks_per_question: 4, difficulty: 'hard', enabled: true },
+    ],
+  },
+  {
+    id: 'half_yearly_50',
+    name: '50M Half-Yearly',
+    badge: 'Term Exam',
+    defaultTime: '2 Hours',
+    defaultMarks: '50',
+    sections: [
+      { id: 'sec-1', section_name: 'Section A: Multiple Choice Questions', type: 'mcq', count: 10, marks_per_question: 1, difficulty: 'easy', enabled: true },
+      { id: 'sec-2', section_name: 'Section B: Fill in the Blanks', type: 'fill_blank', count: 5, marks_per_question: 1, difficulty: 'easy', enabled: true },
+      { id: 'sec-3', section_name: 'Section C: Match the Following', type: 'match_the_following', count: 2, marks_per_question: 4, difficulty: 'medium', enabled: true },
+      { id: 'sec-4', section_name: 'Section D: Short Answer Questions', type: 'short_answer', count: 4, marks_per_question: 3, difficulty: 'medium', enabled: true },
+      { id: 'sec-5', section_name: 'Section E: Long / Analytical Questions', type: 'long_answer', count: 3, marks_per_question: 5, difficulty: 'hard', enabled: true },
+    ],
+  },
+  {
+    id: 'board_80',
+    name: '80M Board Pattern',
+    badge: 'Annual Exam',
+    defaultTime: '3 Hours',
+    defaultMarks: '80',
+    sections: [
+      { id: 'sec-1', section_name: 'Section A: Multiple Choice Questions (1M)', type: 'mcq', count: 16, marks_per_question: 1, difficulty: 'easy', enabled: true },
+      { id: 'sec-2', section_name: 'Section B: Very Short / Objective Questions (1M)', type: 'fill_blank', count: 6, marks_per_question: 1, difficulty: 'easy', enabled: true },
+      { id: 'sec-3', section_name: 'Section C: Short Answer Questions (3M)', type: 'short_answer', count: 6, marks_per_question: 3, difficulty: 'medium', enabled: true },
+      { id: 'sec-4', section_name: 'Section D: Long / Essay Questions (5M)', type: 'long_answer', count: 5, marks_per_question: 5, difficulty: 'hard', enabled: true },
+      { id: 'sec-5', section_name: 'Section E: Case Study / Diagram Questions (5M)', type: 'picture_based', count: 3, marks_per_question: 5, difficulty: 'hard', enabled: true },
+    ],
+  },
+];
+
 const toRoman = (num: number): string => {
   const lookup: any = {M:1000,CM:900,D:500,CD:400,C:100,XC:90,L:50,XL:40,X:10,IX:9,V:5,IV:4,I:1};
   let roman = '';
@@ -326,8 +393,18 @@ export default function GeneratePaperPage() {
     '1. Attempt all questions.\n2. Write answers clearly and neatly.\n3. Section A is compulsory.'
   );
 
-  // Dynamic Section Config State
+  // Dynamic Section Config State & Presets
   const [sections, setSections] = useState<SectionConfigItem[]>(DEFAULT_SECTIONS);
+  const [activePresetId, setActivePresetId] = useState<string>('half_yearly_50');
+  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(true);
+
+  const applyPreset = (preset: ExamPreset) => {
+    setActivePresetId(preset.id);
+    setSections(JSON.parse(JSON.stringify(preset.sections)));
+    setTotalMarks(preset.defaultMarks);
+    setTimeAllowed(preset.defaultTime);
+    toast.success(`Applied ${preset.name} (${preset.defaultMarks} Marks • ${preset.defaultTime})`);
+  };
 
   // Generated paper state
   const [editingPaperId, setEditingPaperId] = useState<string | null>(null);
@@ -1783,1429 +1860,623 @@ export default function GeneratePaperPage() {
       {/* ========================================================================= */}
       {viewMode === 'config' && (
         <div className="max-w-5xl mx-auto space-y-6 animate-fade-in print:hidden pb-24 md:pb-6">
-          {/* Top Source Switcher: Standard Blueprint vs Gen with PDF */}
-          <div className="bg-card p-1.5 rounded-2xl border border-border shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-1.5 bg-muted/60 p-1 rounded-xl border border-border/50">
-              <button
-                type="button"
-                onClick={() => setGenerationSource('blueprint')}
-                className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  generationSource === 'blueprint'
-                    ? 'bg-white text-foreground shadow-xs font-extrabold'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-white/40'
-                }`}
-              >
-                <Sliders className="w-3.5 h-3.5 text-primary" />
-                <span>Standard Blueprint (Original)</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setGenerationSource('pdf')}
-                className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  generationSource === 'pdf'
-                    ? 'gradient-brand text-white shadow-xs font-extrabold'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-white/40'
-                }`}
-              >
-                <FileText className="w-3.5 h-3.5" />
-                <span className="flex items-center gap-1.5">
-                  Gen with PDF
-                  <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-black uppercase tracking-wider ${
-                    generationSource === 'pdf' ? 'bg-white/25 text-white' : 'bg-[#DF6951]/10 text-[#DF6951]'
-                  }`}>
-                    AI Vision
-                  </span>
+          {/* Hidden file inputs for chapter PDF upload and optional local PDF upload */}
+          <input
+            type="file"
+            ref={chapterPdfUploadInputRef}
+            onChange={handleDirectChapterPdfSelected}
+            accept="application/pdf"
+            className="hidden"
+          />
+          <input
+            type="file"
+            ref={pdfFileInputRef}
+            onChange={handlePdfFilesSelected}
+            accept="application/pdf"
+            multiple
+            className="hidden"
+          />
+
+          {/* 1. Sleek Collapsible School & Exam Header */}
+          <div className="bg-card border border-border rounded-2xl p-3.5 sm:p-4 shadow-xs transition-all">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap text-xs">
+                <span className="font-bold text-primary flex items-center gap-1.5">
+                  <School className="w-4 h-4 text-primary" /> {schoolName || 'Modern Public School'}
                 </span>
-              </button>
-            </div>
-
-            <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground pr-2">
-              <Sparkles className="w-3.5 h-3.5 text-[#F1A501]" />
-              <span>Direct PDF Processing with Gemini Vision</span>
-            </div>
-          </div>
-
-              {/* Row 1: Academic Selection & Paper Header Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {generationSource === 'blueprint' ? (
-                  /* 1. Target Selection & Chapter Equal Weightage (Blueprint Mode) */
-                  <Card className="rounded-3xl border-border bg-card shadow-[0_10px_30px_rgba(24,30,75,0.03)] overflow-hidden">
-                    <CardHeader
-                      className="pb-3 cursor-pointer md:cursor-default select-none hover:bg-muted/40 md:hover:bg-transparent transition-colors"
-                      onClick={() => setAccordionOpenClassSubject(!accordionOpenClassSubject)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-base font-heading font-bold text-foreground flex items-center gap-2">
-                          <GraduationCap className="w-4 h-4 text-primary" /> 1. Class, Subject &amp; Chapters
-                        </CardTitle>
-                        <button
-                          type="button"
-                          className="p-1 text-slate-400 hover:text-slate-600 md:hidden cursor-pointer"
-                          aria-label="Toggle Class and Subject selection"
-                        >
-                          {accordionOpenClassSubject ? (
-                            <ChevronUp className="w-4 h-4" />
-                          ) : (
-                            <ChevronDown className="w-4 h-4" />
-                          )}
-                        </button>
-                      </div>
-                      <CardDescription className="text-xs">
-                        Select chapters to distribute questions with equal weightage.
-                      </CardDescription>
-                    </CardHeader>
-                    <div className={`${accordionOpenClassSubject ? 'block' : 'hidden md:block'}`}>
-                      <CardContent className="space-y-4 pt-1">
-                        {/* Hidden file input for uploading PDF directly to a chapter */}
-                        <input
-                          type="file"
-                          ref={chapterPdfUploadInputRef}
-                          onChange={handleDirectChapterPdfSelected}
-                          accept="application/pdf"
-                          className="hidden"
-                        />
-
-                        {/* Step 1 & Step 2: Class & Subject Selectors */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div>
-                            <Label className="text-xs font-bold text-foreground">1. Class / Grade *</Label>
-                            <select
-                              value={selectedClassId}
-                              onChange={(e) => handleClassChange(e.target.value)}
-                              className="w-full mt-1.5 h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                            >
-                              <option value="">Select a class...</option>
-                              {classes.map((c) => (
-                                <option key={c.id} value={c.id}>
-                                  {c.name}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-
-                          <div>
-                            <Label className="text-xs font-bold text-foreground">2. Subject *</Label>
-                            <select
-                              value={selectedSubjectId}
-                              onChange={(e) => handleSubjectChange(e.target.value)}
-                              disabled={!selectedClassId}
-                              className="w-full mt-1.5 h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none disabled:opacity-50"
-                            >
-                              <option value="">
-                                {!selectedClassId
-                                  ? 'First select class above...'
-                                  : subjects.length === 0
-                                  ? 'No subjects found'
-                                  : 'Select a subject...'}
-                              </option>
-                              {subjects.map((s) => (
-                                <option key={s.id} value={s.id}>
-                                  {s.name}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        </div>
-
-                        {/* Step 3: Chapter List Display (Staged) */}
-                        {!selectedClassId ? (
-                          <div className="p-4 rounded-2xl border border-dashed border-border bg-muted/20 text-center space-y-1.5">
-                            <div className="w-8 h-8 rounded-full bg-muted text-muted-foreground mx-auto flex items-center justify-center">
-                              <GraduationCap className="w-4 h-4" />
-                            </div>
-                            <p className="text-xs font-bold text-foreground">Step 1: Select a Class / Grade above</p>
-                            <p className="text-[11px] text-muted-foreground">Select a class to view its subjects and chapter curriculum.</p>
-                          </div>
-                        ) : !selectedSubjectId ? (
-                          <div className="p-4 rounded-2xl border border-dashed border-indigo-200 bg-indigo-50/40 text-center space-y-1.5 animate-fade-in">
-                            <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 mx-auto flex items-center justify-center">
-                              <BookOpen className="w-4 h-4" />
-                            </div>
-                            <p className="text-xs font-bold text-indigo-900">Step 2: Now select a Subject above</p>
-                            <p className="text-[11px] text-indigo-700/80">Once a subject is chosen, its chapter list will load immediately for selection.</p>
-                          </div>
-                        ) : isLoadingChapters ? (
-                          <div className="p-6 rounded-2xl border border-slate-200 bg-slate-50/60 flex flex-col items-center justify-center text-center space-y-2 animate-fade-in">
-                            <RefreshCw className="w-5 h-5 text-indigo-600 animate-spin" />
-                            <p className="text-xs font-bold text-slate-700">Loading chapter list &amp; Cloudflare PDFs...</p>
-                            <p className="text-[11px] text-muted-foreground">Checking saved textbook documents for high accuracy.</p>
-                          </div>
-                        ) : chapters.length === 0 ? (
-                          <div className="p-5 rounded-2xl border border-dashed border-amber-200 bg-amber-50/50 text-center space-y-2 animate-fade-in">
-                            <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-700 mx-auto flex items-center justify-center">
-                              <BookOpen className="w-4 h-4" />
-                            </div>
-                            <p className="text-xs font-bold text-amber-900">No chapters found for this subject</p>
-                            <p className="text-[11px] text-amber-700">
-                              You haven't created any chapters for this subject yet. You can add chapters and upload textbook PDFs in Classes &amp; Curriculum.
-                            </p>
-                            <Link href="/classes">
-                              <Button variant="outline" size="sm" className="h-8 text-xs font-bold text-amber-800 border-amber-300 hover:bg-amber-100/70 mt-1 cursor-pointer">
-                                Go to Classes &amp; Curriculum
-                              </Button>
-                            </Link>
-                          </div>
-                        ) : (
-                          <div className="space-y-2.5 animate-fade-in">
-                            {/* Chapter Selection Header */}
-                            <div className="flex items-center justify-between">
-                              <Label className="text-xs font-bold text-foreground">
-                                3. Select Chapters ({selectedChapterIds.length} of {chapters.length} Selected)
-                              </Label>
-                              <button
-                                type="button"
-                                onClick={toggleSelectAllChapters}
-                                className="text-[11px] font-bold text-indigo-600 hover:underline cursor-pointer"
-                              >
-                                {selectedChapterIds.length === chapters.length ? 'Deselect All' : 'Select All'}
-                              </button>
-                            </div>
-
-                            {/* Equal Weightage Badge Indicator */}
-                            {selectedChapterIds.length > 0 && (
-                              <div className="flex items-center justify-between p-2.5 bg-indigo-50/80 border border-indigo-100 rounded-xl text-xs text-indigo-900 font-semibold">
-                                <div className="flex items-center gap-1.5">
-                                  <Scale className="w-4 h-4 text-indigo-600 shrink-0" />
-                                  <span>
-                                    {selectedChapterIds.length} Chapters Selected (~{approxPerChapterMarks} Marks / Chapter)
-                                  </span>
-                                </div>
-                                {selectedChapterIds.some((id) => chapters.find((c) => c.id === id)?.has_pdf) && (
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-black text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300 shrink-0">
-                                    <Cloud className="w-3 h-3 text-emerald-600" /> Cloudflare PDF Active
-                                  </span>
-                                )}
-                              </div>
-                            )}
-
-                            {selectedChapterIds.some((id) => chapters.find((c) => c.id === id)?.has_pdf) && (
-                              <div className="flex items-center gap-2 p-2 bg-emerald-50/90 border border-emerald-200 rounded-xl text-[11px] text-emerald-800 font-semibold animate-fade-in">
-                                <Sparkles className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                                <span>
-                                  Cloudflare PDF Ready: Gemini AI will read saved textbook PDFs directly with full verbatim accuracy!
-                                </span>
-                              </div>
-                            )}
-
-                            {/* Chapter Selection Checklist */}
-                            <div className="max-h-60 overflow-y-auto space-y-1.5 p-2 bg-slate-50/80 rounded-2xl border border-slate-200">
-                              {chapters.map((chap, idx) => {
-                                const isSelected = selectedChapterIds.includes(chap.id);
-                                const hasPdf = chap.has_pdf && chap.pdf_url;
-                                const isUploadingThis = isUploadingChapterPdfId === chap.id;
-
-                                return (
-                                  <div
-                                    key={chap.id}
-                                    onClick={() => toggleChapter(chap.id)}
-                                    className={`flex items-center justify-between text-xs p-2.5 rounded-xl border transition-all cursor-pointer select-none ${
-                                      isSelected
-                                        ? 'border-indigo-300 bg-white font-semibold text-foreground shadow-2xs'
-                                        : 'border-slate-200/80 bg-white/60 hover:bg-white text-slate-600'
-                                    }`}
-                                  >
-                                    <div className="flex items-center gap-2.5 min-w-0">
-                                      <input
-                                        type="checkbox"
-                                        checked={isSelected}
-                                        onChange={() => {}} // Handled via row click
-                                        className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
-                                      />
-                                      <span className="text-[11px] text-slate-400 font-bold w-4 shrink-0">
-                                        {idx + 1}.
-                                      </span>
-                                      <span className="truncate">{chap.title}</span>
-                                    </div>
-
-                                    <div className="flex items-center gap-1.5 shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
-                                      {hasPdf ? (
-                                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 shrink-0">
-                                          <Cloud className="w-2.5 h-2.5 text-emerald-600" /> Cloudflare PDF
-                                        </span>
-                                      ) : (
-                                        <button
-                                          type="button"
-                                          onClick={() => handleTriggerUploadPdfForChapter(chap)}
-                                          disabled={isUploadingThis}
-                                          className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded-full border border-indigo-200 transition-colors cursor-pointer"
-                                          title="Upload textbook PDF for this chapter to Cloudflare R2"
-                                        >
-                                          {isUploadingThis ? (
-                                            <>
-                                              <RefreshCw className="w-2.5 h-2.5 animate-spin" /> Uploading...
-                                            </>
-                                          ) : (
-                                            <>
-                                              <Upload className="w-2.5 h-2.5" /> + Upload PDF
-                                            </>
-                                          )}
-                                        </button>
-                                      )}
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        )}
-                      </CardContent>
-                    </div>
-                  </Card>
-                ) : (
-                  /* 1. Upload Chapter PDFs (Same Card 1 layout & look in PDF Mode) */
-                  <Card className="rounded-3xl border-border bg-card shadow-[0_10px_30px_rgba(24,30,75,0.03)] overflow-hidden">
-                    <CardHeader
-                      className="pb-3 cursor-pointer md:cursor-default select-none hover:bg-muted/40 md:hover:bg-transparent transition-colors"
-                      onClick={() => setAccordionOpenClassSubject(!accordionOpenClassSubject)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-base font-heading font-bold text-foreground flex items-center gap-2">
-                          <FileText className="w-4 h-4 text-primary" /> 1. Select Class, Subject &amp; Chapters (AI Vision)
-                        </CardTitle>
-                        <div className="flex items-center gap-1.5">
-                          <Badge variant="outline" className="bg-[#FFF1DA]/60 text-primary border-[#F1A501]/30 text-[10px] font-bold">
-                            Gemini Vision
-                          </Badge>
-                          <button
-                            type="button"
-                            className="p-1 text-slate-400 hover:text-slate-600 md:hidden cursor-pointer"
-                            aria-label="Toggle PDF selection"
-                          >
-                            {accordionOpenClassSubject ? (
-                              <ChevronUp className="w-4 h-4" />
-                            ) : (
-                              <ChevronDown className="w-4 h-4" />
-                            )}
-                          </button>
-                        </div>
-                      </div>
-                      <CardDescription className="text-xs">
-                        Select class and subject to view chapters. AI Vision generates questions directly from saved textbook PDFs.
-                      </CardDescription>
-                    </CardHeader>
-                    <div className={`${accordionOpenClassSubject ? 'block' : 'hidden md:block'}`}>
-                      <CardContent className="space-y-3.5 pt-1">
-                        <input
-                          type="file"
-                          ref={pdfFileInputRef}
-                          onChange={handlePdfFilesSelected}
-                          accept="application/pdf"
-                          multiple
-                          className="hidden"
-                        />
-
-                        {/* 1. Class & Subject Selectors (First) */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div>
-                            <Label className="text-xs font-bold text-foreground">1. Class / Grade *</Label>
-                            <select
-                              value={selectedClassId}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                handleClassChange(val);
-                                if (val !== '__custom__') {
-                                  setPdfCustomClass('');
-                                }
-                              }}
-                              className="w-full mt-1.5 h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-medium focus:ring-2 focus:ring-[#DF6951] focus:outline-none"
-                            >
-                              <option value="">Select a class...</option>
-                              {classes.map((c) => (
-                                <option key={c.id} value={c.id}>
-                                  {c.name}
-                                </option>
-                              ))}
-                              <option value="__custom__">➕ Type Custom Class...</option>
-                            </select>
-                            {selectedClassId === '__custom__' && (
-                              <Input
-                                value={pdfCustomClass}
-                                onChange={(e) => setPdfCustomClass(e.target.value)}
-                                placeholder="e.g. Class 10 or Grade 4"
-                                className="mt-1.5 h-9 rounded-lg text-sm bg-white border-[#DF6951]/40"
-                                autoFocus
-                              />
-                            )}
-                          </div>
-
-                          <div>
-                            <Label className="text-xs font-bold text-foreground">2. Subject *</Label>
-                            <select
-                              value={selectedClassId === '__custom__' ? '__custom__' : selectedSubjectId}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                if (val === '__custom__') {
-                                  setSelectedSubjectId('__custom__');
-                                } else {
-                                  handleSubjectChange(val);
-                                  setPdfCustomSubject('');
-                                }
-                              }}
-                              disabled={!selectedClassId && selectedClassId !== '__custom__'}
-                              className="w-full mt-1.5 h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-medium focus:ring-2 focus:ring-[#DF6951] focus:outline-none disabled:opacity-50"
-                            >
-                              <option value="">
-                                {selectedClassId ? 'Select a subject...' : 'First select class above...'}
-                              </option>
-                              {subjects.map((s) => (
-                                <option key={s.id} value={s.id}>
-                                  {s.name}
-                                </option>
-                              ))}
-                              <option value="__custom__">➕ Type Custom Subject...</option>
-                            </select>
-                            {(selectedSubjectId === '__custom__' || selectedClassId === '__custom__') && (
-                              <Input
-                                value={pdfCustomSubject}
-                                onChange={(e) => setPdfCustomSubject(e.target.value)}
-                                placeholder="e.g. Mathematics or Science"
-                                className="mt-1.5 h-9 rounded-lg text-sm bg-white border-[#DF6951]/40"
-                                autoFocus
-                              />
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Step 3: Chapter List Display (Staged) */}
-                        {!selectedClassId && selectedClassId !== '__custom__' ? (
-                          <div className="p-4 rounded-2xl border border-dashed border-border bg-muted/20 text-center space-y-1.5">
-                            <div className="w-8 h-8 rounded-full bg-muted text-muted-foreground mx-auto flex items-center justify-center">
-                              <GraduationCap className="w-4 h-4" />
-                            </div>
-                            <p className="text-xs font-bold text-foreground">Step 1: Select a Class / Grade above</p>
-                            <p className="text-[11px] text-muted-foreground">Select a class to view its subjects and chapter textbook PDFs.</p>
-                          </div>
-                        ) : !selectedSubjectId && selectedSubjectId !== '__custom__' ? (
-                          <div className="p-4 rounded-2xl border border-dashed border-[#F1A501]/40 bg-[#FFF1DA]/30 text-center space-y-1.5 animate-fade-in">
-                            <div className="w-8 h-8 rounded-full bg-[#FFF1DA] text-primary mx-auto flex items-center justify-center">
-                              <BookOpen className="w-4 h-4" />
-                            </div>
-                            <p className="text-xs font-bold text-foreground">Step 2: Now select a Subject above</p>
-                            <p className="text-[11px] text-muted-foreground">Chapters with saved Cloudflare PDFs will appear here for one-click selection.</p>
-                          </div>
-                        ) : isLoadingChapters ? (
-                          <div className="p-6 rounded-2xl border border-border bg-card flex flex-col items-center justify-center text-center space-y-2 animate-fade-in">
-                            <RefreshCw className="w-5 h-5 text-primary animate-spin" />
-                            <p className="text-xs font-bold text-foreground">Loading chapters from Cloudflare R2...</p>
-                            <p className="text-[11px] text-muted-foreground">Checking saved textbook documents.</p>
-                          </div>
-                        ) : chapters.length === 0 && selectedSubjectId !== '__custom__' ? (
-                          <div className="p-4 rounded-2xl border border-dashed border-border bg-muted/20 text-center space-y-2 animate-fade-in">
-                            <div className="w-8 h-8 rounded-full bg-muted text-muted-foreground mx-auto flex items-center justify-center">
-                              <Cloud className="w-4 h-4" />
-                            </div>
-                            <p className="text-xs font-bold text-foreground">No chapters found for this subject</p>
-                            <p className="text-[11px] text-muted-foreground">
-                              You can add chapters in Classes &amp; Curriculum or upload a local PDF below.
-                            </p>
-                          </div>
-                        ) : (
-                          selectedSubjectId !== '__custom__' && chapters.length > 0 && (
-                            <div className="space-y-2.5 p-3 rounded-2xl bg-[#FFF1DA]/30 border border-[#F1A501]/30 animate-fade-in">
-                              <div className="flex items-center justify-between">
-                                <Label className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                                  <Cloud className="w-3.5 h-3.5 text-primary" /> 3. Select Chapters with Cloudflare PDFs
-                                </Label>
-                                <button
-                                  type="button"
-                                  onClick={toggleSelectAllChapters}
-                                  className="text-[11px] font-bold text-primary hover:underline cursor-pointer"
-                                >
-                                  {selectedChapterIds.length === chapters.length ? 'Deselect All' : 'Select All'}
-                                </button>
-                              </div>
-
-                              <div className="max-h-52 overflow-y-auto space-y-1.5">
-                                {chapters.map((chap, idx) => {
-                                  const isChecked = selectedChapterIds.includes(chap.id);
-                                  const hasPdf = chap.has_pdf && chap.pdf_url;
-                                  const isUploadingThis = isUploadingChapterPdfId === chap.id;
-
-                                  return (
-                                    <div
-                                      key={chap.id}
-                                      onClick={() => toggleChapter(chap.id)}
-                                      className={`flex items-center justify-between text-xs p-2.5 rounded-xl border transition-all cursor-pointer select-none ${
-                                        isChecked
-                                          ? 'border-emerald-400 bg-emerald-50/80 font-bold text-emerald-950 shadow-2xs'
-                                          : 'border-border bg-card hover:bg-muted/40 text-foreground'
-                                      }`}
-                                    >
-                                      <div className="flex items-center gap-2.5 min-w-0">
-                                        <input
-                                          type="checkbox"
-                                          checked={isChecked}
-                                          onChange={() => {}} // Handled via row click
-                                          className="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
-                                        />
-                                        <span className="text-[11px] text-slate-400 font-bold w-4 shrink-0">
-                                          {idx + 1}.
-                                        </span>
-                                        <span className="truncate">{chap.title}</span>
-                                      </div>
-
-                                      <div className="flex items-center gap-1.5 shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
-                                        {hasPdf ? (
-                                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-full border border-emerald-200 shrink-0">
-                                            <Cloud className="w-2.5 h-2.5 text-emerald-600" /> Cloudflare PDF Ready
-                                          </span>
-                                        ) : (
-                                          <button
-                                            type="button"
-                                            onClick={() => handleTriggerUploadPdfForChapter(chap)}
-                                            disabled={isUploadingThis}
-                                            className="inline-flex items-center gap-1 text-[10px] font-bold text-primary hover:text-primary/80 bg-[#FFF1DA] hover:bg-[#FFF1DA]/80 px-2 py-0.5 rounded-full border border-[#F1A501]/40 transition-colors cursor-pointer"
-                                            title="Upload textbook PDF for this chapter to Cloudflare R2"
-                                          >
-                                            {isUploadingThis ? (
-                                              <>
-                                                <RefreshCw className="w-2.5 h-2.5 animate-spin" /> Uploading...
-                                              </>
-                                            ) : (
-                                              <>
-                                                <Upload className="w-2.5 h-2.5" /> + Upload PDF
-                                              </>
-                                            )}
-                                          </button>
-                                        )}
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          )
-                        )}
-
-                        {/* Quick Cloudflare Library Browse Button */}
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={handleOpenCloudflareLibrary}
-                            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-muted/60 hover:bg-muted text-foreground font-bold text-xs border border-border transition-all cursor-pointer"
-                          >
-                            <Cloud className="w-3.5 h-3.5 text-emerald-600" />
-                            <span>Browse All Classes &amp; Chapters in Cloudflare Library</span>
-                          </button>
-                        </div>
-
-                        {/* 3. Attached PDF Chips & Summary */}
-                        {pdfFilesList.length > 0 && (
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between p-2 rounded-xl bg-[#FFF1DA]/40 border border-[#F1A501]/30">
-                              <span className="text-xs font-bold text-foreground">
-                                📚 Attached for Exam ({pdfFilesList.length} Chapters)
-                              </span>
-                              <div className="flex items-center gap-1.5">
-                                <button
-                                  type="button"
-                                  onClick={() => pdfFileInputRef.current?.click()}
-                                  className="text-[11px] font-bold text-primary hover:underline flex items-center gap-0.5 cursor-pointer"
-                                >
-                                  <Plus className="w-3 h-3" /> Add Local PDF
-                                </button>
-                                <span className="text-slate-300">•</span>
-                                <button
-                                  type="button"
-                                  onClick={handleClearAllPdfs}
-                                  className="text-[11px] font-semibold text-rose-600 hover:underline cursor-pointer"
-                                >
-                                  Clear
-                                </button>
-                              </div>
-                            </div>
-
-                            <div className="max-h-40 overflow-y-auto space-y-1.5 p-1">
-                              {pdfFilesList.map((item, idx) => (
-                                <div
-                                  key={item.id}
-                                  className="p-2 rounded-lg border border-emerald-200/80 bg-emerald-50/50 flex items-center justify-between gap-2"
-                                >
-                                  <div className="flex items-center gap-2 min-w-0">
-                                    <span className="w-5 h-5 rounded bg-emerald-600/10 text-emerald-700 text-[10px] font-bold flex items-center justify-center shrink-0">
-                                      {idx + 1}
-                                    </span>
-                                    <p className="text-xs font-medium text-foreground truncate" title={item.name}>
-                                      {item.name}
-                                    </p>
-                                  </div>
-                                  <div className="flex items-center gap-1.5 shrink-0">
-                                    {item.isCloudflare ? (
-                                      <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-emerald-800 bg-emerald-100/80 px-1.5 py-0.5 rounded-full border border-emerald-300">
-                                        <Cloud className="w-2.5 h-2.5 text-emerald-600" /> Cloudflare R2
-                                      </span>
-                                    ) : (
-                                      <span className="text-[10px] text-muted-foreground">{item.size}</span>
-                                    )}
-                                    <button
-                                      type="button"
-                                      onClick={() => handleRemovePdfItem(item.id)}
-                                      className="text-slate-400 hover:text-rose-600 p-0.5 cursor-pointer"
-                                    >
-                                      <Trash2 className="w-3 h-3" />
-                                    </button>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Optional Local File Upload Dropzone */}
-                        <div
-                          onDragOver={(e) => { e.preventDefault(); setIsPdfDragOver(true); }}
-                          onDragLeave={() => setIsPdfDragOver(false)}
-                          onDrop={(e) => {
-                            e.preventDefault();
-                            setIsPdfDragOver(false);
-                            const droppedFiles = e.dataTransfer.files;
-                            if (droppedFiles && droppedFiles.length > 0) {
-                              handleProcessPdfFiles(Array.from(droppedFiles));
-                            }
-                          }}
-                          onClick={() => pdfFileInputRef.current?.click()}
-                          className={`border-2 border-dashed rounded-2xl p-4 text-center cursor-pointer transition-all duration-200 ${
-                            isPdfDragOver
-                              ? 'border-[#DF6951] bg-[#DF6951]/10 scale-[0.99]'
-                              : 'border-border/80 hover:border-[#DF6951]/50 bg-muted/20 hover:bg-[#FFF1DA]/20'
-                          }`}
-                        >
-                          <div className="w-8 h-8 mx-auto mb-1 rounded-xl bg-[#FFF1DA] text-primary flex items-center justify-center shadow-xs">
-                            <Upload className="w-4 h-4" />
-                          </div>
-                          <h4 className="text-xs font-bold text-foreground">
-                            {pdfFilesList.length > 0 ? '+ Upload additional local PDF from computer' : 'Or upload local PDF from computer'}
-                          </h4>
-                          <p className="text-[10px] text-muted-foreground mt-0.5">
-                            PDF documents up to 25MB
-                          </p>
-                        </div>
-
-                        {/* AI Mode Selector */}
-                        <div>
-                          <Label className="text-xs font-semibold text-slate-700">AI Mode</Label>
-                          <div className="grid grid-cols-2 gap-2 mt-1">
-                            <button
-                              type="button"
-                              onClick={() => setPdfMode('generate_from_content')}
-                              className={`p-2 rounded-xl border text-left cursor-pointer transition-all ${
-                                pdfMode === 'generate_from_content'
-                                  ? 'border-[#DF6951] bg-[#FFF1DA]/30 shadow-2xs'
-                                  : 'border-border bg-card hover:bg-muted/40'
-                              }`}
-                            >
-                              <p className="text-xs font-bold text-foreground">✨ Smart Generation</p>
-                              <p className="text-[10px] text-muted-foreground line-clamp-1">Formulate from textbook</p>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setPdfMode('verbatim_paper')}
-                              className={`p-2 rounded-xl border text-left cursor-pointer transition-all ${
-                                pdfMode === 'verbatim_paper'
-                                  ? 'border-[#DF6951] bg-[#FFF1DA]/30 shadow-2xs'
-                                  : 'border-border bg-card hover:bg-muted/40'
-                              }`}
-                            >
-                              <p className="text-xs font-bold text-foreground">📝 Verbatim Exam</p>
-                              <p className="text-[10px] text-muted-foreground line-clamp-1">Transcribe exact paper</p>
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Special Instructions (Optional) */}
-                        <div>
-                          <Label className="text-xs font-semibold text-slate-700">Special AI Instructions (Optional)</Label>
-                          <Input
-                            value={pdfCustomInstructions}
-                            onChange={(e) => setPdfCustomInstructions(e.target.value)}
-                            placeholder="e.g. Emphasize numericals and derivations..."
-                            className="mt-1 h-9 rounded-lg text-xs bg-white"
-                          />
-                        </div>
-                      </CardContent>
-                    </div>
-                  </Card>
-                )}
-
-            {/* 2. Paper Details */}
-            <Card className="rounded-2xl border-slate-200 shadow-xs overflow-hidden">
-              <CardHeader
-                className="pb-3 cursor-pointer md:cursor-default select-none hover:bg-slate-50/50 md:hover:bg-transparent transition-colors"
-                onClick={() => setAccordionOpenPaperHeader(!accordionOpenPaperHeader)}
-              >
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base font-bold flex items-center gap-2">
-                    <School className="w-4 h-4 text-indigo-600" /> 2. Exam Paper Header
-                  </CardTitle>
-                  <button
-                    type="button"
-                    className="p-1 text-slate-400 hover:text-slate-600 md:hidden cursor-pointer"
-                    aria-label="Toggle Exam Paper Header"
-                  >
-                    {accordionOpenPaperHeader ? (
-                      <ChevronUp className="w-4 h-4" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4" />
-                    )}
-                  </button>
-                </div>
-                <CardDescription className="text-xs">
-                  Set school name, examination title, duration and rules.
-                </CardDescription>
-              </CardHeader>
-              <div className={`${accordionOpenPaperHeader ? 'block' : 'hidden md:block'}`}>
-                <CardContent className="space-y-3.5 pt-1">
-                  <div>
-                    <Label className="text-xs font-semibold text-slate-700">School Name</Label>
-                    <Input
-                      value={schoolName}
-                      onChange={(e) => setSchoolName(e.target.value)}
-                      className="mt-1 h-9 rounded-lg text-sm bg-white"
-                      placeholder="e.g. Star Public School"
-                    />
-                  </div>
-
-                  <div>
-                    <Label className="text-xs font-semibold text-slate-700">School Logo (Image URL)</Label>
-                    <Input
-                      value={schoolLogo}
-                      onChange={(e) => setSchoolLogo(e.target.value)}
-                      className="mt-1 h-9 rounded-lg text-sm bg-white"
-                      placeholder="https://example.com/logo.png"
-                    />
-                  </div>
-
-                  <div>
-                    <Label className="text-xs font-semibold text-slate-700">School Address (Optional)</Label>
-                    <Input
-                      value={schoolAddress}
-                      onChange={(e) => setSchoolAddress(e.target.value)}
-                      className="mt-1 h-9 rounded-lg text-sm bg-white"
-                      placeholder="e.g. Mograwal, Mathia Bazar - 845105"
-                    />
-                  </div>
-
-                  <div>
-                    <Label className="text-xs font-semibold text-slate-700">Exam Title</Label>
-                    <Input
-                      value={examTitle}
-                      onChange={(e) => setExamTitle(e.target.value)}
-                      className="mt-1 h-9 rounded-lg text-sm bg-white"
-                      placeholder="e.g. Annual Examination - 2026"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <Label className="text-xs font-semibold text-slate-700">Time Allowed</Label>
-                      <Input
-                        value={timeAllowed}
-                        onChange={(e) => setTimeAllowed(e.target.value)}
-                        className="mt-1 h-9 rounded-lg text-sm bg-white"
-                        placeholder="2.5 Hours"
-                      />
-                    </div>
-                    <div>
-                      <div className="flex items-center justify-between">
-                        <Label className="text-xs font-semibold text-slate-700">Total Marks</Label>
-                        <button
-                          type="button"
-                          onClick={syncTotalMarks}
-                          className="text-[11px] text-indigo-600 font-semibold hover:underline cursor-pointer"
-                        >
-                          (Auto Calculate)
-                        </button>
-                      </div>
-                      <Input
-                        value={totalMarks}
-                        onChange={(e) => setTotalMarks(e.target.value)}
-                        className="mt-1 h-9 rounded-lg text-sm bg-white"
-                        placeholder="50"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label className="text-xs font-semibold text-slate-700">General Instructions</Label>
-                    <Textarea
-                      value={instructions}
-                      onChange={(e) => setInstructions(e.target.value)}
-                      rows={3}
-                      className="mt-1 text-xs rounded-lg bg-white"
-                      placeholder="Instructions for students..."
-                    />
-                  </div>
-                </CardContent>
+                <span className="text-muted-foreground/40">•</span>
+                <span className="font-semibold text-foreground">{examTitle || 'Annual Examination'}</span>
+                <span className="text-muted-foreground/40">•</span>
+                <span className="text-muted-foreground flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5 text-muted-foreground" /> {timeAllowed}
+                </span>
+                <span className="text-muted-foreground/40">•</span>
+                <Badge variant="outline" className="text-xs font-bold text-emerald-800 bg-emerald-50 border-emerald-200">
+                  🎯 Target: {totalMarks} Marks
+                </Badge>
               </div>
-            </Card>
-          </div>
 
-          {/* Row 2: Dynamic Question Sections Builder */}
-          <Card className="rounded-2xl border-slate-200 shadow-xs overflow-hidden">
-            <CardHeader
-              className="pb-3 border-b border-slate-100 cursor-pointer md:cursor-default select-none hover:bg-slate-50/50 md:hover:bg-transparent transition-colors"
-              onClick={() => setAccordionOpenSections(!accordionOpenSections)}
-            >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsHeaderCollapsed(!isHeaderCollapsed)}
+                className="h-8 text-xs font-bold text-primary border-border hover:bg-[#FFF1DA]/60 cursor-pointer self-start sm:self-auto shadow-2xs"
+              >
+                {isHeaderCollapsed ? 'Customize Paper Header ⚙️' : 'Close Header ✕'}
+              </Button>
+            </div>
+
+            {/* Expanded Header Customization Form */}
+            {!isHeaderCollapsed && (
+              <div className="mt-4 pt-4 border-t border-border/80 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 animate-fade-in">
                 <div>
-                  <div className="flex items-center justify-between sm:justify-start gap-2">
-                    <CardTitle className="text-base font-bold flex items-center gap-2">
-                      <Layers className="w-4 h-4 text-indigo-600" /> 3. Question Sections & Mark Breakdown
-                    </CardTitle>
+                  <Label className="text-xs font-bold text-foreground">School / Institute Name</Label>
+                  <Input
+                    value={schoolName}
+                    onChange={(e) => setSchoolName(e.target.value)}
+                    className="mt-1 h-9 rounded-xl text-xs bg-white"
+                    placeholder="e.g. Modern Public School"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs font-bold text-foreground">Exam Title</Label>
+                  <Input
+                    value={examTitle}
+                    onChange={(e) => setExamTitle(e.target.value)}
+                    className="mt-1 h-9 rounded-xl text-xs bg-white"
+                    placeholder="e.g. Annual Examination - 2026"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs font-bold text-foreground">Time Allowed</Label>
+                  <Input
+                    value={timeAllowed}
+                    onChange={(e) => setTimeAllowed(e.target.value)}
+                    className="mt-1 h-9 rounded-xl text-xs bg-white"
+                    placeholder="e.g. 2.5 Hours"
+                  />
+                </div>
+                <div>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-bold text-foreground">Total Marks</Label>
                     <button
                       type="button"
-                      className="p-1 text-slate-400 hover:text-slate-600 md:hidden cursor-pointer"
-                      aria-label="Toggle Question Sections"
+                      onClick={syncTotalMarks}
+                      className="text-[10px] text-primary font-bold hover:underline cursor-pointer"
                     >
-                      {accordionOpenSections ? (
-                        <ChevronUp className="w-4 h-4" />
-                      ) : (
-                        <ChevronDown className="w-4 h-4" />
-                      )}
+                      (Sync)
                     </button>
                   </div>
+                  <Input
+                    value={totalMarks}
+                    onChange={(e) => setTotalMarks(e.target.value)}
+                    className="mt-1 h-9 rounded-xl text-xs bg-white font-bold"
+                    placeholder="50"
+                  />
+                </div>
+                <div className="sm:col-span-2 md:col-span-4">
+                  <Label className="text-xs font-bold text-foreground">General Instructions (Printed at Top of Paper)</Label>
+                  <Textarea
+                    value={instructions}
+                    onChange={(e) => setInstructions(e.target.value)}
+                    rows={2}
+                    className="mt-1 text-xs rounded-xl bg-white"
+                    placeholder="1. Attempt all questions. 2. Write answers clearly..."
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 2. Step 1: Curriculum & Syllabus Selection */}
+          <Card className="rounded-3xl border-border bg-card shadow-xs overflow-hidden">
+            <CardHeader className="pb-3 border-b border-border/60">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <CardTitle className="text-base font-heading font-bold text-foreground flex items-center gap-2">
+                    <GraduationCap className="w-4.5 h-4.5 text-primary" /> Step 1: Select Class, Subject & Chapters
+                  </CardTitle>
                   <CardDescription className="text-xs mt-0.5">
-                    Customize sections, add questions in the banks, and set the following, MCQs, True/False & Descriptive questions.
+                    Select chapters to distribute questions with balanced syllabus coverage.
+                  </CardDescription>
+                </div>
+                {selectedChapterIds.length > 0 && (
+                  <Badge variant="outline" className="text-xs font-bold text-primary bg-[#FFF1DA]/70 border-[#F1A501]/40 self-start sm:self-auto">
+                    {selectedChapterIds.length} Chapters Selected (~{approxPerChapterMarks}M / Chapter)
+                  </Badge>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-4">
+              {/* Class & Subject Dropdowns */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs font-bold text-foreground">Class / Grade *</Label>
+                  <select
+                    value={selectedClassId}
+                    onChange={(e) => handleClassChange(e.target.value)}
+                    className="w-full mt-1.5 h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-medium focus:ring-2 focus:ring-primary focus:outline-none cursor-pointer"
+                  >
+                    <option value="">Select Class...</option>
+                    {classes.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <Label className="text-xs font-bold text-foreground">Subject *</Label>
+                  <select
+                    value={selectedSubjectId}
+                    onChange={(e) => handleSubjectChange(e.target.value)}
+                    disabled={!selectedClassId}
+                    className="w-full mt-1.5 h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-medium focus:ring-2 focus:ring-primary focus:outline-none disabled:opacity-50 cursor-pointer"
+                  >
+                    <option value="">
+                      {!selectedClassId
+                        ? 'Select Class first...'
+                        : subjects.length === 0
+                        ? 'No subjects found'
+                        : 'Select Subject...'}
+                    </option>
+                    {subjects.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Chapters Checklist */}
+              {selectedSubjectId && (
+                <div className="space-y-2.5 animate-fade-in pt-1">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                      <BookOpen className="w-3.5 h-3.5 text-primary" />
+                      Chapters ({selectedChapterIds.length} of {chapters.length} Selected)
+                    </Label>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={toggleSelectAllChapters}
+                        className="text-[11px] font-bold text-primary hover:underline cursor-pointer"
+                      >
+                        {selectedChapterIds.length === chapters.length ? 'Deselect All' : 'Select All'}
+                      </button>
+                      <span className="text-slate-300">•</span>
+                      <button
+                        type="button"
+                        onClick={() => pdfFileInputRef.current?.click()}
+                        className="text-[11px] font-bold text-muted-foreground hover:text-foreground cursor-pointer flex items-center gap-1"
+                        title="Attach additional sample paper or textbook PDF"
+                      >
+                        <Upload className="w-3 h-3" /> + Extra PDF
+                      </button>
+                    </div>
+                  </div>
+
+                  {isLoadingChapters ? (
+                    <div className="p-6 rounded-2xl border border-border bg-card flex flex-col items-center justify-center text-center space-y-2">
+                      <RefreshCw className="w-5 h-5 text-primary animate-spin" />
+                      <p className="text-xs font-bold text-foreground">Loading chapters from curriculum...</p>
+                    </div>
+                  ) : chapters.length === 0 ? (
+                    <div className="p-5 rounded-2xl border border-dashed border-amber-200 bg-amber-50/50 text-center space-y-2">
+                      <p className="text-xs font-bold text-amber-900">No chapters found for this subject</p>
+                      <p className="text-[11px] text-amber-700">
+                        Add chapters in Classes & Curriculum or attach a PDF document below.
+                      </p>
+                      <Link href="/classes">
+                        <Button variant="outline" size="sm" className="h-8 text-xs font-bold text-amber-800 border-amber-300 hover:bg-amber-100 mt-1 cursor-pointer">
+                          Go to Classes & Curriculum
+                        </Button>
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="max-h-60 overflow-y-auto space-y-1.5 p-2 bg-slate-50/80 rounded-2xl border border-slate-200">
+                      {chapters.map((chap, idx) => {
+                        const isSelected = selectedChapterIds.includes(chap.id);
+                        const hasPdf = chap.has_pdf && chap.pdf_url;
+                        const isUploadingThis = isUploadingChapterPdfId === chap.id;
+
+                        return (
+                          <div
+                            key={chap.id}
+                            onClick={() => toggleChapter(chap.id)}
+                            className={`flex items-center justify-between text-xs p-2.5 rounded-xl border transition-all cursor-pointer select-none ${
+                              isSelected
+                                ? 'border-primary/40 bg-white font-semibold text-foreground shadow-2xs'
+                                : 'border-slate-200/80 bg-white/60 hover:bg-white text-slate-600'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => {}}
+                                className="rounded text-primary focus:ring-primary w-4 h-4 cursor-pointer"
+                              />
+                              <span className="text-[11px] text-slate-400 font-bold w-4 shrink-0">
+                                {idx + 1}.
+                              </span>
+                              <span className="truncate">{chap.title}</span>
+                            </div>
+
+                            <div className="flex items-center gap-1.5 shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
+                              {hasPdf ? (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 shrink-0">
+                                  <Cloud className="w-2.5 h-2.5 text-emerald-600" /> Textbook Ready
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => handleTriggerUploadPdfForChapter(chap)}
+                                  disabled={isUploadingThis}
+                                  className="inline-flex items-center gap-1 text-[10px] font-bold text-primary hover:text-primary/80 bg-[#FFF1DA] px-2 py-0.5 rounded-full border border-[#F1A501]/40 transition-colors cursor-pointer"
+                                  title="Upload textbook PDF for this chapter"
+                                >
+                                  {isUploadingThis ? (
+                                    <>
+                                      <RefreshCw className="w-2.5 h-2.5 animate-spin" /> Uploading...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Upload className="w-2.5 h-2.5" /> + Add PDF
+                                    </>
+                                  )}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Attached local PDFs list if any */}
+                  {pdfFilesList.length > 0 && (
+                    <div className="pt-2 space-y-1.5">
+                      <div className="flex items-center justify-between text-xs font-bold text-foreground">
+                        <span>📎 Extra Attached PDFs ({pdfFilesList.length})</span>
+                        <button
+                          type="button"
+                          onClick={handleClearAllPdfs}
+                          className="text-[11px] text-rose-600 hover:underline cursor-pointer"
+                        >
+                          Clear
+                        </button>
+                      </div>
+                      {pdfFilesList.map((item) => (
+                        <div
+                          key={item.id}
+                          className="p-2 rounded-xl border border-emerald-200 bg-emerald-50/60 flex items-center justify-between text-xs"
+                        >
+                          <span className="truncate font-medium text-emerald-950">{item.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemovePdfItem(item.id)}
+                            className="text-slate-400 hover:text-rose-600 p-0.5 cursor-pointer ml-2"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* 3. Step 2: Exam Blueprint & Presets */}
+          <Card className="rounded-3xl border-border bg-card shadow-xs overflow-hidden">
+            <CardHeader className="pb-3 border-b border-border/60">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <CardTitle className="text-base font-heading font-bold text-foreground flex items-center gap-2">
+                    <Layers className="w-4.5 h-4.5 text-primary" /> Step 2: Question Paper Blueprint
+                  </CardTitle>
+                  <CardDescription className="text-xs mt-0.5">
+                    Choose an exam preset or customize question types, marks, and counts.
                   </CardDescription>
                 </div>
 
-                {/* Live Section Summary Actions */}
-                <div
-                  className="flex items-center gap-2 shrink-0"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleAddSection('mcq')}
-                    className="h-8 text-xs font-bold text-indigo-700 border-indigo-200 bg-indigo-50/50 hover:bg-indigo-100 cursor-pointer"
+                {/* Total Marks Match Status Indicator */}
+                <div className="flex items-center gap-2 shrink-0">
+                  <div
+                    className={`px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5 ${
+                      Number(totalMarks) === totalConfiguredMarks
+                        ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                        : 'bg-amber-50 border-amber-200 text-amber-800'
+                    }`}
                   >
-                    <Plus className="w-3.5 h-3.5 mr-1" /> Add Section
-                  </Button>
-                  <div className="px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold">
-                    Total: {totalConfiguredMarks} Marks
+                    <span>
+                      Total: {totalConfiguredMarks} Marks
+                    </span>
+                    {Number(totalMarks) !== totalConfiguredMarks && (
+                      <button
+                        type="button"
+                        onClick={syncTotalMarks}
+                        className="underline text-[11px] font-black cursor-pointer hover:text-amber-950"
+                        title="Set Target Marks to match configured sections"
+                      >
+                        (Sync to {totalConfiguredMarks}M)
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
+
+              {/* Standard 1-Click Exam Presets */}
+              <div className="pt-3 flex flex-wrap items-center gap-2">
+                <span className="text-xs font-bold text-muted-foreground mr-1">Quick Presets:</span>
+                {EXAM_PRESETS.map((preset) => {
+                  const isActive = activePresetId === preset.id;
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => applyPreset(preset)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                        isActive
+                          ? 'bg-[#FFF1DA] text-primary border-[#F1A501]/50 shadow-2xs font-extrabold'
+                          : 'bg-card text-muted-foreground border-border hover:bg-muted hover:text-foreground'
+                      }`}
+                    >
+                      <Sparkles className={`w-3 h-3 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
+                      <span>{preset.name}</span>
+                      <span className="text-[10px] opacity-70 font-normal">({preset.defaultTime})</span>
+                    </button>
+                  );
+                })}
+              </div>
             </CardHeader>
 
-            <div className={`${accordionOpenSections ? 'block' : 'hidden md:block'}`}>
-              <CardContent className="space-y-4 pt-4">
-                {/* Desktop & Tablet Section Cards List (>= md) */}
-                <div className="hidden md:block space-y-3">
-                  {sections.map((section, idx) => {
-                    const sectionMarksTotal = section.count * section.marks_per_question;
+            <CardContent className="space-y-4 pt-4">
+              {/* Compact Section Blueprint Matrix (Clean Table / Rows) */}
+              <div className="space-y-2">
+                {sections.map((section) => {
+                  const sectionTotal = Number(section.count) * Number(section.marks_per_question);
+                  const meta = SECTION_TYPE_METADATA[section.type];
+                  const Icon = meta?.icon || FileText;
 
-                    return (
-                      <div
-                        key={section.id}
-                        className={`p-3.5 rounded-xl border transition-all ${
-                          section.enabled
-                            ? 'bg-white border-slate-200 shadow-2xs hover:border-slate-300'
-                            : 'bg-slate-50/70 border-dashed border-slate-200 opacity-60'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          {/* Left: Drag grip, Reorder, Enable Checkbox, Title & Type */}
-                          <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                            {/* Reorder Buttons & Drag Handle */}
-                            <div className="flex items-center gap-0.5 text-slate-400">
-                              <GripVertical className="w-4 h-4 text-slate-300" />
-                              <div className="flex flex-col gap-0.5">
-                                <button
-                                  type="button"
-                                  onClick={() => handleMoveSection(idx, 'up')}
-                                  disabled={idx === 0}
-                                  className="p-0.5 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-700 disabled:opacity-20 cursor-pointer"
-                                  title="Move section up"
-                                >
-                                  <ArrowUp className="w-2.5 h-2.5" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleMoveSection(idx, 'down')}
-                                  disabled={idx === sections.length - 1}
-                                  className="p-0.5 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-700 disabled:opacity-20 cursor-pointer"
-                                  title="Move section down"
-                                >
-                                  <ArrowDown className="w-2.5 h-2.5" />
-                                </button>
-                              </div>
-                            </div>
-
-                            {/* Checkbox Toggle */}
-                            <input
-                              type="checkbox"
-                              checked={section.enabled}
-                              onChange={() => handleToggleSection(section.id)}
-                              className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer shrink-0"
-                              title="Enable or disable section"
-                            />
-
-                            {/* Section Title Input */}
-                            <div className="flex-1 min-w-[170px]">
-                              <Input
-                                value={section.section_name}
-                                onChange={(e) =>
-                                  handleUpdateSection(section.id, { section_name: e.target.value })
-                                }
-                                disabled={!section.enabled}
-                                className="h-8 text-xs font-semibold rounded-lg bg-white border-slate-200"
-                                placeholder="Section Name"
-                              />
-                            </div>
-
-                            {/* Question Type Selector */}
-                            <select
-                              value={section.type}
-                              onChange={(e) =>
-                                handleUpdateSection(section.id, {
-                                  type: e.target.value as QuestionType,
-                                })
-                              }
-                              disabled={!section.enabled}
-                              className="h-8 text-xs font-medium rounded-lg border border-slate-200 bg-white px-2.5 focus:outline-none cursor-pointer shrink-0"
-                            >
-                              <option value="mcq">MCQ (Multiple Choice)</option>
-                              <option value="fill_blank">Fill in the Blanks</option>
-                              <option value="match_the_following">Match the Following</option>
-                              <option value="true_false">True / False</option>
-                              <option value="short_answer">Short Answer</option>
-                              <option value="long_answer">Long / Essay</option>
-                            </select>
-                          </div>
-
-                          {/* Right: Count, Marks, Difficulty, Add, Delete */}
-                          <div className="flex items-center gap-3 shrink-0">
-                            {/* Count */}
-                            <div className="flex flex-col items-center">
-                              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-0.5">
-                                Count
-                              </span>
-                              <div className="flex items-center">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleUpdateSection(section.id, {
-                                      count: Math.max(1, section.count - 1),
-                                    })
-                                  }
-                                  disabled={!section.enabled || section.count <= 1}
-                                  className="w-6 h-7 flex items-center justify-center bg-slate-100 hover:bg-slate-200 rounded-l border border-r-0 border-slate-200 text-xs font-bold disabled:opacity-40 cursor-pointer"
-                                >
-                                  -
-                                </button>
-                                <Input
-                                  type="number"
-                                  min={1}
-                                  max={50}
-                                  value={section.count}
-                                  onChange={(e) =>
-                                    handleUpdateSection(section.id, {
-                                      count: Math.max(1, Number(e.target.value) || 1),
-                                    })
-                                  }
-                                  disabled={!section.enabled}
-                                  className="w-10 h-7 rounded-none text-center text-xs font-bold border-slate-200 p-0"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleUpdateSection(section.id, { count: section.count + 1 })
-                                  }
-                                  disabled={!section.enabled}
-                                  className="w-6 h-7 flex items-center justify-center bg-slate-100 hover:bg-slate-200 rounded-r border border-l-0 border-slate-200 text-xs font-bold disabled:opacity-40 cursor-pointer"
-                                >
-                                  +
-                                </button>
-                              </div>
-                            </div>
-
-                            {/* Marks */}
-                            <div className="flex flex-col items-center">
-                              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-0.5">
-                                Marks
-                              </span>
-                              <div className="flex items-center">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleUpdateSection(section.id, {
-                                      marks_per_question: Math.max(1, section.marks_per_question - 1),
-                                    })
-                                  }
-                                  disabled={!section.enabled || section.marks_per_question <= 1}
-                                  className="w-6 h-7 flex items-center justify-center bg-slate-100 hover:bg-slate-200 rounded-l border border-r-0 border-slate-200 text-xs font-bold disabled:opacity-40 cursor-pointer"
-                                >
-                                  -
-                                </button>
-                                <Input
-                                  type="number"
-                                  min={1}
-                                  max={20}
-                                  value={section.marks_per_question}
-                                  onChange={(e) =>
-                                    handleUpdateSection(section.id, {
-                                      marks_per_question: Math.max(1, Number(e.target.value) || 1),
-                                    })
-                                  }
-                                  disabled={!section.enabled}
-                                  className="w-9 h-7 rounded-none text-center text-xs font-bold border-slate-200 p-0"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleUpdateSection(section.id, {
-                                      marks_per_question: section.marks_per_question + 1,
-                                    })
-                                  }
-                                  disabled={!section.enabled}
-                                  className="w-6 h-7 flex items-center justify-center bg-slate-100 hover:bg-slate-200 rounded-r border border-l-0 border-slate-200 text-xs font-bold disabled:opacity-40 cursor-pointer"
-                                >
-                                  +
-                                </button>
-                              </div>
-                            </div>
-
-                            {/* Difficulty */}
-                            <div className="flex flex-col items-center">
-                              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-0.5">
-                                Difficulty
-                              </span>
-                              <select
-                                value={section.difficulty}
-                                onChange={(e) =>
-                                  handleUpdateSection(section.id, {
-                                    difficulty: e.target.value as any,
-                                  })
-                                }
-                                disabled={!section.enabled}
-                                className="h-7 text-[11px] font-semibold rounded-md border border-slate-200 bg-white px-2 focus:outline-none cursor-pointer"
-                              >
-                                <option value="easy">Easy</option>
-                                <option value="medium">Medium</option>
-                                <option value="hard">Hard</option>
-                              </select>
-                            </div>
-
-                            {/* Quick Add Button */}
-                            <button
-                              type="button"
-                              onClick={() => handleAddSection(section.type)}
-                              className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-0.5 cursor-pointer mt-3 px-1 py-1"
-                              title="Duplicate or add section of this type"
-                            >
-                              <Plus className="w-3 h-3" /> Add
-                            </button>
-
-                            {/* Delete Button */}
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteSection(section.id)}
-                              className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer mt-3"
-                              title="Delete this section"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Desktop Section Description / Instructions Input */}
-                        <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center gap-2.5">
-                          <label className="text-[10.5px] uppercase font-bold text-slate-500 tracking-wider shrink-0">
-                            Description:
-                          </label>
-                          <div className="flex-1">
-                            <Input
-                              value={section.instructions || section.sub_section || ''}
-                              onChange={(e) =>
-                                handleUpdateSection(section.id, {
-                                  instructions: e.target.value,
-                                  sub_section: e.target.value,
-                                })
-                              }
-                              disabled={!section.enabled}
-                              className="h-7 text-xs bg-slate-50/70 border-slate-200 placeholder:text-slate-400 font-medium"
-                              placeholder={`Default: ${getDefaultSectionInstruction(section.type)}`}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Mobile Section Summary Tiles (< md) */}
-                <div className="md:hidden space-y-2.5">
-                  {sections.map((section, idx) => {
-                    const isExpanded = mobileExpandedSectionId === section.id;
-                    const sectionMarksTotal = section.count * section.marks_per_question;
-
-                    return (
-                      <div
-                        key={section.id}
-                        className={`rounded-xl border transition-all overflow-hidden ${
-                          section.enabled
-                            ? 'bg-white border-slate-200 shadow-2xs'
-                            : 'bg-slate-50 border-dashed border-slate-200 opacity-60'
-                        }`}
-                      >
-                        {/* Mobile Summary Tile Header (Matches Mockup!) */}
-                        <div
-                          onClick={() =>
-                            setMobileExpandedSectionId(isExpanded ? null : section.id)
-                          }
-                          className="flex items-center justify-between p-3.5 cursor-pointer hover:bg-slate-50/60 select-none transition-colors"
+                  return (
+                    <div
+                      key={section.id}
+                      className={`p-3 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                        section.enabled
+                          ? 'bg-card border-border shadow-2xs hover:border-border/80'
+                          : 'bg-muted/30 border-dashed border-border/70 opacity-50'
+                      }`}
+                    >
+                      {/* Left: Enable toggle, Type badge, Section name */}
+                      <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                        <input
+                          type="checkbox"
+                          checked={section.enabled}
+                          onChange={() => {
+                            handleToggleSection(section.id);
+                            setActivePresetId('custom');
+                          }}
+                          className="w-4 h-4 rounded text-primary focus:ring-primary cursor-pointer shrink-0"
+                        />
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] font-bold shrink-0 flex items-center gap-1 ${meta?.badgeColor || 'bg-muted text-foreground'}`}
                         >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <input
-                              type="checkbox"
-                              checked={section.enabled}
-                              onChange={(e) => {
-                                e.stopPropagation();
-                                handleToggleSection(section.id);
-                              }}
-                              className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer shrink-0"
-                            />
-                            <div className="font-bold text-xs text-slate-800 truncate">
-                              {section.section_name}
-                            </div>
-                          </div>
+                          <Icon className="w-2.5 h-2.5" />
+                          <span>{meta?.label || section.type}</span>
+                        </Badge>
+                        <Input
+                          value={section.section_name}
+                          onChange={(e) => {
+                            handleUpdateSection(section.id, { section_name: e.target.value });
+                            setActivePresetId('custom');
+                          }}
+                          className="h-8 text-xs font-semibold bg-transparent border-transparent hover:border-border focus:border-primary focus:bg-white rounded-lg flex-1 min-w-[150px]"
+                        />
+                      </div>
 
-                          <div className="flex items-center gap-2 shrink-0">
-                            <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
-                              {section.count} Qs • {sectionMarksTotal} Marks
-                            </span>
-                            <ChevronRight
-                              className={`w-4 h-4 text-slate-400 transition-transform ${
-                                isExpanded ? 'rotate-90' : ''
-                              }`}
-                            />
-                          </div>
+                      {/* Right: Count Stepper, Marks Stepper, Subtotal, Delete */}
+                      <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
+                        {/* Questions Count Stepper */}
+                        <div className="flex items-center gap-1">
+                          <span className="text-[11px] text-muted-foreground font-semibold mr-1">Qs:</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleUpdateSection(section.id, { count: Math.max(1, section.count - 1) });
+                              setActivePresetId('custom');
+                            }}
+                            className="w-6 h-6 rounded-md bg-muted hover:bg-muted/80 text-foreground font-bold flex items-center justify-center text-xs cursor-pointer"
+                          >
+                            -
+                          </button>
+                          <Input
+                            type="number"
+                            min={1}
+                            max={50}
+                            value={section.count}
+                            onChange={(e) => {
+                              handleUpdateSection(section.id, { count: Math.max(1, Number(e.target.value) || 1) });
+                              setActivePresetId('custom');
+                            }}
+                            className="w-12 h-7 text-center text-xs font-bold p-0 rounded-md bg-white border-border"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleUpdateSection(section.id, { count: section.count + 1 });
+                              setActivePresetId('custom');
+                            }}
+                            className="w-6 h-6 rounded-md bg-muted hover:bg-muted/80 text-foreground font-bold flex items-center justify-center text-xs cursor-pointer"
+                          >
+                            +
+                          </button>
                         </div>
 
-                        {/* Mobile Expanded Details */}
-                        {isExpanded && (
-                          <div className="p-3.5 bg-slate-50/70 border-t border-slate-100 space-y-3 animate-in fade-in-50 duration-150">
-                            <div>
-                              <Label className="text-[11px] font-semibold text-slate-600">
-                                Section Name
-                              </Label>
-                              <Input
-                                value={section.section_name}
-                                onChange={(e) =>
-                                  handleUpdateSection(section.id, {
-                                    section_name: e.target.value,
-                                  })
-                                }
-                                className="mt-1 h-8 text-xs bg-white"
-                              />
-                            </div>
+                        {/* Marks Per Question Stepper */}
+                        <div className="flex items-center gap-1">
+                          <span className="text-[11px] text-muted-foreground font-semibold mr-1">Marks/Q:</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleUpdateSection(section.id, { marks_per_question: Math.max(0.5, section.marks_per_question - 0.5) });
+                              setActivePresetId('custom');
+                            }}
+                            className="w-6 h-6 rounded-md bg-muted hover:bg-muted/80 text-foreground font-bold flex items-center justify-center text-xs cursor-pointer"
+                          >
+                            -
+                          </button>
+                          <Input
+                            type="number"
+                            step={0.5}
+                            min={0.5}
+                            max={20}
+                            value={section.marks_per_question}
+                            onChange={(e) => {
+                              handleUpdateSection(section.id, { marks_per_question: Math.max(0.5, Number(e.target.value) || 1) });
+                              setActivePresetId('custom');
+                            }}
+                            className="w-12 h-7 text-center text-xs font-bold p-0 rounded-md bg-white border-border"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleUpdateSection(section.id, { marks_per_question: section.marks_per_question + 0.5 });
+                              setActivePresetId('custom');
+                            }}
+                            className="w-6 h-6 rounded-md bg-muted hover:bg-muted/80 text-foreground font-bold flex items-center justify-center text-xs cursor-pointer"
+                          >
+                            +
+                          </button>
+                        </div>
 
-                            <div>
-                              <Label className="text-[11px] font-semibold text-slate-600">
-                                Section Description / Instruction (Optional)
-                              </Label>
-                              <Input
-                                value={section.instructions || section.sub_section || ''}
-                                onChange={(e) =>
-                                  handleUpdateSection(section.id, {
-                                    instructions: e.target.value,
-                                    sub_section: e.target.value,
-                                  })
-                                }
-                                placeholder={`Default: ${getDefaultSectionInstruction(section.type)}`}
-                                className="mt-1 h-8 text-xs bg-white placeholder:text-slate-400"
-                              />
-                            </div>
+                        {/* Section Subtotal */}
+                        <div className="w-16 text-right font-black text-xs text-foreground">
+                          {sectionTotal} M
+                        </div>
 
-                            <div>
-                              <Label className="text-[11px] font-semibold text-slate-600">
-                                Question Type
-                              </Label>
-                              <select
-                                value={section.type}
-                                onChange={(e) =>
-                                  handleUpdateSection(section.id, {
-                                    type: e.target.value as QuestionType,
-                                  })
-                                }
-                                className="w-full mt-1 h-8 text-xs font-medium rounded-lg border border-slate-200 bg-white px-2.5 focus:outline-none"
-                              >
-                                <option value="mcq">MCQ (Multiple Choice)</option>
-                                <option value="fill_blank">Fill in the Blanks</option>
-                                <option value="match_the_following">Match the Following</option>
-                                <option value="true_false">True / False</option>
-                                <option value="short_answer">Short Answer</option>
-                                <option value="long_answer">Long / Essay</option>
-                              </select>
-                            </div>
-
-                            <div className="grid grid-cols-3 gap-2 pt-1">
-                              {/* Count */}
-                              <div>
-                                <Label className="text-[10px] uppercase font-bold text-slate-500 block mb-1">
-                                  Count
-                                </Label>
-                                <div className="flex items-center">
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      handleUpdateSection(section.id, {
-                                        count: Math.max(1, section.count - 1),
-                                      })
-                                    }
-                                    disabled={section.count <= 1}
-                                    className="w-6 h-7 flex items-center justify-center bg-white border border-r-0 border-slate-200 rounded-l text-xs font-bold"
-                                  >
-                                    -
-                                  </button>
-                                  <Input
-                                    type="number"
-                                    min={1}
-                                    max={50}
-                                    value={section.count}
-                                    onChange={(e) =>
-                                      handleUpdateSection(section.id, {
-                                        count: Math.max(1, Number(e.target.value) || 1),
-                                      })
-                                    }
-                                    className="w-full h-7 rounded-none text-center text-xs font-bold border-slate-200 p-0 bg-white"
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      handleUpdateSection(section.id, { count: section.count + 1 })
-                                    }
-                                    className="w-6 h-7 flex items-center justify-center bg-white border border-l-0 border-slate-200 rounded-r text-xs font-bold"
-                                  >
-                                    +
-                                  </button>
-                                </div>
-                              </div>
-
-                              {/* Marks */}
-                              <div>
-                                <Label className="text-[10px] uppercase font-bold text-slate-500 block mb-1">
-                                  Marks
-                                </Label>
-                                <div className="flex items-center">
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      handleUpdateSection(section.id, {
-                                        marks_per_question: Math.max(
-                                          1,
-                                          section.marks_per_question - 1
-                                        ),
-                                      })
-                                    }
-                                    disabled={section.marks_per_question <= 1}
-                                    className="w-6 h-7 flex items-center justify-center bg-white border border-r-0 border-slate-200 rounded-l text-xs font-bold"
-                                  >
-                                    -
-                                  </button>
-                                  <Input
-                                    type="number"
-                                    min={1}
-                                    max={20}
-                                    value={section.marks_per_question}
-                                    onChange={(e) =>
-                                      handleUpdateSection(section.id, {
-                                        marks_per_question: Math.max(
-                                          1,
-                                          Number(e.target.value) || 1
-                                        ),
-                                      })
-                                    }
-                                    className="w-full h-7 rounded-none text-center text-xs font-bold border-slate-200 p-0 bg-white"
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      handleUpdateSection(section.id, {
-                                        marks_per_question: section.marks_per_question + 1,
-                                      })
-                                    }
-                                    className="w-6 h-7 flex items-center justify-center bg-white border border-l-0 border-slate-200 rounded-r text-xs font-bold"
-                                  >
-                                    +
-                                  </button>
-                                </div>
-                              </div>
-
-                              {/* Difficulty */}
-                              <div>
-                                <Label className="text-[10px] uppercase font-bold text-slate-500 block mb-1">
-                                  Difficulty
-                                </Label>
-                                <select
-                                  value={section.difficulty}
-                                  onChange={(e) =>
-                                    handleUpdateSection(section.id, {
-                                      difficulty: e.target.value as any,
-                                    })
-                                  }
-                                  className="w-full h-7 text-xs font-semibold rounded-md border border-slate-200 bg-white px-2 focus:outline-none"
-                                >
-                                  <option value="easy">Easy</option>
-                                  <option value="medium">Medium</option>
-                                  <option value="hard">Hard</option>
-                                </select>
-                              </div>
-                            </div>
-
-                            {/* Actions on Mobile */}
-                            <div className="flex items-center justify-between pt-2 border-t border-slate-200/60">
-                              <div className="flex items-center gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() => handleMoveSection(idx, 'up')}
-                                  disabled={idx === 0}
-                                  className="p-1 rounded bg-white border border-slate-200 text-slate-600 disabled:opacity-30 text-xs flex items-center gap-1"
-                                >
-                                  <ArrowUp className="w-3 h-3" /> Up
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleMoveSection(idx, 'down')}
-                                  disabled={idx === sections.length - 1}
-                                  className="p-1 rounded bg-white border border-slate-200 text-slate-600 disabled:opacity-30 text-xs flex items-center gap-1"
-                                >
-                                  <ArrowDown className="w-3 h-3" /> Down
-                                </button>
-                              </div>
-
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteSection(section.id)}
-                                className="text-red-600 text-xs font-bold flex items-center gap-1 px-2 py-1 rounded hover:bg-red-50"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" /> Delete
-                              </button>
-                            </div>
-                          </div>
-                        )}
+                        {/* Delete Section */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleDeleteSection(section.id);
+                            setActivePresetId('custom');
+                          }}
+                          className="p-1 text-muted-foreground hover:text-rose-600 rounded-lg transition-colors cursor-pointer"
+                          title="Delete Section"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
-                    );
-                  })}
-                </div>
+                    </div>
+                  );
+                })}
+              </div>
 
-                {/* Add New Section Action Buttons Bar */}
-                <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100">
-                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                    <span className="text-xs font-semibold text-slate-600 mr-1 hidden sm:inline">
-                      Quick Add Section:
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleAddSection('fill_blank')}
-                      className="flex items-center gap-1 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors cursor-pointer"
-                    >
-                      <Plus className="w-3 h-3" /> + Fill in Blanks
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleAddSection('match_the_following')}
-                      className="flex items-center gap-1 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 transition-colors cursor-pointer"
-                    >
-                      <Plus className="w-3 h-3" /> + Match
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleAddSection('true_false')}
-                      className="flex items-center gap-1 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-colors cursor-pointer"
-                    >
-                      <Plus className="w-3 h-3" /> + True/False
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleAddSection('mcq')}
-                      className="flex items-center gap-1 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors cursor-pointer"
-                    >
-                      <Plus className="w-3 h-3" /> + MCQ
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleAddSection('short_answer')}
-                      className="flex items-center gap-1 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold bg-orange-50 text-orange-700 border border-orange-200 hover:bg-orange-100 transition-colors cursor-pointer"
-                    >
-                      <Plus className="w-3 h-3" /> + Short Qs
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleAddSection('long_answer')}
-                      className="flex items-center gap-1 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 transition-colors cursor-pointer"
-                    >
-                      <Plus className="w-3 h-3" /> + Long Qs
-                    </button>
-                  </div>
-
-                  <Button
+              {/* Quick Add Section Bar */}
+              <div className="pt-2 border-t border-border/80 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-xs font-bold text-muted-foreground mr-1">+ Add Type:</span>
+                  <button
                     type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleAddSection('mcq')}
-                    className="text-xs font-bold text-indigo-700 border-indigo-200 hover:bg-indigo-50 cursor-pointer"
+                    onClick={() => { handleAddSection('mcq'); setActivePresetId('custom'); }}
+                    className="px-2.5 py-1 rounded-xl text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 cursor-pointer"
                   >
-                    <Plus className="w-3.5 h-3.5 mr-1" /> Custom Section
-                  </Button>
+                    + MCQ
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { handleAddSection('fill_blank'); setActivePresetId('custom'); }}
+                    className="px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 cursor-pointer"
+                  >
+                    + Fill-ups
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { handleAddSection('true_false'); setActivePresetId('custom'); }}
+                    className="px-2.5 py-1 rounded-xl text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 cursor-pointer"
+                  >
+                    + True/False
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { handleAddSection('match_the_following'); setActivePresetId('custom'); }}
+                    className="px-2.5 py-1 rounded-xl text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 cursor-pointer"
+                  >
+                    + Match
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { handleAddSection('short_answer'); setActivePresetId('custom'); }}
+                    className="px-2.5 py-1 rounded-xl text-xs font-bold bg-orange-50 text-orange-700 border border-orange-200 hover:bg-orange-100 cursor-pointer"
+                  >
+                    + Short Q
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { handleAddSection('long_answer'); setActivePresetId('custom'); }}
+                    className="px-2.5 py-1 rounded-xl text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 cursor-pointer"
+                  >
+                    + Long Q
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { handleAddSection('picture_based'); setActivePresetId('custom'); }}
+                    className="px-2.5 py-1 rounded-xl text-xs font-bold bg-cyan-50 text-cyan-700 border border-cyan-200 hover:bg-cyan-100 cursor-pointer"
+                  >
+                    + Diagram Q
+                  </button>
                 </div>
+              </div>
 
-                {/* Main Full-Width Action Button on Desktop */}
-                <div className="pt-3">
-                  <Button
-                    onClick={generationSource === 'pdf' ? handleGenerateFromPdf : handleGeneratePaper}
-                    disabled={
-                      isGenerating ||
-                      (generationSource === 'pdf'
-                        ? pdfFilesList.length === 0 || activeSections.length === 0
-                        : !selectedClassId || !selectedSubjectId || selectedChapterIds.length === 0 || activeSections.length === 0)
-                    }
-                    className="w-full h-12 rounded-xl gradient-brand text-white font-bold text-sm shadow-md hover:opacity-95 transition-opacity flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                  >
-                    {isGenerating ? (
-                      <>
-                        <RefreshCw className="w-4 h-4 animate-spin" />
-                        <span>
-                          {generationSource === 'pdf'
-                            ? `Gemini AI Reading ${pdfFilesList.length} Chapter(s) & Generating Paper...`
-                            : 'Generating Paper...'}
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="w-4 h-4" />
-                        <span>
-                          {generationSource === 'pdf'
-                            ? `Generate Paper from PDF (${totalConfiguredMarks} Marks${pdfFilesList.length > 0 ? ` • ${pdfFilesList.length} Chapter${pdfFilesList.length > 1 ? 's' : ''}` : ''})`
-                            : `Generate Paper (${totalConfiguredMarks} Marks)`}
-                        </span>
-                      </>
-                    )}
-                  </Button>
-                  <p className="text-center text-[11px] text-muted-foreground mt-2 flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5">
-                    <span>⚡ ₹5 / paper</span>
-                    <span>•</span>
-                    <Link href="/billing" className="text-primary hover:underline font-semibold">
-                      Recharge Wallet
-                    </Link>
-                  </p>
-                </div>
-              </CardContent>
-            </div>
+              {/* Main Generate Button */}
+              <div className="pt-4">
+                <Button
+                  onClick={pdfFilesList.length > 0 ? handleGenerateFromPdf : handleGeneratePaper}
+                  disabled={
+                    isGenerating ||
+                    activeSections.length === 0 ||
+                    (pdfFilesList.length === 0 && (!selectedClassId || !selectedSubjectId || selectedChapterIds.length === 0))
+                  }
+                  className="w-full h-12 rounded-2xl gradient-brand text-white font-extrabold text-sm shadow-md hover:opacity-95 transition-opacity flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {isGenerating ? (
+                    <>
+                      <RefreshCw className="w-4.5 h-4.5 animate-spin" />
+                      <span>Formulating Question Paper with 100% Curriculum Accuracy...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4.5 h-4.5" />
+                      <span>
+                        Generate Complete Exam Paper ({totalConfiguredMarks} Marks)
+                      </span>
+                    </>
+                  )}
+                </Button>
+                <p className="text-center text-[11px] text-muted-foreground mt-2 flex items-center justify-center gap-1.5">
+                  <span>⚡ 100% Textbook Grounded</span>
+                  <span>•</span>
+                  <span>Instant Printable Exam Paper & Answer Key</span>
+                </p>
+              </div>
+            </CardContent>
           </Card>
 
           {/* Sticky Bottom Action Bar for Mobile and Tablet */}
           <div className="fixed bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-xl z-30 md:hidden print:hidden">
             <Button
-              onClick={generationSource === 'pdf' ? handleGenerateFromPdf : handleGeneratePaper}
+              onClick={pdfFilesList.length > 0 ? handleGenerateFromPdf : handleGeneratePaper}
               disabled={
                 isGenerating ||
-                (generationSource === 'pdf'
-                  ? pdfFilesList.length === 0 || activeSections.length === 0
-                  : !selectedClassId || !selectedSubjectId || selectedChapterIds.length === 0 || activeSections.length === 0)
+                activeSections.length === 0 ||
+                (pdfFilesList.length === 0 && (!selectedClassId || !selectedSubjectId || selectedChapterIds.length === 0))
               }
               className="w-full h-12 rounded-xl gradient-brand text-white font-bold text-sm shadow-md hover:opacity-95 transition-opacity flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
@@ -3221,7 +2492,7 @@ export default function GeneratePaperPage() {
                 </>
               ) : (
                 <>
-                  <span>{generationSource === 'pdf' ? `Generate from PDF (${totalConfiguredMarks}M)` : `Generate (${totalConfiguredMarks} Marks)`}</span>
+                  <span>Generate Exam Paper ({totalConfiguredMarks}M)</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
