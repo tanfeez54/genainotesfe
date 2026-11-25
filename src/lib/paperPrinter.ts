@@ -149,10 +149,22 @@ export interface ExamPaperData {
   instructions?: string;
   questions: any[];
   isTwoColumn?: boolean;
+  highlightStyle?: 'blue' | 'yellow' | 'bold' | 'none';
+  solveInsidePaper?: boolean;
+  mathSpaceSize?: 'huge' | 'xlarge' | 'large' | 'medium';
+  mathColumns?: number;
+  isRawPaper?: boolean;
+  fitSinglePage?: boolean;
 }
 
 export function printExamPaper(data: ExamPaperData) {
   const isTwoColumn = Boolean(data.isTwoColumn);
+  const highlightStyle = data.highlightStyle || 'blue';
+  const solveInsidePaper = Boolean(data.solveInsidePaper);
+  const isRawPaper = Boolean(data.isRawPaper);
+  const fitSinglePage = Boolean(data.fitSinglePage ?? (data.totalMarks ? Number(data.totalMarks) <= 25 : false));
+  const mathSpaceSize = fitSinglePage ? (data.mathSpaceSize === 'huge' ? 'large' : 'medium') : (data.mathSpaceSize || 'xlarge');
+  const mathColumns = data.mathColumns || 2;
   const schoolName = (data.schoolName || 'Modern Public School').trim();
   const schoolLogo = data.schoolLogo;
   const schoolAddress = data.schoolAddress;
@@ -167,11 +179,17 @@ export function printExamPaper(data: ExamPaperData) {
   const cleanDocTitle = `${schoolName}_${examTitle}_${subjectName}`.replace(/[^a-zA-Z0-9_-]/g, '_');
 
   // Group questions by section
-  // Group questions by section (preserving custom section names and subsections)
   const sectionGroups: { sectionName: string; subSection?: string; type: string; instruction: string; questions: any[] }[] = [];
-  const hasCustomSectionNames = questions.some((q) => q.section_name);
+  const hasCustomSectionNames = questions.some((q) => q.section_name && q.section_name.trim() !== '' && !/^general/i.test(q.section_name) && !/^section\s*a$/i.test(q.section_name.trim()));
 
-  if (hasCustomSectionNames) {
+  if (isRawPaper || fitSinglePage || !hasCustomSectionNames) {
+    sectionGroups.push({
+      sectionName: '',
+      type: 'raw',
+      instruction: '',
+      questions: questions,
+    });
+  } else if (hasCustomSectionNames) {
     questions.forEach((q) => {
       const secName = q.section_name || 'General Questions';
       let grp = sectionGroups.find((g) => g.sectionName.toLowerCase() === secName.toLowerCase());
@@ -284,6 +302,9 @@ export function printExamPaper(data: ExamPaperData) {
   };
 
   const formatQuestionNumber = (secIdx: number, qIdx: number): string => {
+    if (isRawPaper || fitSinglePage || !hasCustomSectionNames) {
+      return `${qIdx + 1}`;
+    }
     const n = qIdx + 1;
     const style = secIdx % 5;
     const alphaChar = String.fromCharCode(97 + ((n - 1) % 26));
@@ -304,11 +325,23 @@ export function printExamPaper(data: ExamPaperData) {
         .map((q, qIdx) => {
           const qNum = formatQuestionNumber(secIdx, qIdx);
           const qText = q.question_text || q.text || '';
+          const lines = qText.split('\n');
+          const firstLine = lines[0] || '';
+          const remainingLines = lines.slice(1).join('\n');
+          const rawSubItems = remainingLines
+            .split('\n')
+            .map((l: string) => l.trim())
+            .filter(Boolean);
+
+          const isMathQuestion =
+            /\b(divide|division|भाग|quotient|remainder|multiply|multiplication|गुणा|product|addition|subtraction|solve|calculate)\b/i.test(firstLine) ||
+            /\d+\s*\)\s*\d+/.test(qText) ||
+            /[÷×]/.test(firstLine);
 
           let detailsHtml = '';
 
           // 1. MCQ
-          if (sec.type === 'mcq' && Array.isArray(q.options) && q.options.length > 0) {
+          if ((q.type === 'mcq' || sec.type === 'mcq') && Array.isArray(q.options) && q.options.length > 0) {
             const maxOptLen = Math.max(0, ...q.options.map((o: any) => (typeof o === 'string' ? o : o.text || '').length));
             let cols = maxOptLen < 20 ? 4 : maxOptLen < 50 ? 2 : 1;
             if (isTwoColumn) {
@@ -326,7 +359,7 @@ export function printExamPaper(data: ExamPaperData) {
           }
 
           // 2. True False
-          else if (sec.type === 'true_false') {
+          else if (q.type === 'true_false' || sec.type === 'true_false') {
             detailsHtml = `
               <div class="tf-row">
                 <span><span class="box"></span> (A) True</span>
@@ -336,7 +369,7 @@ export function printExamPaper(data: ExamPaperData) {
           }
 
           // 3. Match the Following
-          else if (sec.type === 'match_the_following') {
+          else if (q.type === 'match_the_following' || sec.type === 'match_the_following') {
             const { colA, colB } = parseMatchCols(q);
             const maxRows = Math.max(colA.length, colB.length, 1);
             const rowsHtml = Array.from({ length: maxRows })
@@ -373,13 +406,41 @@ export function printExamPaper(data: ExamPaperData) {
           }
           
           // 4. Short Answer Space
-          else if (sec.type === 'short_answer') {
-             detailsHtml = '';
+          else if (sec.type === 'short_answer' || q.type === 'short_answer') {
+            if (!isMathQuestion && solveInsidePaper && !qText.includes('_______')) {
+              const numLines = fitSinglePage ? 2 : Math.min(3, Math.max(2, Number(q.marks) || 2));
+              const linesHtml = Array(numLines)
+                .fill(0)
+                .map((_, i) => `<div class="kid-ruled-line">${i === 0 ? '<span class="kid-ans-label">Ans:</span>' : ''}</div>`)
+                .join('');
+              detailsHtml = `<div class="kid-ruled-answer-area">${linesHtml}</div>`;
+            } else {
+              detailsHtml = '';
+            }
           }
 
           // 5. Long Answer Space
-          else if (sec.type === 'long_answer') {
-             detailsHtml = '';
+          else if (sec.type === 'long_answer' || q.type === 'long_answer') {
+            if (!isMathQuestion && solveInsidePaper && !qText.includes('_______')) {
+              const numLines = fitSinglePage ? 3 : Math.min(5, Math.max(3, Number(q.marks) || 3));
+              const linesHtml = Array(numLines)
+                .fill(0)
+                .map((_, i) => `<div class="kid-ruled-line">${i === 0 ? '<span class="kid-ans-label">Ans:</span>' : ''}</div>`)
+                .join('');
+              detailsHtml = `<div class="kid-ruled-answer-area">${linesHtml}</div>`;
+            } else {
+              detailsHtml = '';
+            }
+          }
+
+          // Fallback for any question without blanks when solveInsidePaper is active
+          if (!detailsHtml && !isMathQuestion && solveInsidePaper && !qText.includes('_______') && !q.options && sec.type !== 'mcq' && q.type !== 'mcq' && sec.type !== 'match_the_following' && q.type !== 'match_the_following') {
+            const numLines = fitSinglePage ? 2 : Math.min(3, Math.max(2, Number(q.marks) || 2));
+            const linesHtml = Array(numLines)
+              .fill(0)
+              .map((_, i) => `<div class="kid-ruled-line">${i === 0 ? '<span class="kid-ans-label">Ans:</span>' : ''}</div>`)
+              .join('');
+            detailsHtml = `<div class="kid-ruled-answer-area">${linesHtml}</div>`;
           }
 
           // Attached Diagram Image
@@ -404,12 +465,68 @@ export function printExamPaper(data: ExamPaperData) {
               ? `<div style="font-weight: bold; font-size: 11px; text-transform: uppercase; margin: 4px 0 2px 0; border-bottom: 1px dashed #cbd5e1; padding-bottom: 2px; color: #1e1b4b;">${q.sub_section}</div>`
               : '';
 
+          // Format question instruction after question number with dark bold / highlight
+          let qContentHtml = '';
+
+          let mathGridHtml = '';
+          const spaceSize = fitSinglePage ? (mathSpaceSize === 'huge' ? 'large' : 'medium') : (data.mathSpaceSize || 'xlarge');
+          const defaultCols = rawSubItems.length === 1 ? 1 : (data.mathColumns || 2);
+          const colsClass = `cols-${defaultCols}`;
+
+          if (isMathQuestion && rawSubItems.length >= 1) {
+            const cellsHtml = rawSubItems
+              .map((item: string) => `
+                <div class="math-calc-cell size-${spaceSize}">
+                  <div class="math-calc-header">${renderLatex(item)}</div>
+                  <div class="math-calc-body size-${spaceSize}"></div>
+                </div>
+              `)
+              .join('');
+            mathGridHtml = `<div class="math-calc-grid ${colsClass}">${cellsHtml}</div>`;
+          }
+
+          if (highlightStyle && highlightStyle !== 'none') {
+            const stemHtml = `<span class="q-stem-highlight ${highlightStyle}">${renderLatex(firstLine)}</span>`;
+            if (mathGridHtml) {
+              qContentHtml = `
+                <div class="q-text">
+                  ${stemHtml}
+                  ${mathGridHtml}
+                </div>
+              `;
+            } else if (remainingLines.trim()) {
+              qContentHtml = `
+                <div class="q-text">
+                  ${stemHtml}
+                  <div class="q-body-lines">${renderLatex(remainingLines)}</div>
+                </div>
+              `;
+            } else {
+              qContentHtml = `
+                <div class="q-text">
+                  ${stemHtml}
+                </div>
+              `;
+            }
+          } else {
+            if (mathGridHtml) {
+              qContentHtml = `
+                <div class="q-text">
+                  <span class="q-stem-highlight bold">${renderLatex(firstLine)}</span>
+                  ${mathGridHtml}
+                </div>
+              `;
+            } else {
+              qContentHtml = `<span class="q-text">${renderLatex(qText)}</span>`;
+            }
+          }
+
           return `
             ${qSubSecHtml}
             <div class="question-block">
               <div class="q-head">
                 <span class="q-num">${qNum}.</span>
-                <span class="q-text">${renderLatex(qText)}</span>
+                ${qContentHtml}
                 ${marksHtml}
               </div>
               ${imageHtml}
@@ -423,11 +540,14 @@ export function printExamPaper(data: ExamPaperData) {
         ? `<div style="font-weight: bold; font-size: 11.5px; text-transform: uppercase; margin: 2px 0 4px 0; color: #1e1b4b;">${sec.subSection}</div>`
         : '';
 
+      const secTitleHtml = sec.sectionName ? `<div class="sec-title">${sec.sectionName}</div>` : '';
+      const secInstHtml = sec.instruction ? `<div class="sec-inst">${sec.instruction}</div>` : '';
+
       return `
-        <div class="section-container">
-          <div class="sec-title">${sec.sectionName}</div>
+        <div class="section-container" style="${!sec.sectionName ? 'margin-top:0;margin-bottom:0;' : ''}">
+          ${secTitleHtml}
           ${subSecHtml}
-          <div class="sec-inst">${sec.instruction}</div>
+          ${secInstHtml}
           <div class="sec-questions">
             ${qHtml}
           </div>
@@ -698,6 +818,176 @@ export function printExamPaper(data: ExamPaperData) {
             flex-grow: 1;
           }
 
+          .q-text {
+            flex-grow: 1;
+            white-space: pre-wrap;
+            word-break: break-word;
+          }
+
+          .q-stem-highlight {
+            font-weight: 800;
+            color: #0f172a;
+            line-height: 1.4;
+          }
+
+          .q-stem-highlight.blue {
+            background-color: #dbeafe !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            padding: 1px 5px;
+            border-radius: 3px;
+            display: inline;
+          }
+
+          .q-stem-highlight.yellow {
+            background-color: #fef08a !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            padding: 1px 5px;
+            border-radius: 3px;
+            display: inline;
+          }
+
+          .q-stem-highlight.bold {
+            font-weight: 800;
+            color: #000;
+            display: inline;
+          }
+
+          .q-body-lines {
+            margin-top: 4px;
+            white-space: pre-wrap;
+            font-weight: normal;
+            line-height: 1.5;
+          }
+
+          /* Solve-Inside-Paper (Question-cum-Answer Sheet for KG / Primary) */
+          .solve-inside-active .question-block {
+            margin-bottom: ${fitSinglePage ? '10px' : '22px'} !important;
+            padding-bottom: ${fitSinglePage ? '2px' : '6px'};
+          }
+
+          .solve-inside-active .q-body-lines {
+            line-height: ${fitSinglePage ? '1.7' : '2.2'} !important;
+            font-size: 9.5pt;
+            margin-top: 4px;
+          }
+
+          .solve-inside-active .q-head {
+            font-size: 9.5pt;
+            line-height: 1.35;
+          }
+
+          .kid-ruled-answer-area {
+            margin-top: 8px;
+            margin-left: 22px;
+          }
+
+          .kid-ruled-line {
+            height: 28px;
+            border-bottom: 1.2px dashed #94a3b8;
+            width: 96%;
+            display: flex;
+            align-items: flex-end;
+            margin-bottom: 6px;
+          }
+
+          .kid-ans-label {
+            font-weight: 800;
+            font-size: 9pt;
+            color: #1e293b;
+            padding-bottom: 2px;
+            margin-right: 8px;
+          }
+
+          /* Math Problem Calculation Grid (Division, Multiplication, Arithmetic) */
+          .math-calc-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px;
+            margin-top: 10px;
+            margin-bottom: 14px;
+            width: 100%;
+            page-break-inside: avoid;
+            break-inside: avoid;
+          }
+
+          .math-calc-grid.cols-1 {
+            grid-template-columns: 1fr !important;
+          }
+
+          .math-calc-grid.cols-2 {
+            grid-template-columns: repeat(2, 1fr) !important;
+          }
+
+          .math-calc-grid.cols-3 {
+            grid-template-columns: repeat(3, 1fr) !important;
+          }
+
+          .math-calc-cell {
+            border: 1.5px dashed #475569;
+            border-radius: 8px;
+            padding: 10px 12px;
+            background: #ffffff;
+            min-height: 230px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            page-break-inside: avoid;
+            break-inside: avoid;
+            box-sizing: border-box;
+          }
+
+          .math-calc-cell.size-huge {
+            min-height: 290px !important;
+          }
+
+          .math-calc-cell.size-xlarge {
+            min-height: 230px !important;
+          }
+
+          .math-calc-cell.size-large {
+            min-height: 180px !important;
+          }
+
+          .math-calc-cell.size-medium {
+            min-height: 130px !important;
+          }
+
+          .math-calc-header {
+            font-size: 12pt;
+            font-weight: 800;
+            color: #0f172a;
+            border-bottom: 1.2px dotted #94a3b8;
+            padding-bottom: 6px;
+            font-family: 'Courier New', Courier, monospace, sans-serif;
+            letter-spacing: 0.5px;
+          }
+
+          .math-calc-body {
+            flex-grow: 1;
+            min-height: 170px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+          }
+
+          .math-calc-body.size-huge {
+            min-height: 230px !important;
+          }
+
+          .math-calc-body.size-xlarge {
+            min-height: 170px !important;
+          }
+
+          .math-calc-body.size-large {
+            min-height: 125px !important;
+          }
+
+          .math-calc-body.size-medium {
+            min-height: 80px !important;
+          }
+
           /* MCQ Options */
           .mcq-grid {
             display: grid;
@@ -814,6 +1104,101 @@ export function printExamPaper(data: ExamPaperData) {
             page-break-inside: avoid;
             letter-spacing: 1px;
           }
+
+          /* Single Page Fit Optimization (Ensures 20-mark tests fit completely on 1 single page) */
+          ${
+            fitSinglePage
+              ? `
+          @page {
+            size: A4 portrait;
+            margin: 6mm 8mm;
+          }
+          .page-top-margin-cell {
+            height: 3mm !important;
+          }
+          .page-bottom-margin-cell {
+            height: 3mm !important;
+          }
+          .page-content-cell {
+            padding: 0 4mm !important;
+          }
+          .paper-header {
+            margin-bottom: 3px !important;
+            padding-bottom: 2px !important;
+          }
+          .logo-box {
+            width: 44px !important;
+            max-height: 44px !important;
+          }
+          .logo-box img {
+            max-height: 44px !important;
+          }
+          .school-name {
+            font-size: 13pt !important;
+            margin-bottom: 1px !important;
+            line-height: 1.1 !important;
+          }
+          .school-address {
+            font-size: 8pt !important;
+            margin-bottom: 1px !important;
+          }
+          .exam-title {
+            font-size: 10pt !important;
+          }
+          .meta-table {
+            font-size: 8pt !important;
+            padding: 1px 0 !important;
+            margin-top: 2px !important;
+          }
+          .candidate-row {
+            font-size: 8pt !important;
+            margin-bottom: 4px !important;
+          }
+          .instructions-box {
+            padding: 3px 6px !important;
+            margin-bottom: 4px !important;
+            font-size: 7.5pt !important;
+          }
+          .question-block {
+            margin-bottom: 7px !important;
+            padding-bottom: 0px !important;
+          }
+          .q-head {
+            font-size: 9pt !important;
+            line-height: 1.35 !important;
+          }
+          .q-body-lines {
+            margin-top: 2px !important;
+            line-height: 1.6 !important;
+            font-size: 9pt !important;
+          }
+          .math-calc-grid {
+            gap: 10px !important;
+            margin-top: 6px !important;
+            margin-bottom: 6px !important;
+          }
+          .math-calc-cell {
+            min-height: 125px !important;
+            padding: 6px 8px !important;
+          }
+          .math-calc-body {
+            min-height: 80px !important;
+          }
+          .math-calc-header {
+            font-size: 10.5pt !important;
+            padding-bottom: 3px !important;
+          }
+          .kid-ruled-line {
+            height: 22px !important;
+            margin-bottom: 4px !important;
+          }
+          .paper-footer {
+            margin-top: 6px !important;
+            font-size: 7.5pt !important;
+          }
+          `
+              : ''
+          }
         </style>
       </head>
       <body>
@@ -831,7 +1216,7 @@ export function printExamPaper(data: ExamPaperData) {
           <tbody>
             <tr>
               <td class="page-content-cell">
-                <div class="paper-wrapper">
+                <div class="paper-wrapper ${solveInsidePaper ? 'solve-inside-active' : ''}">
                   <!-- School Paper Header -->
                   <div class="paper-header">
                     <div class="header-top">
@@ -855,8 +1240,13 @@ export function printExamPaper(data: ExamPaperData) {
                   <!-- Candidate Details -->
                   <table class="candidate-row">
                     <tr>
-                      <td style="text-align: left;">Name of Candidate: ___________________________________</td>
-                      <td style="text-align: right;">Roll No: _______________ &nbsp;&nbsp;&nbsp; Section: _______</td>
+                      <td style="text-align: left;">Name: ___________________________________</td>
+                      <td style="text-align: center;">Roll No: _________ &nbsp; Sec: _____</td>
+                      ${
+                        solveInsidePaper
+                          ? `<td style="text-align: right; font-weight: bold; border: 1.5px solid #000; padding: 2px 8px; border-radius: 4px; background: #fafafa;">Marks: [ _______ / ${totalMarks} ]</td>`
+                          : `<td style="text-align: right;">Roll No: _______________ &nbsp; Section: _______</td>`
+                      }
                     </tr>
                   </table>
 
@@ -914,5 +1304,174 @@ export function printExamPaper(data: ExamPaperData) {
         document.body.removeChild(iframe);
       }
     }, 60000); // 1 minute fallback
+  }, 500);
+}
+
+/**
+ * Prints the exact on-screen DOM preview (e.g. #printable-raw-paper) in strict A4 size.
+ * Ensures 100% visual parity between preview and downloaded PDF, and naturally flows to Page 2+ if full.
+ */
+export function printRawPaperFromDom(elementId: string = 'printable-raw-paper') {
+  const sourceEl = document.getElementById(elementId);
+  if (!sourceEl) {
+    window.print();
+    return;
+  }
+
+  const clone = sourceEl.cloneNode(true) as HTMLElement;
+
+  // Remove interactive/edit buttons marked with print:hidden
+  clone.querySelectorAll('.print\\:hidden').forEach((node) => node.remove());
+
+  // Clean outer wrapper styles for full A4 width inside @page margins
+  clone.style.width = '100%';
+  clone.style.maxWidth = '100%';
+  clone.style.minWidth = '0';
+  clone.style.margin = '0';
+  clone.style.padding = '0';
+  clone.style.border = 'none';
+  clone.style.boxShadow = 'none';
+  clone.style.borderRadius = '0';
+  clone.style.background = '#ffffff';
+
+  // Collect all active stylesheets and inline styles from the current page (Tailwind + KaTeX)
+  const headStyles = Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
+    .map((el) => el.outerHTML)
+    .join('\n');
+
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.left = '-10000px';
+  iframe.style.top = '0';
+  iframe.style.width = '794px';
+  iframe.style.height = '1123px';
+  iframe.style.opacity = '0';
+  iframe.style.pointerEvents = 'none';
+  iframe.style.border = 'none';
+  iframe.style.zIndex = '-9999';
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentWindow?.document;
+  if (!doc) {
+    window.print();
+    return;
+  }
+
+  doc.open();
+  doc.write(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8" />
+        <title> </title>
+        ${headStyles}
+        <style>
+          @page {
+            size: A4 portrait;
+            margin: 12mm;
+          }
+
+          html, body {
+            width: 100% !important;
+            height: auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #ffffff !important;
+            color: #0f172a !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+
+          @media print {
+            @page {
+              size: A4 portrait;
+              margin: 12mm;
+            }
+
+            html, body {
+              width: 100% !important;
+              height: auto !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              background: #ffffff !important;
+              color: #0f172a !important;
+              font-size: 12px !important;
+              line-height: 1.5 !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+
+            body * {
+              visibility: visible !important;
+            }
+
+            #${elementId} {
+              position: static !important;
+              width: 100% !important;
+              max-width: 100% !important;
+              min-width: 0 !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              border: none !important;
+              box-shadow: none !important;
+              background: #ffffff !important;
+              visibility: visible !important;
+            }
+
+            #${elementId} * {
+              visibility: visible !important;
+            }
+
+            .math-calc-box {
+              min-height: var(--box-min-h, 230px) !important;
+              break-inside: avoid !important;
+              page-break-inside: avoid !important;
+            }
+
+            .raw-q-item {
+              break-inside: avoid !important;
+              page-break-inside: avoid !important;
+            }
+
+            .raw-q-stem {
+              break-after: avoid !important;
+              page-break-after: avoid !important;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        ${clone.outerHTML}
+      </body>
+    </html>
+  `);
+  doc.close();
+
+  const originalTitle = document.title;
+  document.title = ' ';
+  if (doc) {
+    doc.title = ' ';
+  }
+
+  setTimeout(() => {
+    if (!iframe.contentWindow) {
+      document.title = originalTitle;
+      return;
+    }
+    iframe.contentWindow.focus();
+    iframe.contentWindow.onafterprint = () => {
+      document.title = originalTitle;
+      if (document.body.contains(iframe)) {
+        document.body.removeChild(iframe);
+      }
+    };
+    iframe.contentWindow.print();
+
+    setTimeout(() => {
+      document.title = originalTitle;
+      if (document.body.contains(iframe)) {
+        document.body.removeChild(iframe);
+      }
+    }, 60000);
   }, 500);
 }

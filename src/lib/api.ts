@@ -3,10 +3,15 @@
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://genainotesbe.onrender.com';
 
-function getAuthToken(): string | null {
+export function getAuthToken(): string | null {
   if (typeof document === 'undefined') return null;
   const match = document.cookie.match(new RegExp('(^| )notegen_session=([^;]+)'));
-  return match ? match[2] : null;
+  if (match && match[2]) return decodeURIComponent(match[2]);
+  try {
+    return localStorage.getItem('token');
+  } catch {
+    return null;
+  }
 }
 
 async function apiFetch<T>(

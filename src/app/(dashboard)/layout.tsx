@@ -18,6 +18,7 @@ import {
   CreditCard,
   Wallet,
   GraduationCap,
+  Layers,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -27,6 +28,7 @@ import { cn } from '@/lib/utils';
 const navItems = [
   { href: '/dashboard', label: 'Teacher Lesson Suite', icon: GraduationCap },
   { href: '/papers', label: 'Saved Papers', icon: FileCheck2 },
+  { href: '/raw-paper', label: '⚡ Instant Raw / Scan Paper', icon: Layers },
   { href: '/classes', label: 'Classes & Subjects', icon: FolderOpen },
   { href: '/scan', label: 'Scan Papers', icon: Sparkles },
   { href: '/question-bank', label: 'Question Bank', icon: FileText },
@@ -85,15 +87,25 @@ function SidebarContent({
         </div>
       </div>
 
-      {/* Generate Paper CTA */}
-      <div className="px-5 pt-4 pb-2">
+      {/* Generate Paper CTA Buttons */}
+      <div className="px-5 pt-3 pb-2 space-y-2">
         <Link href="/generate-paper" onClick={onNavClick}>
           <button
             type="button"
-            className="w-full bg-[#F1A501] hover:bg-[#e09900] text-white font-bold text-xs h-11 rounded-2xl shadow-md shadow-[#F1A501]/25 hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full bg-[#F1A501] hover:bg-[#e09900] text-white font-bold text-xs h-10 rounded-2xl shadow-md shadow-[#F1A501]/25 hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer"
           >
             <Sparkles className="w-4 h-4" />
             <span>Generate New Paper</span>
+          </button>
+        </Link>
+
+        <Link href="/raw-paper" onClick={onNavClick}>
+          <button
+            type="button"
+            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold text-xs h-10 rounded-2xl shadow-md shadow-indigo-500/20 hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <Layers className="w-4 h-4" />
+            <span>⚡ Instant Raw / Scan Paper</span>
           </button>
         </Link>
       </div>
@@ -261,7 +273,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         setIsVerifyingSchool(false);
       } catch (error) {
-        console.error('Failed to verify school status', error);
+        console.warn('Backend school status unavailable:', error);
         setIsVerifyingSchool(false);
       }
     }

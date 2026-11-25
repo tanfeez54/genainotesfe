@@ -54,7 +54,7 @@ import Latex from 'react-latex-next';
 
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { API_URL } from '@/lib/api';
+import { API_URL, getAuthToken } from '@/lib/api';
 import { toast } from 'sonner';
 import { printExamPaper, autoFormatMath } from '@/lib/paperPrinter';
 
@@ -66,6 +66,22 @@ export type QuestionType =
   | 'picture_based'
   | 'short_answer'
   | 'long_answer';
+
+export interface RawPatternRow {
+  id: string;
+  label: string;
+  pattern: string;
+  blanksCount: number;
+}
+
+export interface RawBuilderQuestion {
+  id: string;
+  title: string;
+  marks: number;
+  sectionName: string;
+  subSection?: string;
+  rows: RawPatternRow[];
+}
 
 export interface SectionConfigItem {
   id: string;
@@ -372,7 +388,49 @@ const getDefaultSectionInstruction = (type: string): string => {
 
 export default function GeneratePaperPage() {
   const [token, setToken] = useState('');
-  const [viewMode, setViewMode] = useState<'config' | 'preview'>('config');
+  const [viewMode, setViewMode] = useState<'config' | 'raw' | 'preview'>('config');
+
+  // Raw / Row Question to PDF Tab State
+  const [rawInputMode, setRawInputMode] = useState<'builder' | 'text'>('builder');
+  const [rawTextContent, setRawTextContent] = useState<string>(
+`1. Understand the pattern in each line and draw more. (3)
+(i)   ^ V ^ V   _______  _______  _______
+(ii)  M W M W   _______  _______  _______  _______
+(iii) ■ ■ ■ ■   _______  _______  _______  _______
+(iv)  ■ ■ ■ ■   _______  _______  _______  _______
+(v)   A B C A   _______  _______  _______
+(vi)  A P P A   _______  _______  _______`
+  );
+
+  const [rawBuilderQuestions, setRawBuilderQuestions] = useState<RawBuilderQuestion[]>([
+    {
+      id: 'rbq-1',
+      title: 'Understand the pattern in each line and draw more.',
+      marks: 3,
+      sectionName: 'Section A: Pattern Questions',
+      subSection: 'Observe each pattern and complete the blank spaces',
+      rows: [
+        { id: 'r-1', label: '(i)', pattern: '^ V ^ V', blanksCount: 3 },
+        { id: 'r-2', label: '(ii)', pattern: 'M W M W', blanksCount: 4 },
+        { id: 'r-3', label: '(iii)', pattern: '■ ■ ■ ■', blanksCount: 4 },
+        { id: 'r-4', label: '(iv)', pattern: '■ ■ ■ ■', blanksCount: 4 },
+        { id: 'r-5', label: '(v)', pattern: 'A B C A', blanksCount: 3 },
+        { id: 'r-6', label: '(vi)', pattern: 'A P P A', blanksCount: 3 },
+      ],
+    },
+  ]);
+
+  interface UploadedMediaItem {
+    id: string;
+    name: string;
+    size: string;
+    type: string;
+    data: string;
+  }
+
+  const [rawUploadedFiles, setRawUploadedFiles] = useState<UploadedMediaItem[]>([]);
+  const [isExtractingRawMedia, setIsExtractingRawMedia] = useState(false);
+  const rawMediaFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [subjects, setSubjects] = useState<SubjectItem[]>([]);
@@ -1625,6 +1683,324 @@ export default function GeneratePaperPage() {
     });
   };
 
+  // Convert Raw Text to Questions
+  const handleConvertRawTextToPaper = (andPrint: boolean = false) => {
+    if (!rawTextContent.trim()) {
+      toast.error('Please enter raw question text');
+      return;
+    }
+
+    const lines = rawTextContent.trim().split('\n');
+    const newQuestions: QuestionItem[] = [];
+
+    const questionStartRegex = /^(?:(\d+)[\.\)]\s*|(?:[Qq]uestion|[Qq])\s*(\d+)[\.\:\)]\s*)/;
+    let currentLines: string[] = [];
+    let currentMarks = 1;
+
+    const flushCurrent = () => {
+      if (currentLines.length === 0) return;
+      const fullText = currentLines.join('\n').trim();
+      if (!fullText) return;
+      newQuestions.push({
+        id: `raw-text-${Date.now()}-${newQuestions.length + 1}`,
+        section_name: 'Questions (प्रश्न)',
+        type: fullText.includes('_______') ? 'fill_blank' : 'short_answer',
+        question_text: fullText,
+        marks: currentMarks,
+      });
+      currentLines = [];
+      currentMarks = 1;
+    };
+
+    lines.forEach((line) => {
+      const trimmed = line.trim();
+      const match = trimmed.match(questionStartRegex);
+      if (match) {
+        flushCurrent();
+        const marksMatch = trimmed.match(/[\(\[]\s*(\d+)\s*(?:marks?|pts?|अंक)?\s*[\)\]]\s*$/i);
+        if (marksMatch) {
+          currentMarks = parseInt(marksMatch[1], 10) || 1;
+        }
+        currentLines.push(trimmed);
+      } else {
+        currentLines.push(line);
+      }
+    });
+    flushCurrent();
+
+    if (newQuestions.length === 0) {
+      newQuestions.push({
+        id: `raw-text-${Date.now()}-1`,
+        section_name: 'Questions (प्रश्न)',
+        type: rawTextContent.includes('_______') ? 'fill_blank' : 'short_answer',
+        question_text: rawTextContent.trim(),
+        marks: 3,
+      });
+    }
+
+    setPaperQuestions(newQuestions);
+    setViewMode('preview');
+    toast.success(`Converted ${newQuestions.length} raw question(s) to printable paper!`);
+
+    if (andPrint) {
+      setTimeout(() => {
+        printExamPaper({
+          schoolName,
+          schoolLogo,
+          schoolAddress,
+          title: examTitle,
+          className: selectedClassName,
+          subjectName: selectedSubjectName,
+          timeAllowed,
+          totalMarks,
+          instructions,
+          questions: newQuestions,
+          isTwoColumn,
+        });
+      }, 400);
+    }
+  };
+
+  // Convert Builder Rows to Questions
+  const handleConvertBuilderToPaper = (andPrint: boolean = false) => {
+    if (rawBuilderQuestions.length === 0) {
+      toast.error('Please add at least one question');
+      return;
+    }
+
+    const newQuestions: QuestionItem[] = rawBuilderQuestions.map((bq, qIdx) => {
+      const rowsFormatted = bq.rows
+        .map((r) => {
+          const blanks = Array(Math.max(1, r.blanksCount || 1))
+            .fill('_______')
+            .join('  ');
+          const prefix = r.label ? `${r.label} ` : '';
+          return `${prefix}${r.pattern}   ${blanks}`;
+        })
+        .join('\n');
+
+      const fullQText = bq.title.trim()
+        ? `${bq.title.trim()}\n${rowsFormatted}`
+        : rowsFormatted;
+
+      return {
+        id: `raw-bld-${Date.now()}-${qIdx + 1}`,
+        section_name: bq.sectionName || 'Section A: Pattern Questions',
+        sub_section: bq.subSection || undefined,
+        type: 'fill_blank',
+        question_text: fullQText,
+        marks: Number(bq.marks) || 1,
+      };
+    });
+
+    setPaperQuestions(newQuestions);
+    setViewMode('preview');
+    toast.success(`Created printable paper with ${newQuestions.length} question(s)!`);
+
+    if (andPrint) {
+      setTimeout(() => {
+        printExamPaper({
+          schoolName,
+          schoolLogo,
+          schoolAddress,
+          title: examTitle,
+          className: selectedClassName,
+          subjectName: selectedSubjectName,
+          timeAllowed,
+          totalMarks,
+          instructions,
+          questions: newQuestions,
+          isTwoColumn,
+        });
+      }, 400);
+    }
+  };
+
+  const handleAddRawQuestion = () => {
+    const newQ: RawBuilderQuestion = {
+      id: `rbq-${Date.now()}`,
+      title: 'Understand the pattern in each line and draw more.',
+      marks: 3,
+      sectionName: 'Section A: Pattern Questions',
+      rows: [
+        { id: `r-${Date.now()}-1`, label: '(i)', pattern: '', blanksCount: 3 },
+        { id: `r-${Date.now()}-2`, label: '(ii)', pattern: '', blanksCount: 3 },
+      ],
+    };
+    setRawBuilderQuestions([...rawBuilderQuestions, newQ]);
+  };
+
+  const handleRemoveRawQuestion = (qId: string) => {
+    if (rawBuilderQuestions.length <= 1) {
+      toast.info('At least one question is required');
+      return;
+    }
+    setRawBuilderQuestions(rawBuilderQuestions.filter((q) => q.id !== qId));
+  };
+
+  const handleAddRawPatternRow = (qId: string) => {
+    setRawBuilderQuestions(
+      rawBuilderQuestions.map((q) => {
+        if (q.id !== qId) return q;
+        const romanLabels = ['(i)', '(ii)', '(iii)', '(iv)', '(v)', '(vi)', '(vii)', '(viii)', '(ix)', '(x)'];
+        const nextLabel = romanLabels[q.rows.length] || `(${q.rows.length + 1})`;
+        return {
+          ...q,
+          rows: [
+            ...q.rows,
+            { id: `r-${Date.now()}`, label: nextLabel, pattern: '', blanksCount: 3 },
+          ],
+        };
+      })
+    );
+  };
+
+  const handleRemoveRawPatternRow = (qId: string, rowId: string) => {
+    setRawBuilderQuestions(
+      rawBuilderQuestions.map((q) => {
+        if (q.id !== qId) return q;
+        if (q.rows.length <= 1) {
+          toast.info('At least one row is required');
+          return q;
+        }
+        return {
+          ...q,
+          rows: q.rows.filter((r) => r.id !== rowId),
+        };
+      })
+    );
+  };
+
+  const handleUpdateRawPatternRow = (
+    qId: string,
+    rowId: string,
+    field: 'label' | 'pattern' | 'blanksCount',
+    val: any
+  ) => {
+    setRawBuilderQuestions(
+      rawBuilderQuestions.map((q) => {
+        if (q.id !== qId) return q;
+        return {
+          ...q,
+          rows: q.rows.map((r) => (r.id === rowId ? { ...r, [field]: val } : r)),
+        };
+      })
+    );
+  };
+
+  const handleRawMediaFilesSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const newItems: UploadedMediaItem[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const reader = new FileReader();
+      const dataUrl = await new Promise<string>((resolve) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.readAsDataURL(file);
+      });
+
+      newItems.push({
+        id: `media-${Date.now()}-${i}`,
+        name: file.name,
+        size: `${(file.size / 1024).toFixed(1)} KB`,
+        type: file.type || (file.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg'),
+        data: dataUrl,
+      });
+    }
+
+    setRawUploadedFiles((prev) => [...prev, ...newItems]);
+    toast.success(`Added ${newItems.length} file(s) for AI paper analysis`);
+    if (rawMediaFileInputRef.current) rawMediaFileInputRef.current.value = '';
+  };
+
+  const handleRemoveRawUploadedFile = (id: string) => {
+    setRawUploadedFiles((prev) => prev.filter((f) => f.id !== id));
+  };
+
+  const handleExtractPaperFromMedia = async () => {
+    if (rawUploadedFiles.length === 0) {
+      toast.error('Please upload at least one photo or PDF of your exam paper');
+      return;
+    }
+
+    setIsExtractingRawMedia(true);
+    try {
+      const token = getAuthToken() || '';
+      if (!token) {
+        toast.error('Session expired. Please log in again.');
+        setIsExtractingRawMedia(false);
+        return;
+      }
+      const res = await fetch(`${API_URL}/api/question-papers/extract-from-media`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          media_files: rawUploadedFiles.map((f) => ({
+            name: f.name,
+            data: f.data,
+            mimeType: f.type,
+          })),
+        }),
+      });
+
+      const resData = await res.json();
+      if (!res.ok) {
+        throw new Error(resData.error || 'Failed to extract paper');
+      }
+
+      const extracted = resData.data;
+      const header = extracted.header || {};
+      const questions = extracted.questions || [];
+
+      // Automatically populate header (all fully editable by the user)
+      if (header.school_name) setSchoolName(header.school_name);
+      if (header.exam_title) setExamTitle(header.exam_title);
+      if (header.class_name) setPdfCustomClass(header.class_name);
+      if (header.subject_name) setPdfCustomSubject(header.subject_name);
+      if (header.total_marks) setTotalMarks(String(header.total_marks));
+      if (header.time_allowed) setTimeAllowed(header.time_allowed);
+      if (header.instructions) setInstructions(header.instructions);
+
+      if (questions.length === 0) {
+        toast.warning('No questions were found in the uploaded images');
+        return;
+      }
+
+      // Format questions into QuestionItem array
+      const formattedQuestions: QuestionItem[] = questions.map((q: any, idx: number) => ({
+        id: `extracted-q-${Date.now()}-${idx + 1}`,
+        section_name: q.section_name || 'Questions (प्रश्न)',
+        sub_section: q.sub_section || undefined,
+        type: q.type || (q.question_text?.includes('_______') ? 'fill_blank' : 'short_answer'),
+        question_text: q.question_text || '',
+        options: q.options || null,
+        answer_text: q.answer_text || '',
+        marks: Number(q.marks) || 1,
+        difficulty: q.difficulty || 'easy',
+      }));
+
+      setPaperQuestions(formattedQuestions);
+
+      // Also sync raw text content so user can view/edit in raw text mode
+      const textJoined = formattedQuestions.map((q, idx) => `${idx + 1}. ${q.question_text} (${q.marks})`).join('\n\n');
+      setRawTextContent(textJoined);
+
+      // Transition to Preview so teacher sees the full paper immediately!
+      setViewMode('preview');
+      toast.success(`🎉 AI extracted ${formattedQuestions.length} questions & set header from your upload!`);
+    } catch (err: any) {
+      console.error('Extract Paper Error:', err);
+      toast.error(err.message || 'Failed to extract paper from images/PDF');
+    } finally {
+      setIsExtractingRawMedia(false);
+    }
+  };
+
   const selectedClassName =
     (selectedClassId === '__custom__' ? pdfCustomClass : classes.find((c) => c.id === selectedClassId)?.name) ||
     pdfCustomClass ||
@@ -1773,7 +2149,7 @@ export default function GeneratePaperPage() {
               <button
                 type="button"
                 onClick={() => setViewMode('config')}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   viewMode === 'config'
                     ? 'bg-[#FFF1DA] text-primary shadow-xs'
                     : 'text-muted-foreground hover:text-foreground'
@@ -1788,15 +2164,39 @@ export default function GeneratePaperPage() {
                 >
                   1
                 </span>
-                <span>Setup Form</span>
+                <span>AI Setup</span>
               </button>
 
-              <span className="text-muted-foreground/40 text-xs px-1">→</span>
+              <span className="text-muted-foreground/40 text-xs px-0.5">|</span>
+
+              <button
+                type="button"
+                onClick={() => setViewMode('raw')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  viewMode === 'raw'
+                    ? 'bg-[#FFF1DA] text-primary shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <span
+                  className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                    viewMode === 'raw'
+                      ? 'gradient-brand text-white shadow-2xs'
+                      : 'bg-muted-foreground/20 text-muted-foreground'
+                  }`}
+                >
+                  2
+                </span>
+                <span className="hidden sm:inline">⚡ Raw / Row Questions</span>
+                <span className="sm:hidden">⚡ Raw</span>
+              </button>
+
+              <span className="text-muted-foreground/40 text-xs px-0.5">→</span>
 
               <button
                 type="button"
                 onClick={() => setViewMode('preview')}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   viewMode === 'preview'
                     ? 'bg-[#FFF1DA] text-primary shadow-xs'
                     : 'text-muted-foreground hover:text-foreground'
@@ -1809,7 +2209,7 @@ export default function GeneratePaperPage() {
                       : 'bg-muted-foreground/20 text-muted-foreground'
                   }`}
                 >
-                  2
+                  3
                 </span>
                 <span className="hidden sm:inline">Paper Preview</span>
                 <span className="sm:hidden">Preview</span>
@@ -1877,6 +2277,32 @@ export default function GeneratePaperPage() {
             className="hidden"
           />
 
+          {/* Quick Switch Banner to Raw / Row Questions Tab */}
+          <div className="bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-amber-500/5 border border-amber-300/80 rounded-2xl p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-800 flex items-center justify-center shrink-0">
+                <Layers className="w-4 h-4 text-amber-700" />
+              </div>
+              <div>
+                <p className="text-xs sm:text-sm font-bold text-foreground">
+                  Direct Raw / Row Questions Se Paper Banana Hai?
+                </p>
+                <p className="text-[11px] sm:text-xs text-muted-foreground">
+                  Agar aapke paas pehle se questions ya patterns hain (jaise &ldquo;Understand the pattern&rdquo;), toh bina AI wait ke instant PDF banayein.
+                </p>
+              </div>
+            </div>
+            <Button
+              type="button"
+              onClick={() => setViewMode('raw')}
+              className="h-8.5 px-3.5 text-xs font-bold gradient-brand text-white rounded-xl shadow-2xs hover:opacity-95 cursor-pointer shrink-0"
+            >
+              <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+              <span>Open Raw / Row Questions Maker</span>
+              <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
+            </Button>
+          </div>
+
           {/* 1. Sleek Collapsible School & Exam Header */}
           <div className="bg-card border border-border rounded-2xl p-3.5 sm:p-4 shadow-xs transition-all">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -1909,7 +2335,7 @@ export default function GeneratePaperPage() {
 
             {/* Expanded Header Customization Form */}
             {!isHeaderCollapsed && (
-              <div className="mt-4 pt-4 border-t border-border/80 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 animate-fade-in">
+              <div className="mt-4 pt-4 border-t border-border/80 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 animate-fade-in">
                 <div>
                   <Label className="text-xs font-bold text-foreground">School / Institute Name</Label>
                   <Input
@@ -1920,13 +2346,34 @@ export default function GeneratePaperPage() {
                   />
                 </div>
                 <div>
-                  <Label className="text-xs font-bold text-foreground">Exam Title</Label>
+                  <Label className="text-xs font-bold text-foreground">School Address</Label>
+                  <Input
+                    value={schoolAddress}
+                    onChange={(e) => setSchoolAddress(e.target.value)}
+                    className="mt-1 h-9 rounded-xl text-xs bg-white"
+                    placeholder="e.g. Civil Lines, New Delhi"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs font-bold text-foreground">Terminal / Exam Title</Label>
                   <Input
                     value={examTitle}
                     onChange={(e) => setExamTitle(e.target.value)}
-                    className="mt-1 h-9 rounded-xl text-xs bg-white"
-                    placeholder="e.g. Annual Examination - 2026"
+                    className="mt-1 h-9 rounded-xl text-xs bg-white font-semibold"
+                    placeholder="e.g. 1st Terminal Examination"
                   />
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {['1st Terminal', '2nd Terminal', '3rd Terminal', 'Annual'].map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setExamTitle(t.includes('Annual') ? 'Annual Examination' : `${t} Examination`)}
+                        className="text-[10px] px-1.5 py-0.5 rounded bg-muted hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <div>
                   <Label className="text-xs font-bold text-foreground">Time Allowed</Label>
@@ -2502,6 +2949,605 @@ export default function GeneratePaperPage() {
       )}
 
       {/* ========================================================================= */}
+      {/* FULL PAGE VIEW: RAW / ROW QUESTIONS TO PDF GENERATOR                      */}
+      {/* ========================================================================= */}
+      {viewMode === 'raw' && (
+        <div className="max-w-5xl mx-auto space-y-6 animate-fade-in print:hidden pb-24 md:pb-6">
+          {/* Top Banner Card */}
+          <Card className="border border-border/80 bg-gradient-to-r from-amber-500/10 via-background to-orange-500/10 shadow-xs">
+            <CardHeader className="pb-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider text-amber-700 bg-amber-100/80 border border-amber-300 uppercase mb-1.5">
+                    ⚡ Instant PDF Generator (Zero AI Wait)
+                  </div>
+                  <CardTitle className="text-xl sm:text-2xl font-bold flex items-center gap-2">
+                    Raw / Row Questions to Printable PDF
+                  </CardTitle>
+                  <CardDescription className="text-xs sm:text-sm mt-0.5">
+                    Yahan aap direct question type/paste karke ya pattern rows set karke as-it-is A4 exam paper bana sakte hain.
+                  </CardDescription>
+                </div>
+
+                {/* Mode Selector Toggle */}
+                <div className="flex items-center bg-muted p-1 rounded-xl border border-border shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setRawInputMode('builder')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      rawInputMode === 'builder'
+                        ? 'bg-card text-foreground shadow-xs'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <Layers className="w-3.5 h-3.5" />
+                    <span>Row / Pattern Builder</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRawInputMode('text')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      rawInputMode === 'text'
+                        ? 'bg-card text-foreground shadow-xs'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>Direct Paste Raw Text</span>
+                  </button>
+                </div>
+              </div>
+            </CardHeader>
+          </Card>
+
+          {/* Hidden File Input for Raw Media Upload (Images & PDFs) */}
+          <input
+            type="file"
+            ref={rawMediaFileInputRef}
+            onChange={handleRawMediaFilesSelected}
+            accept="image/*,application/pdf"
+            multiple
+            className="hidden"
+          />
+
+          {/* 📸 AI PHOTO / PDF INSTANT SCANNER CARD */}
+          <Card className="border-2 border-indigo-500/30 bg-gradient-to-br from-indigo-50/50 via-background to-purple-50/30 shadow-sm">
+            <CardHeader className="pb-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider text-indigo-700 bg-indigo-100 border border-indigo-200 uppercase">
+                    <Sparkles className="w-3 h-3 text-indigo-600" />
+                    <span>AI Handwriting & Paper Scanner</span>
+                  </div>
+                  <CardTitle className="text-base sm:text-lg font-bold flex items-center gap-2 text-indigo-950">
+                    <span>Upload Exam Paper Photos or PDF (हैंडरिटेन या प्रिंटेड पेपर अपलोड करें)</span>
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-600">
+                    Handwritten notebook photo (jaise UKG English test), printed paper ya PDF upload karein — AI Class, Subject, Marks & Questions ko <strong>as-it-is extract karke instant PDF</strong> bana dega!
+                  </CardDescription>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    onClick={() => rawMediaFileInputRef.current?.click()}
+                    variant="outline"
+                    className="h-9 px-3 text-xs font-bold border-indigo-300 text-indigo-700 bg-white hover:bg-indigo-50 cursor-pointer shadow-2xs"
+                  >
+                    <Upload className="w-3.5 h-3.5 mr-1.5 text-indigo-600" />
+                    <span>+ Add Photos / PDF</span>
+                  </Button>
+
+                  {rawUploadedFiles.length > 0 && (
+                    <Button
+                      type="button"
+                      disabled={isExtractingRawMedia}
+                      onClick={handleExtractPaperFromMedia}
+                      className="h-9 px-4 text-xs font-bold gradient-brand text-white shadow-xs cursor-pointer"
+                    >
+                      {isExtractingRawMedia ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                          <span>AI Analyzing Paper...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+                          <span>⚡ AI Auto-Extract Paper</span>
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </CardHeader>
+
+            <CardContent className="pt-1">
+              {rawUploadedFiles.length === 0 ? (
+                <div
+                  onClick={() => rawMediaFileInputRef.current?.click()}
+                  className="border-2 border-dashed border-indigo-200 hover:border-indigo-400 bg-indigo-50/20 hover:bg-indigo-50/50 rounded-2xl p-6 text-center cursor-pointer transition-all space-y-2"
+                >
+                  <div className="w-12 h-12 mx-auto rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 shadow-2xs">
+                    <ImageIcon className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="text-xs sm:text-sm font-bold text-slate-700">
+                      Click here to upload photos of notebook pages, handwritten tests, or PDF papers
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Supports JPG, PNG, WEBP, and PDF • Multiple pages/images supported
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2.5">
+                    {rawUploadedFiles.map((file) => (
+                      <div
+                        key={file.id}
+                        className="relative group rounded-xl border border-indigo-200 bg-white p-2 shadow-2xs flex flex-col items-center justify-between text-center overflow-hidden"
+                      >
+                        {file.type.startsWith('image/') ? (
+                          <div className="w-full h-20 rounded-lg overflow-hidden bg-slate-100 mb-1.5">
+                            <img
+                              src={file.data}
+                              alt={file.name}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        ) : (
+                          <div className="w-full h-20 rounded-lg bg-red-50 flex flex-col items-center justify-center text-red-600 mb-1.5">
+                            <FileText className="w-7 h-7" />
+                            <span className="text-[9px] font-bold mt-1 uppercase">PDF Doc</span>
+                          </div>
+                        )}
+                        <p className="text-[10px] font-semibold text-slate-700 truncate w-full" title={file.name}>
+                          {file.name}
+                        </p>
+                        <span className="text-[9px] text-slate-400">{file.size}</span>
+
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveRawUploadedFile(file.id);
+                          }}
+                          className="absolute top-1 right-1 w-5 h-5 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-xs opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                          title="Remove file"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-2 p-2.5 bg-indigo-50/60 rounded-xl border border-indigo-100">
+                    <span className="text-xs text-indigo-900 font-medium">
+                      📎 {rawUploadedFiles.length} file(s) ready. Click below to let AI automatically extract header & questions.
+                    </span>
+                    <Button
+                      type="button"
+                      disabled={isExtractingRawMedia}
+                      onClick={handleExtractPaperFromMedia}
+                      size="sm"
+                      className="h-8 px-4 text-xs font-bold gradient-brand text-white shadow-xs cursor-pointer w-full sm:w-auto"
+                    >
+                      {isExtractingRawMedia ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                          <span>Processing Images...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+                          <span>⚡ Start AI Extraction</span>
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Exam Header Quick Configuration Card */}
+          <Card className="border border-border shadow-xs">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-bold flex items-center gap-2">
+                <School className="w-4 h-4 text-primary" />
+                <span>Exam Paper Header Details</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                <div>
+                  <Label className="text-[11px] font-bold text-muted-foreground uppercase">School / Institute Name</Label>
+                  <Input
+                    value={schoolName}
+                    onChange={(e) => setSchoolName(e.target.value)}
+                    className="h-8.5 text-xs mt-1"
+                    placeholder="School Name"
+                  />
+                </div>
+                <div>
+                  <Label className="text-[11px] font-bold text-muted-foreground uppercase">School Address</Label>
+                  <Input
+                    value={schoolAddress}
+                    onChange={(e) => setSchoolAddress(e.target.value)}
+                    className="h-8.5 text-xs mt-1"
+                    placeholder="Address"
+                  />
+                </div>
+                <div>
+                  <Label className="text-[11px] font-bold text-muted-foreground uppercase">Terminal / Exam Title</Label>
+                  <Input
+                    value={examTitle}
+                    onChange={(e) => setExamTitle(e.target.value)}
+                    className="h-8.5 text-xs mt-1 font-semibold"
+                    placeholder="e.g. 1st Terminal Examination"
+                  />
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {['1st Terminal', '2nd Terminal', '3rd Terminal', 'Annual'].map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setExamTitle(t.includes('Annual') ? 'Annual Examination' : `${t} Examination`)}
+                        className="text-[9px] px-1 py-0.5 rounded bg-muted hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-[11px] font-bold text-muted-foreground uppercase">Class / Grade</Label>
+                  <Input
+                    value={pdfCustomClass || (selectedClassId ? classes.find(c => c.id === selectedClassId)?.name || '' : '')}
+                    onChange={(e) => setPdfCustomClass(e.target.value)}
+                    className="h-8.5 text-xs mt-1"
+                    placeholder="e.g. Class 2 / Class 3"
+                  />
+                </div>
+                <div>
+                  <Label className="text-[11px] font-bold text-muted-foreground uppercase">Subject</Label>
+                  <Input
+                    value={pdfCustomSubject || (selectedSubjectId ? subjects.find(s => s.id === selectedSubjectId)?.name || '' : '')}
+                    onChange={(e) => setPdfCustomSubject(e.target.value)}
+                    className="h-8.5 text-xs mt-1"
+                    placeholder="e.g. Mathematics"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1 border-t border-dashed border-border/70">
+                <div>
+                  <Label className="text-[11px] font-bold text-muted-foreground uppercase">Time Allowed</Label>
+                  <Input
+                    value={timeAllowed}
+                    onChange={(e) => setTimeAllowed(e.target.value)}
+                    className="h-8.5 text-xs mt-1"
+                    placeholder="e.g. 45 Mins / 1 Hour"
+                  />
+                </div>
+                <div>
+                  <Label className="text-[11px] font-bold text-muted-foreground uppercase">Total Marks</Label>
+                  <Input
+                    value={totalMarks}
+                    onChange={(e) => setTotalMarks(e.target.value)}
+                    className="h-8.5 text-xs mt-1"
+                    placeholder="e.g. 20"
+                  />
+                </div>
+                <div>
+                  <Label className="text-[11px] font-bold text-muted-foreground uppercase">Layout Mode</Label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Button
+                      type="button"
+                      variant={!isTwoColumn ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setIsTwoColumn(false)}
+                      className="h-8.5 text-xs flex-1 cursor-pointer"
+                    >
+                      Single Column
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={isTwoColumn ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setIsTwoColumn(true)}
+                      className="h-8.5 text-xs flex-1 cursor-pointer"
+                    >
+                      Two Column
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* MAIN CONTENT AREA ACCORDING TO MODE */}
+          {rawInputMode === 'builder' ? (
+            /* ========================================================================= */
+            /* BUILDER MODE: VISUAL ROW / PATTERN BUILDER                                */
+            /* ========================================================================= */
+            <div className="space-y-4">
+              {rawBuilderQuestions.map((q, qIdx) => (
+                <Card key={q.id} className="border border-border/90 shadow-xs">
+                  <CardHeader className="pb-3 bg-muted/30 border-b border-border/60">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                      <div className="flex items-center gap-2">
+                        <span className="w-6 h-6 rounded-full bg-primary/10 text-primary font-bold text-xs flex items-center justify-center">
+                          {qIdx + 1}
+                        </span>
+                        <span className="font-bold text-sm text-foreground">Question {qIdx + 1}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5">
+                          <Label className="text-xs font-semibold text-muted-foreground whitespace-nowrap">Marks:</Label>
+                          <Input
+                            type="number"
+                            min="1"
+                            max="50"
+                            value={q.marks}
+                            onChange={(e) => {
+                              const updated = [...rawBuilderQuestions];
+                              updated[qIdx].marks = Number(e.target.value) || 1;
+                              setRawBuilderQuestions(updated);
+                            }}
+                            className="w-16 h-7.5 text-xs font-bold text-center"
+                          />
+                        </div>
+                        {rawBuilderQuestions.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleRemoveRawQuestion(q.id)}
+                            className="h-7.5 w-7.5 text-rose-500 hover:text-rose-600 hover:bg-rose-50 cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent className="space-y-4 pt-4">
+                    {/* Question Title & Section row */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="sm:col-span-2">
+                        <Label className="text-[11px] font-bold text-muted-foreground uppercase">
+                          Question Instruction / Heading
+                        </Label>
+                        <Input
+                          value={q.title}
+                          onChange={(e) => {
+                            const updated = [...rawBuilderQuestions];
+                            updated[qIdx].title = e.target.value;
+                            setRawBuilderQuestions(updated);
+                          }}
+                          className="h-9 text-xs sm:text-sm font-semibold mt-1"
+                          placeholder="e.g. Understand the pattern in each line and draw more."
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-[11px] font-bold text-muted-foreground uppercase">
+                          Section Name
+                        </Label>
+                        <Input
+                          value={q.sectionName}
+                          onChange={(e) => {
+                            const updated = [...rawBuilderQuestions];
+                            updated[qIdx].sectionName = e.target.value;
+                            setRawBuilderQuestions(updated);
+                          }}
+                          className="h-9 text-xs mt-1"
+                          placeholder="e.g. Section A: Patterns"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Rows Table */}
+                    <div className="space-y-2 pt-2">
+                      <div className="flex items-center justify-between pb-1 border-b border-border">
+                        <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                          Pattern Rows (हर लाइन और उसके खाली स्थान)
+                        </span>
+                        <span className="text-[11px] text-muted-foreground">
+                          Jitna blanks count utne <code className="bg-muted px-1 rounded">_______</code> aayenge
+                        </span>
+                      </div>
+
+                      <div className="space-y-2">
+                        {q.rows.map((row, rIdx) => (
+                          <div
+                            key={row.id}
+                            className="flex flex-col sm:flex-row sm:items-center gap-2 p-2.5 rounded-xl border border-border/80 bg-muted/20 hover:bg-muted/40 transition-colors"
+                          >
+                            {/* Label */}
+                            <div className="w-16 shrink-0">
+                              <Input
+                                value={row.label}
+                                onChange={(e) => handleUpdateRawPatternRow(q.id, row.id, 'label', e.target.value)}
+                                className="h-8 text-xs font-bold text-center bg-card"
+                                placeholder="(i)"
+                              />
+                            </div>
+
+                            {/* Pattern input */}
+                            <div className="flex-1 min-w-0">
+                              <Input
+                                value={row.pattern}
+                                onChange={(e) => handleUpdateRawPatternRow(q.id, row.id, 'pattern', e.target.value)}
+                                className="h-8 text-xs sm:text-sm font-mono font-bold bg-card"
+                                placeholder="Pattern e.g. ^ V ^ V or M W M W or A B C A"
+                              />
+                            </div>
+
+                            {/* Blank count */}
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <span className="text-[11px] text-muted-foreground whitespace-nowrap">Blanks:</span>
+                              <Input
+                                type="number"
+                                min="1"
+                                max="15"
+                                value={row.blanksCount}
+                                onChange={(e) => handleUpdateRawPatternRow(q.id, row.id, 'blanksCount', Math.max(1, Number(e.target.value) || 1))}
+                                className="w-14 h-8 text-xs font-bold text-center bg-card"
+                              />
+                            </div>
+
+                            {/* Live Preview */}
+                            <div className="hidden md:flex items-center gap-2 px-2.5 py-1.5 bg-background border border-border/60 rounded-lg text-xs flex-1 max-w-[260px] overflow-hidden whitespace-nowrap text-ellipsis">
+                              <span className="font-bold text-foreground">{row.pattern || '...'}</span>
+                              <span className="text-muted-foreground font-mono">
+                                {Array(Math.max(1, row.blanksCount || 1)).fill('_______').join('  ')}
+                              </span>
+                            </div>
+
+                            {/* Delete row */}
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleRemoveRawPatternRow(q.id, row.id)}
+                              className="h-8 w-8 text-rose-500 hover:text-rose-600 hover:bg-rose-50 cursor-pointer shrink-0"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="pt-2 flex justify-start">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleAddRawPatternRow(q.id)}
+                          className="h-8 text-xs font-semibold rounded-xl border-dashed border-border hover:bg-muted cursor-pointer"
+                        >
+                          <Plus className="w-3.5 h-3.5 mr-1" />
+                          <span>Add More Line / Row (+ लाइन जोड़ें)</span>
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+
+              <div className="flex items-center justify-between pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleAddRawQuestion}
+                  className="h-9 text-xs font-bold rounded-xl border-dashed border-border hover:bg-muted cursor-pointer"
+                >
+                  <Plus className="w-4 h-4 mr-1.5" />
+                  <span>Add Another Question (+ नया प्रश्न जोड़ें)</span>
+                </Button>
+              </div>
+            </div>
+          ) : (
+            /* ========================================================================= */
+            /* TEXT PASTE MODE: DIRECT RAW TEXTAREA                                      */
+            /* ========================================================================= */
+            <Card className="border border-border shadow-xs">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-bold flex items-center justify-between">
+                  <span>Paste Raw Question Text Here</span>
+                  <Badge variant="outline" className="text-[10px] font-normal">
+                    Preserves all lines and empty spaces
+                  </Badge>
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Yahan aap direct pura question text paste kar sakte hain. Numbered questions (1., 2.) alag-alag questions ban jayenge.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-1">
+                <Textarea
+                  value={rawTextContent}
+                  onChange={(e) => setRawTextContent(e.target.value)}
+                  className="font-mono text-xs sm:text-sm min-h-[300px] leading-relaxed bg-muted/20 border-border"
+                  placeholder="Paste your raw questions here..."
+                />
+
+                <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs space-y-1 text-muted-foreground">
+                  <div className="font-bold text-amber-800 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Quick Formatting Tips:</span>
+                  </div>
+                  <div>• Subparts ke liye <code className="bg-background px-1 rounded">(i)</code>, <code className="bg-background px-1 rounded">(ii)</code> format use karein.</div>
+                  <div>• Khali jagah ke liye multiple <code className="bg-background px-1 rounded">_______  _______  _______</code> use karein.</div>
+                  <div>• Marks specify karne ke liye line ke aakhir me <code className="bg-background px-1 rounded">(3)</code> ya <code className="bg-background px-1 rounded">(3 Marks)</code> likhein.</div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Bottom Action Control Bar */}
+          <Card className="border border-border/80 shadow-xs bg-muted/30">
+            <CardContent className="p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setViewMode('config')}
+                className="h-10 text-xs font-bold rounded-xl border-border hover:bg-muted cursor-pointer w-full sm:w-auto"
+              >
+                <ArrowLeft className="w-3.5 h-3.5 mr-1.5" />
+                <span>Switch to AI Generator</span>
+              </Button>
+
+              <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto justify-end">
+                {rawInputMode === 'builder' ? (
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleConvertBuilderToPaper(true)}
+                      className="h-10 px-4 text-xs font-bold rounded-xl border-border hover:bg-muted cursor-pointer flex-1 sm:flex-initial"
+                    >
+                      <Printer className="w-3.5 h-3.5 mr-1.5 text-primary" />
+                      <span>Instant Direct Print</span>
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={() => handleConvertBuilderToPaper(false)}
+                      className="h-10 px-5 text-xs font-bold gradient-brand text-white rounded-xl shadow-xs hover:opacity-95 cursor-pointer flex-1 sm:flex-initial"
+                    >
+                      <span>Preview & Review Paper</span>
+                      <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleConvertRawTextToPaper(true)}
+                      className="h-10 px-4 text-xs font-bold rounded-xl border-border hover:bg-muted cursor-pointer flex-1 sm:flex-initial"
+                    >
+                      <Printer className="w-3.5 h-3.5 mr-1.5 text-primary" />
+                      <span>Instant Direct Print</span>
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={() => handleConvertRawTextToPaper(false)}
+                      className="h-10 px-5 text-xs font-bold gradient-brand text-white rounded-xl shadow-xs hover:opacity-95 cursor-pointer flex-1 sm:flex-initial"
+                    >
+                      <span>Preview & Review Paper</span>
+                      <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
+                    </Button>
+                  </>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
       {/* FULL PAGE VIEW 2: FULL-WIDTH PAPER PREVIEW & PRINT CANVAS                 */}
       {/* ========================================================================= */}
       {viewMode === 'preview' && (
@@ -2519,7 +3565,17 @@ export default function GeneratePaperPage() {
                   className="h-8 px-2.5 sm:px-3 text-xs font-semibold rounded-xl border-border text-foreground hover:bg-muted cursor-pointer shrink-0 shadow-2xs"
                 >
                   <ArrowLeft className="w-3.5 h-3.5 mr-1 sm:mr-1.5 text-muted-foreground" />
-                  <span>Setup Form</span>
+                  <span>AI Setup</span>
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setViewMode('raw')}
+                  className="h-8 px-2.5 sm:px-3 text-xs font-semibold rounded-xl border-border text-foreground hover:bg-muted cursor-pointer shrink-0 shadow-2xs"
+                >
+                  <Layers className="w-3.5 h-3.5 mr-1 sm:mr-1.5 text-muted-foreground" />
+                  <span>Raw / Row Paper</span>
                 </Button>
 
                 <div className="h-4 w-px bg-border shrink-0 hidden sm:block" />
