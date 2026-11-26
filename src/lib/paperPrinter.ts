@@ -1250,6 +1250,14 @@ export function printExamPaper(data: ExamPaperData) {
                     </tr>
                   </table>
 
+                  <!-- Invigilator & Examiner Signatures -->
+                  <table class="candidate-row" style="margin-top: 2px;">
+                    <tr>
+                      <td style="text-align: left;">Invigilator's Signature: _________________________</td>
+                      <td style="text-align: right;">Examiner's Signature: _________________________</td>
+                    </tr>
+                  </table>
+
                   <!-- Instructions -->
                   ${
                     instructions
@@ -1368,7 +1376,7 @@ export function printRawPaperFromDom(elementId: string = 'printable-raw-paper') 
         <style>
           @page {
             size: A4 portrait;
-            margin: 12mm;
+            margin: 0mm; /* Zero @page margin completely suppresses browser default date, time, title, and URL */
           }
 
           html, body {
@@ -1382,10 +1390,39 @@ export function printRawPaperFromDom(elementId: string = 'printable-raw-paper') 
             print-color-adjust: exact !important;
           }
 
+          .print-page-table {
+            width: 100%;
+            border-collapse: collapse;
+            border-spacing: 0;
+            margin: 0;
+            padding: 0;
+            border: none;
+          }
+
+          .page-top-margin-cell {
+            height: 5mm;
+            padding: 0;
+            margin: 0;
+            border: none;
+          }
+
+          .page-bottom-margin-cell {
+            height: 6mm;
+            padding: 0;
+            margin: 0;
+            border: none;
+          }
+
+          .page-content-cell {
+            padding: 0 9mm;
+            border: none;
+            vertical-align: top;
+          }
+
           @media print {
             @page {
               size: A4 portrait;
-              margin: 12mm;
+              margin: 0mm;
             }
 
             html, body {
@@ -1441,7 +1478,25 @@ export function printRawPaperFromDom(elementId: string = 'printable-raw-paper') 
         </style>
       </head>
       <body>
-        ${clone.outerHTML}
+        <table class="print-page-table">
+          <thead>
+            <tr>
+              <td class="page-top-margin-cell"></td>
+            </tr>
+          </thead>
+          <tfoot>
+            <tr>
+              <td class="page-bottom-margin-cell"></td>
+            </tr>
+          </tfoot>
+          <tbody>
+            <tr>
+              <td class="page-content-cell">
+                ${clone.outerHTML}
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </body>
     </html>
   `);
@@ -1474,4 +1529,266 @@ export function printRawPaperFromDom(elementId: string = 'printable-raw-paper') 
       }
     }, 60000);
   }, 500);
+}
+
+/**
+ * Directly generates and downloads an A4 PDF file from #printable-raw-paper
+ * without opening the browser print dialog. Supports smart multi-page A4 flow
+ * without cutting any question or math calculation box in half.
+ */
+export async function downloadRawPaperAsPdf(
+  elementId: string = 'printable-raw-paper',
+  filename: string = 'Exam_Paper.pdf'
+) {
+  const sourceEl = document.getElementById(elementId);
+  if (!sourceEl) {
+    throw new Error('Paper preview element not found');
+  }
+
+  const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+    import('html2canvas-pro'),
+    import('jspdf'),
+  ]);
+
+  // Create off-screen A4-width host container (794px = 210mm at 96dpi)
+  const host = document.createElement('div');
+  host.style.position = 'fixed';
+  host.style.left = '-12000px';
+  host.style.top = '0';
+  host.style.width = '794px';
+  host.style.background = '#ffffff';
+  host.style.zIndex = '-9999';
+  host.style.pointerEvents = 'none';
+
+  const clone = sourceEl.cloneNode(true) as HTMLElement;
+  clone.querySelectorAll('.print\\:hidden').forEach((node) => node.remove());
+
+  // Normalize clone styling for crisp A4 capture
+  clone.style.width = '794px';
+  clone.style.maxWidth = '794px';
+  clone.style.minWidth = '794px';
+  clone.style.margin = '0';
+  clone.style.padding = '0px 32px 0px 32px';
+  clone.style.border = 'none';
+  clone.style.boxShadow = 'none';
+  clone.style.borderRadius = '0';
+  clone.style.background = '#ffffff';
+
+  host.appendChild(clone);
+  document.body.appendChild(host);
+
+  try {
+    // Inline all external images (such as school logo on R2/Supabase) as base64 data URLs
+    // so html2canvas NEVER drops them due to CORS or non-CORS browser cache
+    const imgs = Array.from(clone.querySelectorAll('img')) as HTMLImageElement[];
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+    await Promise.all(
+      imgs.map(async (img) => {
+        const src = img.getAttribute('src') || '';
+        if (!src || src.startsWith('data:')) return;
+        let dataUrl: string | null = null;
+        try {
+          const resp = await fetch(src, { mode: 'cors', cache: 'no-store' });
+          if (resp.ok) {
+            const blob = await resp.blob();
+            dataUrl = await new Promise<string>((resolve) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.readAsDataURL(blob);
+            });
+          }
+        } catch {
+          // Ignore direct CORS failure, fall through to backend proxy
+        }
+        if (!dataUrl) {
+          try {
+            const proxyResp = await fetch(`${apiUrl}/api/schools/proxy-logo?url=${encodeURIComponent(src)}`);
+            if (proxyResp.ok) {
+              const blob = await proxyResp.blob();
+              dataUrl = await new Promise<string>((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result as string);
+                reader.readAsDataURL(blob);
+              });
+            }
+          } catch (e) {
+            console.warn('Logo inline proxy fallback failed:', e);
+          }
+        }
+        if (dataUrl) {
+          img.src = dataUrl;
+          await new Promise<void>((resolve) => {
+            if (img.complete) return resolve();
+            img.onload = () => resolve();
+            img.onerror = () => resolve();
+          });
+        }
+      })
+    );
+
+    // Wait briefly for fonts/layout inside clone
+    await new Promise((r) => setTimeout(r, 150));
+
+    // A4 page usable height at 794px width with minimal 5mm top & 6mm bottom margins:
+    // 297mm - 11mm = 286mm -> 286 * (794 / 210) ≈ 1081px per page
+    const PAGE_CONTENT_HEIGHT_PX = 1080;
+    const scale = 2;
+
+    // Smart page-break adjustment: never orphan a question label on Page 1 while its sub-questions go to Page 2
+    // Use paddingTop (NOT marginTop) on qBlock so CSS margin-collapse NEVER pulls the heading back onto the page cut!
+    const qBlocks = Array.from(clone.querySelectorAll('.raw-q-block, .print-question')) as HTMLElement[];
+    for (const qBlock of qBlocks) {
+      const containerTop = clone.getBoundingClientRect().top;
+      const mathBoxes = Array.from(qBlock.querySelectorAll('.math-calc-box')) as HTMLElement[];
+
+      if (mathBoxes.length > 0) {
+        // Group math boxes into rows by their Y coordinate (within 8px tolerance)
+        const rows: HTMLElement[][] = [];
+        for (const box of mathBoxes) {
+          const boxTop = box.getBoundingClientRect().top;
+          const existingRow = rows.find((r) => Math.abs(r[0].getBoundingClientRect().top - boxTop) < 8);
+          if (existingRow) {
+            existingRow.push(box);
+          } else {
+            rows.push([box]);
+          }
+        }
+
+        // Check question label/stem + Row 1 together so heading is NEVER orphaned
+        const firstRow = rows[0];
+        if (firstRow && firstRow.length > 0) {
+          const qRect = qBlock.getBoundingClientRect();
+          const qTop = qRect.top - containerTop;
+          const firstRowBottom = Math.max(...firstRow.map((b) => b.getBoundingClientRect().bottom)) - containerTop;
+
+          const startPage = Math.floor(qTop / PAGE_CONTENT_HEIGHT_PX);
+          const endPage = Math.floor((firstRowBottom - 2) / PAGE_CONTENT_HEIGHT_PX);
+
+          if (endPage > startPage && (firstRowBottom - qTop) < PAGE_CONTENT_HEIGHT_PX - 40) {
+            const pushDown = (startPage + 1) * PAGE_CONTENT_HEIGHT_PX - qTop + 4;
+            const currentPaddingTop = parseFloat(window.getComputedStyle(qBlock).paddingTop || '0') || 0;
+            qBlock.style.paddingTop = `${currentPaddingTop + pushDown}px`;
+          }
+        }
+
+        // Check subsequent rows (Row 2, Row 3...) so each row moves together cleanly if crossing a page
+        for (let rIdx = 1; rIdx < rows.length; rIdx++) {
+          const row = rows[rIdx];
+          const cTop = clone.getBoundingClientRect().top;
+          const rowTop = Math.min(...row.map((b) => b.getBoundingClientRect().top)) - cTop;
+          const rowBottom = Math.max(...row.map((b) => b.getBoundingClientRect().bottom)) - cTop;
+
+          const startPage = Math.floor(rowTop / PAGE_CONTENT_HEIGHT_PX);
+          const endPage = Math.floor((rowBottom - 2) / PAGE_CONTENT_HEIGHT_PX);
+
+          if (endPage > startPage && (rowBottom - rowTop) < PAGE_CONTENT_HEIGHT_PX - 40) {
+            const pushDown = (startPage + 1) * PAGE_CONTENT_HEIGHT_PX - rowTop + 4;
+            for (const box of row) {
+              const currentMarginTop = parseFloat(window.getComputedStyle(box).marginTop || '0') || 0;
+              box.style.marginTop = `${currentMarginTop + pushDown}px`;
+            }
+          }
+        }
+      } else {
+        const rect = qBlock.getBoundingClientRect();
+        const top = rect.top - containerTop;
+        const bottom = rect.bottom - containerTop;
+
+        const startPage = Math.floor(top / PAGE_CONTENT_HEIGHT_PX);
+        const endPage = Math.floor((bottom - 2) / PAGE_CONTENT_HEIGHT_PX);
+
+        if (endPage > startPage && rect.height < PAGE_CONTENT_HEIGHT_PX - 40) {
+          const pushDown = (startPage + 1) * PAGE_CONTENT_HEIGHT_PX - top + 4;
+          const currentPaddingTop = parseFloat(window.getComputedStyle(qBlock).paddingTop || '0') || 0;
+          qBlock.style.paddingTop = `${currentPaddingTop + pushDown}px`;
+        }
+      }
+    }
+
+    // Remove trailing margin/padding on last question block so it never triggers an empty extra page
+    if (qBlocks.length > 0) {
+      const lastQ = qBlocks[qBlocks.length - 1];
+      lastQ.style.marginBottom = '0px';
+      lastQ.style.paddingBottom = '0px';
+    }
+
+    // Measure actual bottom-most visible content to trim any empty trailing whitespace
+    const cloneTopFinal = clone.getBoundingClientRect().top;
+    const contentEls = Array.from(clone.querySelectorAll('.raw-q-block, .print-question, .math-calc-box')) as HTMLElement[];
+    let maxContentBottomPx = 0;
+    for (const el of contentEls) {
+      const b = el.getBoundingClientRect().bottom - cloneTopFinal;
+      if (b > maxContentBottomPx) maxContentBottomPx = b;
+    }
+
+    const canvas = await html2canvas(clone, {
+      scale,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: '#ffffff',
+      width: 794,
+      windowWidth: 794,
+      logging: false,
+    });
+
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
+      compress: true,
+    });
+
+    const sliceHeightPx = PAGE_CONTENT_HEIGHT_PX * scale;
+    const effectiveCanvasHeight =
+      maxContentBottomPx > 0
+        ? Math.min(canvas.height, Math.ceil((maxContentBottomPx + 8) * scale))
+        : canvas.height;
+    const totalPages = Math.max(1, Math.ceil(effectiveCanvasHeight / sliceHeightPx));
+
+    for (let pageIdx = 0; pageIdx < totalPages; pageIdx++) {
+      const srcY = pageIdx * sliceHeightPx;
+      const remainingHeight = effectiveCanvasHeight - srcY;
+      const currentSliceHeight = Math.min(sliceHeightPx, remainingHeight);
+
+      if (currentSliceHeight <= 30 * scale) break;
+
+      const pageCanvas = document.createElement('canvas');
+      pageCanvas.width = canvas.width;
+      pageCanvas.height = currentSliceHeight;
+
+      const ctx = pageCanvas.getContext('2d');
+      if (ctx) {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+        ctx.drawImage(
+          canvas,
+          0,
+          srcY,
+          canvas.width,
+          currentSliceHeight,
+          0,
+          0,
+          canvas.width,
+          currentSliceHeight
+        );
+      }
+
+      const imgData = pageCanvas.toDataURL('image/png');
+      const imgHeightMm = (currentSliceHeight / canvas.width) * 210;
+
+      if (pageIdx > 0) {
+        pdf.addPage('a4', 'portrait');
+      }
+
+      // Place at x=0, y=5mm (minimal 5mm top margin on every A4 page)
+      pdf.addImage(imgData, 'PNG', 0, 5, 210, imgHeightMm, undefined, 'FAST');
+    }
+
+    const cleanFilename = filename.replace(/[^a-zA-Z0-9_\-. ]/g, '_');
+    pdf.save(cleanFilename.endsWith('.pdf') ? cleanFilename : `${cleanFilename}.pdf`);
+  } finally {
+    if (document.body.contains(host)) {
+      document.body.removeChild(host);
+    }
+  }
 }

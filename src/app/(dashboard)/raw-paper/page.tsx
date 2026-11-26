@@ -34,7 +34,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { API_URL, getAuthToken } from '@/lib/api';
 import { toast } from 'sonner';
-import { printExamPaper, printRawPaperFromDom, autoFormatMath } from '@/lib/paperPrinter';
+import { printExamPaper, printRawPaperFromDom, downloadRawPaperAsPdf, autoFormatMath } from '@/lib/paperPrinter';
 import 'katex/dist/katex.min.css';
 import Latex from 'react-latex-next';
 
@@ -102,15 +102,34 @@ export default function IndependentRawPaperPage() {
   const [mathColumns, setMathColumns] = useState<number>(2);
   const [isLoadingSchool, setIsLoadingSchool] = useState(false);
   const [selectedAiModel, setSelectedAiModel] = useState<string>('gemini-3.5-flash-lite');
+  const [isManualModel, setIsManualModel] = useState<boolean>(false);
+  const [manualModelInput, setManualModelInput] = useState<string>('');
+
+  const PRESET_MODELS = [
+    'gemini-3.5-flash-lite',
+    'gemini-3.5-flash',
+    'gemini-3.6-flash',
+    'gemini-3.7-flash',
+    'gemini-3.8-flash',
+    'gemini-4-hydrogen',
+    'gemini-2.5-flash',
+  ];
 
   useEffect(() => {
     const saved = localStorage.getItem('schoolpapers_gemini_model');
-    if (saved) setSelectedAiModel(saved);
+    if (saved) {
+      setSelectedAiModel(saved);
+      if (!PRESET_MODELS.includes(saved)) {
+        setIsManualModel(true);
+        setManualModelInput(saved);
+      }
+    }
   }, []);
 
   // Uploaded media files state
   const [uploadedFiles, setUploadedFiles] = useState<UploadedMediaItem[]>([]);
   const [isExtracting, setIsExtracting] = useState(false);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const logoInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -135,7 +154,7 @@ export default function IndependentRawPaperPage() {
 
   // Raw Textarea state
   const [rawText, setRawText] = useState<string>(
-`1. Write the singular to plural. (3)
+    `1. Write the singular to plural. (3)
 Book - Books
 Pen - _______
 Tiger - _______
@@ -436,6 +455,37 @@ _______   _______
     }
   };
 
+  const triggerDownloadPdf = async (questionsList?: QuestionItem[]) => {
+    const list = questionsList || paperQuestions;
+    if (list.length === 0) {
+      toast.error('No questions available to download');
+      return;
+    }
+
+    const doDownload = async () => {
+      setIsDownloadingPdf(true);
+      try {
+        const fname = `${className || 'Class'}_${subjectName || 'Paper'}_${examTitle || 'Exam'}.pdf`;
+        await downloadRawPaperAsPdf('printable-raw-paper', fname);
+        toast.success('PDF downloaded successfully!');
+      } catch (err: any) {
+        console.error('PDF Download Error:', err);
+        toast.error(err?.message || 'Failed to download PDF');
+      } finally {
+        setIsDownloadingPdf(false);
+      }
+    };
+
+    if (viewMode !== 'preview') {
+      setViewMode('preview');
+      setTimeout(() => {
+        doDownload();
+      }, 300);
+    } else {
+      await doDownload();
+    }
+  };
+
   const triggerPrint = (questionsList?: QuestionItem[]) => {
     const list = questionsList || paperQuestions;
     if (list.length === 0) {
@@ -476,8 +526,74 @@ _______   _______
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-5 print:hidden">
         <div>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold tracking-wider text-amber-800 bg-amber-100/80 border border-amber-300 uppercase mb-2">
-            <Sparkles className="w-3.5 h-3.5 text-amber-600" /> Independent Instant Paper Maker
+          <div className="flex flex-wrap items-center gap-2 mb-2">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold tracking-wider text-amber-800 bg-amber-100/80 border border-amber-300 uppercase">
+              <Sparkles className="w-3.5 h-3.5 text-amber-600" /> Independent Instant Paper Maker
+            </div>
+            <div className="inline-flex flex-wrap items-center gap-1.5 bg-indigo-50/90 dark:bg-indigo-950/40 border border-indigo-200 px-2.5 py-0.5 rounded-full shadow-2xs">
+              <Cpu className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+              <span className="text-[11px] font-bold text-indigo-950 dark:text-indigo-200">Model:</span>
+              <select
+                value={isManualModel ? '__manual__' : selectedAiModel}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === '__manual__') {
+                    setIsManualModel(true);
+                    setManualModelInput(selectedAiModel);
+                  } else {
+                    setIsManualModel(false);
+                    setSelectedAiModel(val);
+                    localStorage.setItem('schoolpapers_gemini_model', val);
+                    toast.success(`Gemini Model set to: ${val}`);
+                  }
+                }}
+                className="text-[11px] font-bold bg-transparent text-indigo-900 dark:text-indigo-100 focus:outline-none cursor-pointer"
+              >
+                <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash Lite</option>
+                <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
+                <option value="gemini-3.6-flash">Gemini 3.6 Flash</option>
+                <option value="gemini-3.7-flash">Gemini 3.7 Flash</option>
+                <option value="gemini-3.8-flash">Gemini 3.8 Flash</option>
+                <option value="gemini-4-hydrogen">Gemini 4 Hydrogen</option>
+                <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                <option value="__manual__">✏️ Manual / Custom...</option>
+              </select>
+              {isManualModel && (
+                <div className="inline-flex items-center gap-1 ml-1">
+                  <input
+                    type="text"
+                    value={manualModelInput}
+                    onChange={(e) => setManualModelInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && manualModelInput.trim()) {
+                        const m = manualModelInput.trim();
+                        setSelectedAiModel(m);
+                        localStorage.setItem('schoolpapers_gemini_model', m);
+                        toast.success(`Manual Gemini Model set: ${m}`);
+                      }
+                    }}
+                    placeholder="e.g. gemini-3.8-flash"
+                    className="h-5 w-36 px-1.5 text-[11px] font-mono bg-white dark:bg-card border border-indigo-300 rounded text-indigo-950 dark:text-foreground focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const m = manualModelInput.trim();
+                      if (!m) {
+                        toast.error('Enter a model name');
+                        return;
+                      }
+                      setSelectedAiModel(m);
+                      localStorage.setItem('schoolpapers_gemini_model', m);
+                      toast.success(`Manual Gemini Model set: ${m}`);
+                    }}
+                    className="h-5 px-2 text-[10px] font-bold bg-indigo-600 text-white rounded hover:bg-indigo-700 cursor-pointer"
+                  >
+                    Set
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
           <h1 className="text-2xl sm:text-3xl font-heading font-black tracking-tight text-foreground">
             Instant Raw & Photo-to-Paper Generator
@@ -493,11 +609,10 @@ _______   _______
             <button
               type="button"
               onClick={() => setViewMode('editor')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                viewMode === 'editor'
-                  ? 'bg-amber-100 text-amber-900 shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${viewMode === 'editor'
+                ? 'bg-amber-100 text-amber-900 shadow-xs'
+                : 'text-muted-foreground hover:text-foreground'
+                }`}
             >
               <Edit3 className="w-3.5 h-3.5" />
               <span>1. Paper Input</span>
@@ -519,27 +634,43 @@ _______   _______
                 }
                 setViewMode('preview');
               }}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                viewMode === 'preview'
-                  ? 'bg-amber-100 text-amber-900 shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${viewMode === 'preview'
+                ? 'bg-amber-100 text-amber-900 shadow-xs'
+                : 'text-muted-foreground hover:text-foreground'
+                }`}
             >
               <FileText className="w-3.5 h-3.5" />
               <span>2. Paper Preview ({paperQuestions.length})</span>
             </button>
           </div>
 
-          <Button
-            type="button"
-            onClick={() => triggerPrint()}
-            disabled={paperQuestions.length === 0}
-            className="h-9 px-3.5 text-xs font-bold gradient-brand text-white rounded-xl shadow-xs cursor-pointer"
-          >
-            <Printer className="w-3.5 h-3.5 mr-1.5" />
-            <span className="hidden sm:inline">Print / Download PDF</span>
-            <span className="sm:hidden">Print</span>
-          </Button>
+          <div className="flex items-center gap-1.5">
+            <Button
+              type="button"
+              onClick={() => triggerDownloadPdf()}
+              disabled={paperQuestions.length === 0 || isDownloadingPdf}
+              className="h-9 px-3.5 text-xs font-bold gradient-brand text-white rounded-xl shadow-xs cursor-pointer"
+            >
+              {isDownloadingPdf ? (
+                <RefreshCw className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+              ) : (
+                <Download className="w-3.5 h-3.5 mr-1.5" />
+              )}
+              <span className="hidden sm:inline">{isDownloadingPdf ? 'Downloading...' : 'Download PDF'}</span>
+              <span className="sm:hidden">{isDownloadingPdf ? '...' : 'PDF'}</span>
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => triggerPrint()}
+              disabled={paperQuestions.length === 0}
+              title="Print Exam Paper"
+              className="h-9 px-3 text-xs font-bold rounded-xl border-border cursor-pointer shadow-2xs"
+            >
+              <Printer className="w-3.5 h-3.5 mr-1.5 text-slate-700" />
+              <span>Print</span>
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -553,11 +684,10 @@ _______   _______
             <button
               type="button"
               onClick={() => setActiveTab('scan')}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 text-xs font-bold rounded-xl transition-all cursor-pointer ${
-                activeTab === 'scan'
-                  ? 'bg-white text-indigo-700 shadow-xs border border-border/80'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 text-xs font-bold rounded-xl transition-all cursor-pointer ${activeTab === 'scan'
+                ? 'bg-white text-indigo-700 shadow-xs border border-border/80'
+                : 'text-muted-foreground hover:text-foreground'
+                }`}
             >
               <ImageIcon className="w-4 h-4 text-indigo-600" />
               <span>📸 Photos / PDF AI Scan</span>
@@ -565,11 +695,10 @@ _______   _______
             <button
               type="button"
               onClick={() => setActiveTab('builder')}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 text-xs font-bold rounded-xl transition-all cursor-pointer ${
-                activeTab === 'builder'
-                  ? 'bg-white text-amber-700 shadow-xs border border-border/80'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 text-xs font-bold rounded-xl transition-all cursor-pointer ${activeTab === 'builder'
+                ? 'bg-white text-amber-700 shadow-xs border border-border/80'
+                : 'text-muted-foreground hover:text-foreground'
+                }`}
             >
               <Layers className="w-4 h-4 text-amber-600" />
               <span>✍️ Row / Pattern Builder</span>
@@ -577,11 +706,10 @@ _______   _______
             <button
               type="button"
               onClick={() => setActiveTab('text')}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 text-xs font-bold rounded-xl transition-all cursor-pointer ${
-                activeTab === 'text'
-                  ? 'bg-white text-slate-800 shadow-xs border border-border/80'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 text-xs font-bold rounded-xl transition-all cursor-pointer ${activeTab === 'text'
+                ? 'bg-white text-slate-800 shadow-xs border border-border/80'
+                : 'text-muted-foreground hover:text-foreground'
+                }`}
             >
               <FileText className="w-4 h-4" />
               <span>📋 Paste Raw Text</span>
@@ -1170,11 +1298,10 @@ _______   _______
                       key={preset}
                       type="button"
                       onClick={() => setExamTitle(preset)}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all cursor-pointer ${
-                        examTitle === preset
-                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs font-bold'
-                          : 'bg-white text-slate-700 border-slate-200 hover:bg-indigo-50 hover:border-indigo-300'
-                      }`}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all cursor-pointer ${examTitle === preset
+                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs font-bold'
+                        : 'bg-white text-slate-700 border-slate-200 hover:bg-indigo-50 hover:border-indigo-300'
+                        }`}
                     >
                       {preset}
                     </button>
@@ -1259,44 +1386,40 @@ _______   _______
                   <button
                     type="button"
                     onClick={() => setHeadingHighlight('blue')}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
-                      headingHighlight === 'blue'
-                        ? 'bg-sky-500 text-white border-sky-600 shadow-2xs'
-                        : 'bg-background text-foreground border-border hover:bg-muted'
-                    }`}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer ${headingHighlight === 'blue'
+                      ? 'bg-sky-500 text-white border-sky-600 shadow-2xs'
+                      : 'bg-background text-foreground border-border hover:bg-muted'
+                      }`}
                   >
                     🔷 Blue Highlight + Dark Bold
                   </button>
                   <button
                     type="button"
                     onClick={() => setHeadingHighlight('yellow')}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
-                      headingHighlight === 'yellow'
-                        ? 'bg-amber-400 text-amber-950 border-amber-500 shadow-2xs'
-                        : 'bg-background text-foreground border-border hover:bg-muted'
-                    }`}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer ${headingHighlight === 'yellow'
+                      ? 'bg-amber-400 text-amber-950 border-amber-500 shadow-2xs'
+                      : 'bg-background text-foreground border-border hover:bg-muted'
+                      }`}
                   >
                     🟨 Yellow Highlight
                   </button>
                   <button
                     type="button"
                     onClick={() => setHeadingHighlight('bold')}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
-                      headingHighlight === 'bold'
-                        ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
-                        : 'bg-background text-foreground border-border hover:bg-muted'
-                    }`}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer ${headingHighlight === 'bold'
+                      ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
+                      : 'bg-background text-foreground border-border hover:bg-muted'
+                      }`}
                   >
                     ⬛ Dark Bold Only
                   </button>
                   <button
                     type="button"
                     onClick={() => setHeadingHighlight('none')}
-                    className={`px-2 py-1 rounded-lg text-xs font-medium border transition-all cursor-pointer ${
-                      headingHighlight === 'none'
-                        ? 'bg-slate-200 text-slate-800 border-slate-300 shadow-2xs font-bold'
-                        : 'bg-background text-muted-foreground border-border hover:bg-muted'
-                    }`}
+                    className={`px-2 py-1 rounded-lg text-xs font-medium border transition-all cursor-pointer ${headingHighlight === 'none'
+                      ? 'bg-slate-200 text-slate-800 border-slate-300 shadow-2xs font-bold'
+                      : 'bg-background text-muted-foreground border-border hover:bg-muted'
+                      }`}
                   >
                     Plain
                   </button>
@@ -1374,9 +1497,8 @@ _______   _______
                       setFitSinglePage(next);
                       if (next) setMathSpaceSize('medium');
                     }}
-                    className={`h-8 text-xs font-bold cursor-pointer ${
-                      fitSinglePage ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : ''
-                    }`}
+                    className={`h-8 text-xs font-bold cursor-pointer ${fitSinglePage ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : ''
+                      }`}
                   >
                     {fitSinglePage ? '✓ Single Page Fit: ON' : 'Multi-Page Allowed'}
                   </Button>
@@ -1399,11 +1521,10 @@ _______   _______
                     <button
                       type="button"
                       onClick={() => setMathSpaceSize('huge')}
-                      className={`px-2 py-0.5 rounded-lg text-[11px] font-bold cursor-pointer transition-all ${
-                        mathSpaceSize === 'huge'
-                          ? 'bg-purple-600 text-white shadow-2xs'
-                          : 'text-muted-foreground hover:bg-muted'
-                      }`}
+                      className={`px-2 py-0.5 rounded-lg text-[11px] font-bold cursor-pointer transition-all ${mathSpaceSize === 'huge'
+                        ? 'bg-purple-600 text-white shadow-2xs'
+                        : 'text-muted-foreground hover:bg-muted'
+                        }`}
                       title="Huge Space (290px height) - Ideal for 4-digit long divisions"
                     >
                       🟣 Huge (290px)
@@ -1411,11 +1532,10 @@ _______   _______
                     <button
                       type="button"
                       onClick={() => setMathSpaceSize('xlarge')}
-                      className={`px-2 py-0.5 rounded-lg text-[11px] font-bold cursor-pointer transition-all ${
-                        mathSpaceSize === 'xlarge'
-                          ? 'bg-indigo-600 text-white shadow-2xs'
-                          : 'text-muted-foreground hover:bg-muted'
-                      }`}
+                      className={`px-2 py-0.5 rounded-lg text-[11px] font-bold cursor-pointer transition-all ${mathSpaceSize === 'xlarge'
+                        ? 'bg-indigo-600 text-white shadow-2xs'
+                        : 'text-muted-foreground hover:bg-muted'
+                        }`}
                       title="Extra Large (230px height) - Recommended"
                     >
                       🟢 Extra Large (230px)
@@ -1423,22 +1543,20 @@ _______   _______
                     <button
                       type="button"
                       onClick={() => setMathSpaceSize('large')}
-                      className={`px-2 py-0.5 rounded-lg text-[11px] font-bold cursor-pointer transition-all ${
-                        mathSpaceSize === 'large'
-                          ? 'bg-amber-600 text-white shadow-2xs'
-                          : 'text-muted-foreground hover:bg-muted'
-                      }`}
+                      className={`px-2 py-0.5 rounded-lg text-[11px] font-bold cursor-pointer transition-all ${mathSpaceSize === 'large'
+                        ? 'bg-amber-600 text-white shadow-2xs'
+                        : 'text-muted-foreground hover:bg-muted'
+                        }`}
                     >
                       🟡 Large (180px)
                     </button>
                     <button
                       type="button"
                       onClick={() => setMathSpaceSize('medium')}
-                      className={`px-2 py-0.5 rounded-lg text-[11px] font-bold cursor-pointer transition-all ${
-                        mathSpaceSize === 'medium'
-                          ? 'bg-slate-700 text-white shadow-2xs'
-                          : 'text-muted-foreground hover:bg-muted'
-                      }`}
+                      className={`px-2 py-0.5 rounded-lg text-[11px] font-bold cursor-pointer transition-all ${mathSpaceSize === 'medium'
+                        ? 'bg-slate-700 text-white shadow-2xs'
+                        : 'text-muted-foreground hover:bg-muted'
+                        }`}
                     >
                       ⚪ Medium (130px)
                     </button>
@@ -1449,11 +1567,10 @@ _______   _______
                     <button
                       type="button"
                       onClick={() => setMathColumns(2)}
-                      className={`px-2 py-0.5 rounded-lg text-[11px] font-bold cursor-pointer transition-all ${
-                        mathColumns === 2
-                          ? 'bg-indigo-600 text-white shadow-2xs'
-                          : 'text-muted-foreground hover:bg-muted'
-                      }`}
+                      className={`px-2 py-0.5 rounded-lg text-[11px] font-bold cursor-pointer transition-all ${mathColumns === 2
+                        ? 'bg-indigo-600 text-white shadow-2xs'
+                        : 'text-muted-foreground hover:bg-muted'
+                        }`}
                       title="2 Columns (Spacious width for children)"
                     >
                       2 Col (Best)
@@ -1461,11 +1578,10 @@ _______   _______
                     <button
                       type="button"
                       onClick={() => setMathColumns(1)}
-                      className={`px-2 py-0.5 rounded-lg text-[11px] font-bold cursor-pointer transition-all ${
-                        mathColumns === 1
-                          ? 'bg-indigo-600 text-white shadow-2xs'
-                          : 'text-muted-foreground hover:bg-muted'
-                      }`}
+                      className={`px-2 py-0.5 rounded-lg text-[11px] font-bold cursor-pointer transition-all ${mathColumns === 1
+                        ? 'bg-indigo-600 text-white shadow-2xs'
+                        : 'text-muted-foreground hover:bg-muted'
+                        }`}
                       title="1 Column (Full page width workspace)"
                     >
                       1 Col (Full Width)
@@ -1473,11 +1589,10 @@ _______   _______
                     <button
                       type="button"
                       onClick={() => setMathColumns(3)}
-                      className={`px-2 py-0.5 rounded-lg text-[11px] font-bold cursor-pointer transition-all ${
-                        mathColumns === 3
-                          ? 'bg-indigo-600 text-white shadow-2xs'
-                          : 'text-muted-foreground hover:bg-muted'
-                      }`}
+                      className={`px-2 py-0.5 rounded-lg text-[11px] font-bold cursor-pointer transition-all ${mathColumns === 3
+                        ? 'bg-indigo-600 text-white shadow-2xs'
+                        : 'text-muted-foreground hover:bg-muted'
+                        }`}
                     >
                       3 Col
                     </button>
@@ -1532,11 +1647,10 @@ _______   _______
                 <button
                   type="button"
                   onClick={() => setHeadingHighlight('blue')}
-                  className={`px-2 py-0.5 rounded-lg text-[11px] font-bold cursor-pointer transition-all ${
-                    headingHighlight === 'blue'
-                      ? 'bg-sky-500 text-white shadow-2xs'
-                      : 'text-muted-foreground hover:bg-muted'
-                  }`}
+                  className={`px-2 py-0.5 rounded-lg text-[11px] font-bold cursor-pointer transition-all ${headingHighlight === 'blue'
+                    ? 'bg-sky-500 text-white shadow-2xs'
+                    : 'text-muted-foreground hover:bg-muted'
+                    }`}
                   title="Blue Highlight + Dark Bold"
                 >
                   🔷 Blue
@@ -1544,11 +1658,10 @@ _______   _______
                 <button
                   type="button"
                   onClick={() => setHeadingHighlight('yellow')}
-                  className={`px-2 py-0.5 rounded-lg text-[11px] font-bold cursor-pointer transition-all ${
-                    headingHighlight === 'yellow'
-                      ? 'bg-amber-400 text-amber-950 shadow-2xs'
-                      : 'text-muted-foreground hover:bg-muted'
-                  }`}
+                  className={`px-2 py-0.5 rounded-lg text-[11px] font-bold cursor-pointer transition-all ${headingHighlight === 'yellow'
+                    ? 'bg-amber-400 text-amber-950 shadow-2xs'
+                    : 'text-muted-foreground hover:bg-muted'
+                    }`}
                   title="Yellow Highlight + Dark Bold"
                 >
                   🟨 Yellow
@@ -1556,11 +1669,10 @@ _______   _______
                 <button
                   type="button"
                   onClick={() => setHeadingHighlight('bold')}
-                  className={`px-2 py-0.5 rounded-lg text-[11px] font-bold cursor-pointer transition-all ${
-                    headingHighlight === 'bold'
-                      ? 'bg-slate-900 text-white shadow-2xs'
-                      : 'text-muted-foreground hover:bg-muted'
-                  }`}
+                  className={`px-2 py-0.5 rounded-lg text-[11px] font-bold cursor-pointer transition-all ${headingHighlight === 'bold'
+                    ? 'bg-slate-900 text-white shadow-2xs'
+                    : 'text-muted-foreground hover:bg-muted'
+                    }`}
                   title="Dark Bold Only"
                 >
                   ⬛ Dark Bold
@@ -1568,11 +1680,10 @@ _______   _______
                 <button
                   type="button"
                   onClick={() => setHeadingHighlight('none')}
-                  className={`px-2 py-0.5 rounded-lg text-[11px] font-medium cursor-pointer transition-all ${
-                    headingHighlight === 'none'
-                      ? 'bg-slate-300 text-slate-800 shadow-2xs font-bold'
-                      : 'text-muted-foreground hover:bg-muted'
-                  }`}
+                  className={`px-2 py-0.5 rounded-lg text-[11px] font-medium cursor-pointer transition-all ${headingHighlight === 'none'
+                    ? 'bg-slate-300 text-slate-800 shadow-2xs font-bold'
+                    : 'text-muted-foreground hover:bg-muted'
+                    }`}
                   title="Plain Text"
                 >
                   Plain
@@ -1583,11 +1694,10 @@ _______   _______
               <button
                 type="button"
                 onClick={() => setSolveInsidePaper(!solveInsidePaper)}
-                className={`h-8 px-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer shadow-2xs flex items-center gap-1.5 ${
-                  solveInsidePaper
-                    ? 'bg-amber-500 text-white border-amber-600 shadow-2xs'
-                    : 'bg-card text-muted-foreground border-border hover:bg-muted'
-                }`}
+                className={`h-8 px-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer shadow-2xs flex items-center gap-1.5 ${solveInsidePaper
+                  ? 'bg-amber-500 text-white border-amber-600 shadow-2xs'
+                  : 'bg-card text-muted-foreground border-border hover:bg-muted'
+                  }`}
                 title="Toggle Question-cum-Answer Sheet (Extra blank lines for kids to solve on paper)"
               >
                 <span>📝 Solve on Paper: {solveInsidePaper ? 'ON' : 'OFF'}</span>
@@ -1601,11 +1711,10 @@ _______   _______
                   setFitSinglePage(next);
                   if (next) setMathSpaceSize('medium');
                 }}
-                className={`h-8 px-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer shadow-2xs flex items-center gap-1.5 ${
-                  fitSinglePage
-                    ? 'bg-emerald-600 text-white border-emerald-700 shadow-2xs'
-                    : 'bg-card text-muted-foreground border-border hover:bg-muted'
-                }`}
+                className={`h-8 px-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer shadow-2xs flex items-center gap-1.5 ${fitSinglePage
+                  ? 'bg-emerald-600 text-white border-emerald-700 shadow-2xs'
+                  : 'bg-card text-muted-foreground border-border hover:bg-muted'
+                  }`}
                 title="Strictly fit whole paper onto 1 Single A4 Page (Ideal for 20-mark tests)"
               >
                 <span>📄 1-Page Fit: {fitSinglePage ? 'ON (20 Mks)' : 'OFF'}</span>
@@ -1617,11 +1726,10 @@ _______   _______
                 <button
                   type="button"
                   onClick={() => setMathSpaceSize('huge')}
-                  className={`px-2 py-0.5 rounded-lg text-[11px] font-bold cursor-pointer transition-all ${
-                    mathSpaceSize === 'huge'
-                      ? 'bg-purple-600 text-white shadow-2xs'
-                      : 'text-muted-foreground hover:bg-muted'
-                  }`}
+                  className={`px-2 py-0.5 rounded-lg text-[11px] font-bold cursor-pointer transition-all ${mathSpaceSize === 'huge'
+                    ? 'bg-purple-600 text-white shadow-2xs'
+                    : 'text-muted-foreground hover:bg-muted'
+                    }`}
                   title="Huge Space (290px height) - Max room for long division"
                 >
                   🟣 Huge
@@ -1629,11 +1737,10 @@ _______   _______
                 <button
                   type="button"
                   onClick={() => setMathSpaceSize('xlarge')}
-                  className={`px-2 py-0.5 rounded-lg text-[11px] font-bold cursor-pointer transition-all ${
-                    mathSpaceSize === 'xlarge'
-                      ? 'bg-indigo-600 text-white shadow-2xs'
-                      : 'text-muted-foreground hover:bg-muted'
-                  }`}
+                  className={`px-2 py-0.5 rounded-lg text-[11px] font-bold cursor-pointer transition-all ${mathSpaceSize === 'xlarge'
+                    ? 'bg-indigo-600 text-white shadow-2xs'
+                    : 'text-muted-foreground hover:bg-muted'
+                    }`}
                   title="Extra Large (230px height) - Recommended"
                 >
                   🟢 X-Large
@@ -1641,11 +1748,10 @@ _______   _______
                 <button
                   type="button"
                   onClick={() => setMathSpaceSize('large')}
-                  className={`px-2 py-0.5 rounded-lg text-[11px] font-bold cursor-pointer transition-all ${
-                    mathSpaceSize === 'large'
-                      ? 'bg-amber-600 text-white shadow-2xs'
-                      : 'text-muted-foreground hover:bg-muted'
-                  }`}
+                  className={`px-2 py-0.5 rounded-lg text-[11px] font-bold cursor-pointer transition-all ${mathSpaceSize === 'large'
+                    ? 'bg-amber-600 text-white shadow-2xs'
+                    : 'text-muted-foreground hover:bg-muted'
+                    }`}
                   title="Large (180px height)"
                 >
                   🟡 Large
@@ -1672,11 +1778,26 @@ _______   _______
 
               <Button
                 type="button"
-                onClick={() => triggerPrint()}
+                onClick={() => triggerDownloadPdf()}
+                disabled={isDownloadingPdf}
                 className="h-8 px-4 text-xs font-bold gradient-brand text-white rounded-xl shadow-xs cursor-pointer"
               >
-                <Printer className="w-3.5 h-3.5 mr-1.5" />
-                <span>Print / Download PDF</span>
+                {isDownloadingPdf ? (
+                  <RefreshCw className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                ) : (
+                  <Download className="w-3.5 h-3.5 mr-1.5" />
+                )}
+                <span>{isDownloadingPdf ? 'Downloading PDF...' : 'Download PDF'}</span>
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => triggerPrint()}
+                title="Print Exam Paper"
+                className="h-8 px-3 text-xs font-bold rounded-xl border-border cursor-pointer shadow-2xs"
+              >
+                <Printer className="w-3.5 h-3.5 mr-1.5 text-slate-700" />
+                <span>Print</span>
               </Button>
             </div>
           </div>
@@ -1698,11 +1819,10 @@ _______   _______
                   key={preset}
                   type="button"
                   onClick={() => setExamTitle(preset)}
-                  className={`px-2 py-0.5 rounded-md text-[11px] font-semibold border transition-all cursor-pointer ${
-                    examTitle === preset
-                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs font-bold'
-                      : 'bg-background text-foreground border-border hover:bg-muted'
-                  }`}
+                  className={`px-2 py-0.5 rounded-md text-[11px] font-semibold border transition-all cursor-pointer ${examTitle === preset
+                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs font-bold'
+                    : 'bg-background text-foreground border-border hover:bg-muted'
+                    }`}
                 >
                   {preset}
                 </button>
@@ -1754,28 +1874,42 @@ _______   _______
                 </div>
               </div>
 
-              {/* Candidate Details Row */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs font-medium border-b border-slate-200 pb-2 mb-3">
-                <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <span className="shrink-0 font-bold text-slate-800">Name of Candidate:</span>
-                  <span className="border-b border-slate-400 border-dotted flex-1 min-w-[120px] inline-block h-3"></span>
+              {/* Candidate Details & Signatures Row */}
+              <div className="space-y-2.5 border-b border-slate-200 pb-2.5 mb-3 text-xs font-medium">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <span className="shrink-0 font-bold text-slate-800">Name of Candidate:</span>
+                    <span className="border-b border-slate-400 border-dotted flex-1 min-w-[120px] inline-block h-3"></span>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className="flex items-center gap-1.5">
+                      <span className="font-bold text-slate-800">Roll No:</span>
+                      <span className="border-b border-slate-400 border-dotted w-14 inline-block h-3"></span>
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="font-bold text-slate-800">Section:</span>
+                      <span className="border-b border-slate-400 border-dotted w-10 inline-block h-3"></span>
+                    </span>
+                    {solveInsidePaper && (
+                      <div className="flex items-center gap-1 border-2 border-slate-900 rounded-md px-2 py-0.5 font-bold text-[11px] bg-slate-50 text-slate-950 shadow-2xs">
+                        <span>Marks:</span>
+                        <span className="border-b border-slate-800 border-dotted w-8 inline-block h-3"></span>
+                        <span>/ {totalMarks}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-3 shrink-0">
-                  <span className="flex items-center gap-1.5">
-                    <span className="font-bold text-slate-800">Roll No:</span>
-                    <span className="border-b border-slate-400 border-dotted w-14 inline-block h-3"></span>
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <span className="font-bold text-slate-800">Section:</span>
-                    <span className="border-b border-slate-400 border-dotted w-10 inline-block h-3"></span>
-                  </span>
-                  {solveInsidePaper && (
-                    <div className="flex items-center gap-1 border-2 border-slate-900 rounded-md px-2 py-0.5 font-bold text-[11px] bg-slate-50 text-slate-950 shadow-2xs">
-                      <span>Marks:</span>
-                      <span className="border-b border-slate-800 border-dotted w-8 inline-block h-3"></span>
-                      <span>/ {totalMarks}</span>
-                    </div>
-                  )}
+
+                {/* Invigilator & Examiner Signatures */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
+                  <div className="flex items-center gap-2 flex-1">
+                    <span className="shrink-0 font-bold text-slate-800">Invigilator&apos;s Signature:</span>
+                    <span className="border-b border-slate-400 border-dotted flex-1 min-w-[120px] max-w-[220px] inline-block h-3.5"></span>
+                  </div>
+                  <div className="flex items-center gap-2 flex-1 sm:justify-end">
+                    <span className="shrink-0 font-bold text-slate-800">Examiner&apos;s Signature:</span>
+                    <span className="border-b border-slate-400 border-dotted flex-1 min-w-[120px] max-w-[220px] inline-block h-3.5"></span>
+                  </div>
                 </div>
               </div>
 
@@ -1788,9 +1922,8 @@ _______   _______
 
               {/* Questions List */}
               <div
-                className={`space-y-4 ${
-                  isTwoColumn ? 'columns-1 md:columns-2 gap-8 [column-rule:1px_solid_#cbd5e1]' : ''
-                }`}
+                className={`space-y-2 ${isTwoColumn ? 'columns-1 md:columns-2 gap-6 [column-rule:1px_solid_#cbd5e1]' : ''
+                  }`}
               >
                 {paperQuestions.map((q, qIdx) => {
                   const hasMath =
@@ -1803,178 +1936,177 @@ _______   _______
                   return (
                     <div
                       key={q.id || qIdx}
-                      className={`text-xs relative group ${hasMath ? '' : 'raw-q-item break-inside-avoid print:break-inside-avoid'} ${
-                        solveInsidePaper
-                          ? fitSinglePage
-                            ? 'mb-3.5 pb-0.5'
-                            : 'mb-6 pb-1'
-                          : 'space-y-1 mb-2.5'
-                      }`}
+                      className={`raw-q-block text-xs relative group ${hasMath ? '' : 'raw-q-item break-inside-avoid print:break-inside-avoid'} ${solveInsidePaper
+                        ? fitSinglePage
+                          ? 'mb-1.5'
+                          : 'mb-2.5'
+                        : 'mb-2'
+                        }`}
                     >
-                    <div className="flex items-start justify-between font-medium leading-relaxed">
-                      <div className="flex-1 flex items-start gap-1.5">
-                        <span className="font-extrabold text-slate-950 shrink-0 min-w-[22px]">{qIdx + 1}.</span>
-                        {editingQuestionIdx === qIdx ? (
-                          <div className="flex-1 space-y-2 p-2 rounded border border-indigo-300 bg-indigo-50/40">
-                            <Textarea
-                              value={editingText}
-                              onChange={(e) => setEditingText(e.target.value)}
-                              className="text-xs min-h-[60px] bg-white"
-                            />
-                            <div className="flex items-center gap-2">
-                              <Label className="text-[10px]">Marks:</Label>
-                              <Input
-                                type="number"
-                                min="1"
-                                max="50"
-                                value={editingMarks}
-                                onChange={(e) => setEditingMarks(Number(e.target.value) || 1)}
-                                className="w-16 h-6 text-xs bg-white"
+                      <div className="flex items-start justify-between font-medium leading-relaxed">
+                        <div className="flex-1 flex items-start gap-1.5">
+                          <span className="font-extrabold text-slate-950 shrink-0 min-w-[22px]">{qIdx + 1}.</span>
+                          {editingQuestionIdx === qIdx ? (
+                            <div className="flex-1 space-y-2 p-2 rounded border border-indigo-300 bg-indigo-50/40">
+                              <Textarea
+                                value={editingText}
+                                onChange={(e) => setEditingText(e.target.value)}
+                                className="text-xs min-h-[60px] bg-white"
                               />
-                              <Button
-                                size="sm"
-                                onClick={() => {
-                                  const updated = [...paperQuestions];
-                                  updated[qIdx].question_text = editingText;
-                                  updated[qIdx].marks = editingMarks;
-                                  setPaperQuestions(updated);
-                                  setEditingQuestionIdx(null);
-                                }}
-                                className="h-6 text-[10px] px-2"
-                              >
-                                Save
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => setEditingQuestionIdx(null)}
-                                className="h-6 text-[10px] px-2"
-                              >
-                                Cancel
-                              </Button>
+                              <div className="flex items-center gap-2">
+                                <Label className="text-[10px]">Marks:</Label>
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  max="50"
+                                  value={editingMarks}
+                                  onChange={(e) => setEditingMarks(Number(e.target.value) || 1)}
+                                  className="w-16 h-6 text-xs bg-white"
+                                />
+                                <Button
+                                  size="sm"
+                                  onClick={() => {
+                                    const updated = [...paperQuestions];
+                                    updated[qIdx].question_text = editingText;
+                                    updated[qIdx].marks = editingMarks;
+                                    setPaperQuestions(updated);
+                                    setEditingQuestionIdx(null);
+                                  }}
+                                  className="h-6 text-[10px] px-2"
+                                >
+                                  Save
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setEditingQuestionIdx(null)}
+                                  className="h-6 text-[10px] px-2"
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
                             </div>
-                          </div>
-                        ) : (
-                          (() => {
-                            const lines = (q.question_text || '').split('\n');
-                            const firstLine = lines[0] || '';
-                            const remainingLines = lines.slice(1).join('\n');
+                          ) : (
+                            (() => {
+                              const lines = (q.question_text || '').split('\n');
+                              const firstLine = lines[0] || '';
+                              const remainingLines = lines.slice(1).join('\n');
 
-                            const rawSubItems = remainingLines
-                              .split('\n')
-                              .map((l) => l.trim())
-                              .filter(Boolean);
+                              const rawSubItems = remainingLines
+                                .split('\n')
+                                .map((l) => l.trim())
+                                .filter(Boolean);
 
-                            const isMathQuestion =
-                              /\b(divide|division|भाग|quotient|remainder|multiply|multiplication|गुणा|product|addition|subtraction|solve|calculate)\b/i.test(firstLine) ||
-                              /\d+\s*\)\s*\d+/.test(q.question_text || '') ||
-                              /[÷×]/.test(firstLine);
+                              const isMathQuestion =
+                                /\b(divide|division|भाग|quotient|remainder|multiply|multiplication|गुणा|product|addition|subtraction|solve|calculate)\b/i.test(firstLine) ||
+                                /\d+\s*\)\s*\d+/.test(q.question_text || '') ||
+                                /[÷×]/.test(firstLine);
 
-                            let mathSubGrid = null;
-                            if (isMathQuestion && rawSubItems.length >= 1) {
-                              const numColsClass =
-                                mathColumns === 1 || rawSubItems.length === 1
-                                  ? 'grid-cols-1'
-                                  : mathColumns === 3
-                                  ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3'
-                                  : 'grid-cols-1 sm:grid-cols-2';
+                              let mathSubGrid = null;
+                              if (isMathQuestion && rawSubItems.length >= 1) {
+                                const numColsClass =
+                                  mathColumns === 1 || rawSubItems.length === 1
+                                    ? 'grid-cols-1'
+                                    : mathColumns === 3
+                                      ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3'
+                                      : 'grid-cols-1 sm:grid-cols-2';
 
-                              const boxMinHeightPx =
-                                fitSinglePage
-                                  ? 135
-                                  : mathSpaceSize === 'huge'
-                                  ? 290
-                                  : mathSpaceSize === 'xlarge'
-                                  ? 230
-                                  : mathSpaceSize === 'large'
-                                  ? 180
-                                  : 130;
+                                const boxMinHeightPx =
+                                  fitSinglePage
+                                    ? 135
+                                    : mathSpaceSize === 'huge'
+                                      ? 290
+                                      : mathSpaceSize === 'xlarge'
+                                        ? 230
+                                        : mathSpaceSize === 'large'
+                                          ? 180
+                                          : 130;
 
-                              mathSubGrid = (
-                                <div className={`grid gap-4 my-3.5 ${numColsClass}`}>
-                                  {rawSubItems.map((sub, sIdx) => (
-                                    <div
-                                      key={sIdx}
-                                      style={{
-                                        minHeight: `${boxMinHeightPx}px`,
-                                        ['--box-min-h' as any]: `${boxMinHeightPx}px`,
-                                      }}
-                                      className="math-calc-box break-inside-avoid print:break-inside-avoid border-2 border-dashed border-slate-400 rounded-xl p-3 bg-white flex flex-col justify-start shadow-2xs hover:border-indigo-400 transition-colors"
-                                    >
-                                      <div className="font-bold text-sm sm:text-base text-slate-950 font-mono tracking-wider border-b border-slate-300 pb-1.5">
-                                        <span>{sub}</span>
+                                mathSubGrid = (
+                                  <div className={`grid gap-3 my-2 ${numColsClass}`}>
+                                    {rawSubItems.map((sub, sIdx) => (
+                                      <div
+                                        key={sIdx}
+                                        style={{
+                                          minHeight: `${boxMinHeightPx}px`,
+                                          ['--box-min-h' as any]: `${boxMinHeightPx}px`,
+                                        }}
+                                        className="math-calc-box break-inside-avoid print:break-inside-avoid border-2 border-dashed border-slate-400 rounded-xl p-3 bg-white flex flex-col justify-start shadow-2xs hover:border-indigo-400 transition-colors"
+                                      >
+                                        <div className="font-bold text-sm sm:text-base text-slate-950 font-mono tracking-wider border-b border-slate-300 pb-1.5">
+                                          <span>{sub}</span>
+                                        </div>
+                                        <div className="flex-1 w-full pt-2"></div>
                                       </div>
-                                      <div className="flex-1 w-full pt-2"></div>
+                                    ))}
+                                  </div>
+                                );
+                              }
+
+                              let highlightClasses = 'font-bold text-slate-900 inline';
+                              if (headingHighlight === 'blue') {
+                                highlightClasses = 'font-bold text-sky-950 bg-sky-100/90 border border-sky-200/80 px-1.5 py-0.5 rounded shadow-2xs inline print:bg-sky-100 print:text-sky-950';
+                              } else if (headingHighlight === 'yellow') {
+                                highlightClasses = 'font-bold text-amber-950 bg-amber-100/90 border border-amber-200/80 px-1.5 py-0.5 rounded shadow-2xs inline print:bg-amber-100 print:text-amber-950';
+                              } else if (headingHighlight === 'bold') {
+                                highlightClasses = 'font-black text-slate-950 inline';
+                              } else {
+                                highlightClasses = 'font-medium text-slate-900 inline';
+                              }
+
+                              return (
+                                <div className="flex-1 min-w-0">
+                                  <span className={highlightClasses}>
+                                    <Latex>{autoFormatMath(firstLine)}</Latex>
+                                  </span>
+                                  {mathSubGrid ? (
+                                    mathSubGrid
+                                  ) : remainingLines.trim() ? (
+                                    <div className={`mt-1 font-normal text-slate-900 whitespace-pre-wrap ${solveInsidePaper ? (fitSinglePage ? 'leading-[1.65rem] text-sm font-medium' : 'leading-[1.95rem] text-sm font-medium') : 'leading-relaxed'}`}>
+                                      <Latex>{autoFormatMath(remainingLines)}</Latex>
                                     </div>
-                                  ))}
+                                  ) : solveInsidePaper && !q.question_text?.includes('_______') && !isMathQuestion ? (
+                                    <div className="mt-2 ml-2 space-y-1.5">
+                                      <div className="h-6 border-b border-dashed border-slate-300 flex items-end">
+                                        <span className="text-[11px] font-bold text-slate-500 mr-2">Ans:</span>
+                                      </div>
+                                      {!fitSinglePage && <div className="h-6 border-b border-dashed border-slate-300"></div>}
+                                    </div>
+                                  ) : null}
                                 </div>
                               );
-                            }
-
-                            let highlightClasses = 'font-bold text-slate-900 inline';
-                            if (headingHighlight === 'blue') {
-                              highlightClasses = 'font-bold text-sky-950 bg-sky-100/90 border border-sky-200/80 px-1.5 py-0.5 rounded shadow-2xs inline print:bg-sky-100 print:text-sky-950';
-                            } else if (headingHighlight === 'yellow') {
-                              highlightClasses = 'font-bold text-amber-950 bg-amber-100/90 border border-amber-200/80 px-1.5 py-0.5 rounded shadow-2xs inline print:bg-amber-100 print:text-amber-950';
-                            } else if (headingHighlight === 'bold') {
-                              highlightClasses = 'font-black text-slate-950 inline';
-                            } else {
-                              highlightClasses = 'font-medium text-slate-900 inline';
-                            }
-
-                            return (
-                              <div className="flex-1 min-w-0">
-                                <span className={highlightClasses}>
-                                  <Latex>{autoFormatMath(firstLine)}</Latex>
-                                </span>
-                                {mathSubGrid ? (
-                                  mathSubGrid
-                                ) : remainingLines.trim() ? (
-                                  <div className={`mt-1 font-normal text-slate-900 whitespace-pre-wrap ${solveInsidePaper ? (fitSinglePage ? 'leading-[1.8rem] text-sm font-medium' : 'leading-[2.4rem] text-sm font-medium') : 'leading-relaxed'}`}>
-                                    <Latex>{autoFormatMath(remainingLines)}</Latex>
-                                  </div>
-                                ) : solveInsidePaper && !q.question_text?.includes('_______') && !isMathQuestion ? (
-                                  <div className="mt-2 ml-2 space-y-1.5">
-                                    <div className="h-6 border-b border-dashed border-slate-300 flex items-end">
-                                      <span className="text-[11px] font-bold text-slate-500 mr-2">Ans:</span>
-                                    </div>
-                                    {!fitSinglePage && <div className="h-6 border-b border-dashed border-slate-300"></div>}
-                                  </div>
-                                ) : null}
-                              </div>
-                            );
-                          })()
-                        )}
+                            })()
+                          )}
+                        </div>
+                        <span className="font-bold text-slate-700 ml-2 shrink-0">
+                          ({q.marks || 1})
+                        </span>
                       </div>
-                      <span className="font-bold text-slate-700 ml-2 shrink-0">
-                        ({q.marks || 1})
-                      </span>
-                    </div>
 
-                    {/* Hover Edit Button (Hidden in print) */}
-                    <div className="print:hidden opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-end gap-1.5 pt-0.5">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditingQuestionIdx(qIdx);
-                          setEditingText(q.question_text);
-                          setEditingMarks(q.marks || 1);
-                        }}
-                        className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-0.5"
-                      >
-                        <Edit3 className="w-3 h-3" /> Edit
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPaperQuestions(paperQuestions.filter((_, idx) => idx !== qIdx));
-                        }}
-                        className="text-[10px] font-bold text-rose-500 hover:text-rose-700 flex items-center gap-0.5 ml-2"
-                      >
-                        <Trash2 className="w-3 h-3" /> Delete
-                      </button>
+                      {/* Hover Edit Button (Hidden in print) */}
+                      <div className="print:hidden opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-end gap-1.5 pt-0.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingQuestionIdx(qIdx);
+                            setEditingText(q.question_text);
+                            setEditingMarks(q.marks || 1);
+                          }}
+                          className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-0.5"
+                        >
+                          <Edit3 className="w-3 h-3" /> Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPaperQuestions(paperQuestions.filter((_, idx) => idx !== qIdx));
+                          }}
+                          className="text-[10px] font-bold text-rose-500 hover:text-rose-700 flex items-center gap-0.5 ml-2"
+                        >
+                          <Trash2 className="w-3 h-3" /> Delete
+                        </button>
+                      </div>
                     </div>
-                  </div>
                   );
                 })}
               </div>

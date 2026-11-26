@@ -42,7 +42,8 @@ import {
   ChevronRight,
   Copy,
   Cloud,
-  Search
+  Search,
+  Cpu
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -56,7 +57,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { API_URL, getAuthToken } from '@/lib/api';
 import { toast } from 'sonner';
-import { printExamPaper, autoFormatMath } from '@/lib/paperPrinter';
+import { printExamPaper, downloadRawPaperAsPdf, autoFormatMath } from '@/lib/paperPrinter';
 
 export type QuestionType =
   | 'mcq'
@@ -494,7 +495,32 @@ export default function GeneratePaperPage() {
   const [pdfCustomClass, setPdfCustomClass] = useState<string>('');
   const [pdfCustomSubject, setPdfCustomSubject] = useState<string>('');
   const [isPdfDragOver, setIsPdfDragOver] = useState(false);
+  const [selectedAiModel, setSelectedAiModel] = useState<string>('gemini-3.5-flash-lite');
+  const [isManualModel, setIsManualModel] = useState<boolean>(false);
+  const [manualModelInput, setManualModelInput] = useState<string>('');
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const pdfFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const PRESET_MODELS = [
+    'gemini-3.5-flash-lite',
+    'gemini-3.5-flash',
+    'gemini-3.6-flash',
+    'gemini-3.7-flash',
+    'gemini-3.8-flash',
+    'gemini-4-hydrogen',
+    'gemini-2.5-flash',
+  ];
+
+  useEffect(() => {
+    const saved = localStorage.getItem('schoolpapers_gemini_model');
+    if (saved) {
+      setSelectedAiModel(saved);
+      if (!PRESET_MODELS.includes(saved)) {
+        setIsManualModel(true);
+        setManualModelInput(saved);
+      }
+    }
+  }, []);
 
   // Cloudflare Library State with Class & Subject Cascading
   const [isCloudflareLibraryOpen, setIsCloudflareLibraryOpen] = useState(false);
@@ -1666,6 +1692,21 @@ export default function GeneratePaperPage() {
     }
   };
 
+  const handleDownloadPdf = async () => {
+    if (paperQuestions.length === 0) return;
+    setIsDownloadingPdf(true);
+    try {
+      const fname = `${selectedClassName || 'Class'}_${selectedSubjectName || 'Paper'}_${examTitle || 'Exam'}.pdf`;
+      await downloadRawPaperAsPdf('printable-exam-paper', fname);
+      toast.success('PDF downloaded successfully!');
+    } catch (err: any) {
+      console.error('PDF Download Error:', err);
+      toast.error(err?.message || 'Failed to download PDF');
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  };
+
   const handlePrint = () => {
     if (paperQuestions.length === 0) return;
     printExamPaper({
@@ -2131,8 +2172,74 @@ export default function GeneratePaperPage() {
       <div className="flex flex-col gap-4 border-b border-border pb-5 print:hidden">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold tracking-wider text-primary bg-[#FFF1DA]/70 border border-[#F1A501]/30 uppercase mb-2">
-              <Sparkles className="w-3 h-3 text-primary" /> Paper Creation Suite
+            <div className="flex flex-wrap items-center gap-2 mb-2">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold tracking-wider text-primary bg-[#FFF1DA]/70 border border-[#F1A501]/30 uppercase">
+                <Sparkles className="w-3 h-3 text-primary" /> Paper Creation Suite
+              </div>
+              <div className="inline-flex flex-wrap items-center gap-1.5 bg-indigo-50/90 dark:bg-indigo-950/40 border border-indigo-200 px-2.5 py-0.5 rounded-full shadow-2xs">
+                <Cpu className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                <span className="text-[11px] font-bold text-indigo-950 dark:text-indigo-200">Model:</span>
+                <select
+                  value={isManualModel ? '__manual__' : selectedAiModel}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '__manual__') {
+                      setIsManualModel(true);
+                      setManualModelInput(selectedAiModel);
+                    } else {
+                      setIsManualModel(false);
+                      setSelectedAiModel(val);
+                      localStorage.setItem('schoolpapers_gemini_model', val);
+                      toast.success(`Gemini Model set to: ${val}`);
+                    }
+                  }}
+                  className="text-[11px] font-bold bg-transparent text-indigo-900 dark:text-indigo-100 focus:outline-none cursor-pointer"
+                >
+                  <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash Lite</option>
+                  <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
+                  <option value="gemini-3.6-flash">Gemini 3.6 Flash</option>
+                  <option value="gemini-3.7-flash">Gemini 3.7 Flash</option>
+                  <option value="gemini-3.8-flash">Gemini 3.8 Flash</option>
+                  <option value="gemini-4-hydrogen">Gemini 4 Hydrogen</option>
+                  <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                  <option value="__manual__">✏️ Manual / Custom...</option>
+                </select>
+                {isManualModel && (
+                  <div className="inline-flex items-center gap-1 ml-1">
+                    <input
+                      type="text"
+                      value={manualModelInput}
+                      onChange={(e) => setManualModelInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && manualModelInput.trim()) {
+                          const m = manualModelInput.trim();
+                          setSelectedAiModel(m);
+                          localStorage.setItem('schoolpapers_gemini_model', m);
+                          toast.success(`Manual Gemini Model set: ${m}`);
+                        }
+                      }}
+                      placeholder="e.g. gemini-3.8-flash"
+                      className="h-5 w-36 px-1.5 text-[11px] font-mono bg-white dark:bg-card border border-indigo-300 rounded text-indigo-950 dark:text-foreground focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const m = manualModelInput.trim();
+                        if (!m) {
+                          toast.error('Enter a model name');
+                          return;
+                        }
+                        setSelectedAiModel(m);
+                        localStorage.setItem('schoolpapers_gemini_model', m);
+                        toast.success(`Manual Gemini Model set: ${m}`);
+                      }}
+                      className="h-5 px-2 text-[10px] font-bold bg-indigo-600 text-white rounded hover:bg-indigo-700 cursor-pointer"
+                    >
+                      Set
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
             <h1 className="text-2xl sm:text-3xl font-heading font-black tracking-tight text-foreground">
               Automated Exam Paper Generator
@@ -3706,13 +3813,28 @@ export default function GeneratePaperPage() {
                 </Button>
 
                 <Button
-                  onClick={handlePrint}
-                  disabled={paperQuestions.length === 0}
+                  onClick={handleDownloadPdf}
+                  disabled={paperQuestions.length === 0 || isDownloadingPdf}
                   size="sm"
                   className="h-8 px-3.5 sm:px-4 text-xs font-bold rounded-xl gradient-brand text-white shadow-sm hover:opacity-95 cursor-pointer active:scale-98 transition-all"
                 >
-                  <Printer className="w-3.5 h-3.5 mr-1.5" />
-                  <span>Print / Save PDF</span>
+                  {isDownloadingPdf ? (
+                    <RefreshCw className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                  ) : (
+                    <Download className="w-3.5 h-3.5 mr-1.5" />
+                  )}
+                  <span>{isDownloadingPdf ? 'Downloading...' : 'Download PDF'}</span>
+                </Button>
+                <Button
+                  onClick={handlePrint}
+                  disabled={paperQuestions.length === 0}
+                  variant="outline"
+                  size="sm"
+                  title="Print Exam Paper"
+                  className="h-8 px-3 text-xs font-bold rounded-xl border-border cursor-pointer shadow-2xs"
+                >
+                  <Printer className="w-3.5 h-3.5 mr-1.5 text-slate-700" />
+                  <span>Print</span>
                 </Button>
               </div>
             </div>
@@ -4241,11 +4363,24 @@ export default function GeneratePaperPage() {
               <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Edit Setup
             </Button>
             <Button
-              onClick={handlePrint}
-              disabled={paperQuestions.length === 0}
+              onClick={handleDownloadPdf}
+              disabled={paperQuestions.length === 0 || isDownloadingPdf}
               className="flex-2 h-11 rounded-xl gradient-brand text-white font-bold text-xs shadow-md cursor-pointer"
             >
-              <Printer className="w-3.5 h-3.5 mr-1" /> Print / Save PDF
+              {isDownloadingPdf ? (
+                <RefreshCw className="w-3.5 h-3.5 mr-1 animate-spin" />
+              ) : (
+                <Download className="w-3.5 h-3.5 mr-1" />
+              )}
+              <span>{isDownloadingPdf ? 'Downloading...' : 'Download PDF'}</span>
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handlePrint}
+              disabled={paperQuestions.length === 0}
+              className="h-11 px-3 rounded-xl text-xs font-bold border-slate-300 text-slate-700 cursor-pointer"
+            >
+              <Printer className="w-3.5 h-3.5 mr-1" /> Print
             </Button>
           </div>
         </div>
