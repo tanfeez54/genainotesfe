@@ -1989,8 +1989,7 @@ _______   _______
                           ) : (
                             (() => {
                               const lines = (q.question_text || '').split('\n');
-                              const rawFirstLine = lines[0] || '';
-                              const firstLine = rawFirstLine.replace(/^\s*(?:Q\.?\s*)?\d+\s*[\.\)]\s*/i, '');
+                              const firstLine = lines[0] || '';
                               const remainingLines = lines.slice(1).join('\n');
 
                               const rawSubItems = remainingLines
@@ -2127,6 +2126,106 @@ _______   _______
                                 }
                               }
 
+                              // Pre-Primary (Nursery / LKG / UKG) Kid-Friendly Worksheet Boxes:
+                              // 1) Counting / Sequence / Missing-Number Grids (e.g. "51 ____ ____ ____ ____")
+                              let kidsWorksheetEl = null;
+                              const isCountingGrid =
+                                !isMatchQuestion &&
+                                !isMathQuestion &&
+                                rawSubItems.length > 0 &&
+                                (/\b(counting|count\s+and\s+write|missing\s+number|1\s+to\s+\d+|\d+\s+to\s+\d+|a\s+to\s+z)\b/i.test(firstLine) ||
+                                  rawSubItems.some((l) => (l.match(/_{2,}/g) || []).length >= 3));
+
+                              const isAfterBeforeBetween =
+                                !isMatchQuestion &&
+                                !isMathQuestion &&
+                                !isCountingGrid &&
+                                rawSubItems.length > 0 &&
+                                (/\b(comes\s+after|comes\s+before|comes\s+between|what\s+comes)\b/i.test(firstLine) ||
+                                  rawSubItems.every((l) => /^\s*(?:\d+\s*[-_]+\s*|_{2,}\s*\d+)\s*$/.test(l)));
+
+                              if (isCountingGrid) {
+                                const tokens = rawSubItems
+                                  .join(' ')
+                                  .split(/\s+/)
+                                  .map((t) => t.trim())
+                                  .filter(Boolean);
+                                if (tokens.length >= 4) {
+                                  const cols = tokens.length <= 5 ? tokens.length : tokens.length % 5 === 0 ? 5 : 5;
+                                  kidsWorksheetEl = (
+                                    <div
+                                      className={`grid gap-2 my-2.5 max-w-[460px] ${
+                                        cols === 4 ? 'grid-cols-4' : 'grid-cols-5'
+                                      }`}
+                                    >
+                                      {tokens.map((tok, tIdx) => {
+                                        const isBlank = /^_{2,}$/.test(tok);
+                                        return (
+                                          <div
+                                            key={tIdx}
+                                            className={`h-9 border-2 rounded-md flex items-center justify-center text-sm font-extrabold ${
+                                              isBlank
+                                                ? 'border-slate-700 bg-white'
+                                                : 'border-slate-900 bg-slate-100 text-slate-950'
+                                            }`}
+                                          >
+                                            {isBlank ? '' : tok}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  );
+                                }
+                              } else if (isAfterBeforeBetween) {
+                                // Flatten multi-column items like "____ 20    ____ 8    ____ 7"
+                                const items: Array<{ left: string; mid: string; right: string }> = [];
+                                rawSubItems.forEach((line) => {
+                                  const chunks = line.split(/\s{2,}|\t/).map((c) => c.trim()).filter(Boolean);
+                                  chunks.forEach((ch) => {
+                                    const betweenMatch = ch.match(/^([0-9a-zA-Z]+)\s+_{2,}\s+([0-9a-zA-Z]+)$/);
+                                    const beforeMatch = ch.match(/^_{2,}\s*([0-9a-zA-Z]+)$/);
+                                    const afterMatch = ch.match(/^([0-9a-zA-Z]+)\s*[-_]+\s*$/);
+                                    if (betweenMatch) {
+                                      items.push({ left: betweenMatch[1], mid: 'BLANK', right: betweenMatch[2] });
+                                    } else if (beforeMatch) {
+                                      items.push({ left: 'BLANK', mid: '', right: beforeMatch[1] });
+                                    } else if (afterMatch) {
+                                      items.push({ left: afterMatch[1], mid: '→', right: 'BLANK' });
+                                    } else {
+                                      items.push({ left: ch.replace(/_{2,}/g, '').trim(), mid: '→', right: 'BLANK' });
+                                    }
+                                  });
+                                });
+
+                                if (items.length > 0) {
+                                  kidsWorksheetEl = (
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-5 gap-y-2.5 my-2.5">
+                                      {items.map((it, idx) => (
+                                        <div key={idx} className="flex items-center gap-2 text-sm font-bold text-slate-950">
+                                          {it.left === 'BLANK' ? (
+                                            <span className="w-14 h-8 border-2 border-slate-800 rounded-md bg-white inline-block shrink-0"></span>
+                                          ) : (
+                                            <span className="min-w-[22px] text-center">{it.left}</span>
+                                          )}
+                                          {it.mid && (
+                                            it.mid === 'BLANK' ? (
+                                              <span className="w-14 h-8 border-2 border-slate-800 rounded-md bg-white inline-block shrink-0"></span>
+                                            ) : (
+                                              <span className="text-slate-500 text-xs">{it.mid}</span>
+                                            )
+                                          )}
+                                          {it.right === 'BLANK' ? (
+                                            <span className="w-14 h-8 border-2 border-slate-800 rounded-md bg-white inline-block shrink-0"></span>
+                                          ) : (
+                                            <span className="min-w-[22px] text-center">{it.right}</span>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  );
+                                }
+                              }
+
                               return (
                                 <div className="flex-1 min-w-0">
                                   <span className={highlightClasses}>
@@ -2134,78 +2233,15 @@ _______   _______
                                   </span>
                                   {matchTableEl ? (
                                     matchTableEl
+                                  ) : kidsWorksheetEl ? (
+                                    kidsWorksheetEl
                                   ) : mathSubGrid ? (
                                     mathSubGrid
-                                  ) : q.type === 'mcq' && Array.isArray(q.options) && q.options.length > 0 ? (
-                                    <div className="mt-1.5 space-y-1.5">
-                                      {remainingLines.trim() && (
-                                        <div className="text-xs sm:text-[13px] font-medium text-slate-900 whitespace-pre-wrap leading-snug">
-                                          <Latex>{autoFormatMath(remainingLines)}</Latex>
-                                        </div>
-                                      )}
-                                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1.5 pl-3 pt-0.5">
-                                        {q.options.map((opt: any, oIdx: number) => {
-                                          const label = String.fromCharCode(65 + oIdx);
-                                          const txt = typeof opt === 'string' ? opt : opt?.text || '';
-                                          return (
-                                            <div key={oIdx} className="text-xs text-slate-900 flex items-center gap-1.5">
-                                              <span className="font-bold">({label})</span>
-                                              <span><Latex>{autoFormatMath(txt)}</Latex></span>
-                                            </div>
-                                          );
-                                        })}
-                                      </div>
-                                    </div>
                                   ) : remainingLines.trim() ? (
-                                    (() => {
-                                      const hasOptionLines = rawSubItems.some((l) =>
-                                        /(?:\(\s*[ivxIVXa-dA-D0-9]+\s*\)|[☐□])/.test(l)
-                                      );
-                                      if (hasOptionLines) {
-                                        return (
-                                          <div className="mt-1.5 space-y-1.5 pl-1">
-                                            {rawSubItems.map((line, lIdx) => {
-                                              // Check if line contains multiple options like "(i) school □ (ii) house □ (iii) hospital □"
-                                              const optTokens = line
-                                                .split(/(?=\(\s*(?:i{1,3}|iv|v|vi{0,3}|[a-dA-D])\s*\))/)
-                                                .map((s) => s.trim())
-                                                .filter(Boolean);
-                                              if (optTokens.length >= 2) {
-                                                const colsCls =
-                                                  optTokens.length === 2
-                                                    ? 'grid-cols-2'
-                                                    : optTokens.length === 4
-                                                      ? 'grid-cols-2 sm:grid-cols-4'
-                                                      : 'grid-cols-3';
-                                                return (
-                                                  <div
-                                                    key={lIdx}
-                                                    className={`grid ${colsCls} gap-x-4 gap-y-1 pl-4 pb-1.5 text-xs text-slate-800`}
-                                                  >
-                                                    {optTokens.map((tok, tIdx) => (
-                                                      <div key={tIdx} className="flex items-center gap-1.5">
-                                                        <span><Latex>{autoFormatMath(tok)}</Latex></span>
-                                                      </div>
-                                                    ))}
-                                                  </div>
-                                                );
-                                              }
-                                              return (
-                                                <div key={lIdx} className="text-xs sm:text-[13px] font-semibold text-slate-900 leading-snug pt-0.5">
-                                                  <Latex>{autoFormatMath(line)}</Latex>
-                                                </div>
-                                              );
-                                            })}
-                                          </div>
-                                        );
-                                      }
-                                      return (
-                                        <div className={`mt-1 font-normal text-slate-900 whitespace-pre-wrap ${solveInsidePaper ? (fitSinglePage ? 'leading-[1.65rem] text-sm font-medium' : 'leading-[1.95rem] text-sm font-medium') : 'leading-relaxed'}`}>
-                                          <Latex>{autoFormatMath(remainingLines)}</Latex>
-                                        </div>
-                                      );
-                                    })()
-                                  ) : solveInsidePaper && !q.question_text?.includes('_______') && !isMathQuestion ? (
+                                    <div className={`mt-1 font-normal text-slate-900 whitespace-pre-wrap ${solveInsidePaper ? (fitSinglePage ? 'leading-[1.65rem] text-sm font-medium' : 'leading-[1.95rem] text-sm font-medium') : 'leading-relaxed'}`}>
+                                      <Latex>{autoFormatMath(remainingLines)}</Latex>
+                                    </div>
+                                  ) : solveInsidePaper && !q.question_text?.includes('_______') && !isMathQuestion && !isMatchQuestion ? (
                                     <div className="mt-2 ml-2 space-y-1.5">
                                       <div className="h-6 border-b border-dashed border-slate-300 flex items-end">
                                         <span className="text-[11px] font-bold text-slate-500 mr-2">Ans:</span>
