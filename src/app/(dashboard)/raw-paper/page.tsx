@@ -1989,7 +1989,8 @@ _______   _______
                           ) : (
                             (() => {
                               const lines = (q.question_text || '').split('\n');
-                              const firstLine = lines[0] || '';
+                              const rawFirstLine = lines[0] || '';
+                              const firstLine = rawFirstLine.replace(/^\s*(?:Q\.?\s*)?\d+\s*[\.\)]\s*/i, '');
                               const remainingLines = lines.slice(1).join('\n');
 
                               const rawSubItems = remainingLines
@@ -2135,10 +2136,75 @@ _______   _______
                                     matchTableEl
                                   ) : mathSubGrid ? (
                                     mathSubGrid
-                                  ) : remainingLines.trim() ? (
-                                    <div className={`mt-1 font-normal text-slate-900 whitespace-pre-wrap ${solveInsidePaper ? (fitSinglePage ? 'leading-[1.65rem] text-sm font-medium' : 'leading-[1.95rem] text-sm font-medium') : 'leading-relaxed'}`}>
-                                      <Latex>{autoFormatMath(remainingLines)}</Latex>
+                                  ) : q.type === 'mcq' && Array.isArray(q.options) && q.options.length > 0 ? (
+                                    <div className="mt-1.5 space-y-1.5">
+                                      {remainingLines.trim() && (
+                                        <div className="text-xs sm:text-[13px] font-medium text-slate-900 whitespace-pre-wrap leading-snug">
+                                          <Latex>{autoFormatMath(remainingLines)}</Latex>
+                                        </div>
+                                      )}
+                                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1.5 pl-3 pt-0.5">
+                                        {q.options.map((opt: any, oIdx: number) => {
+                                          const label = String.fromCharCode(65 + oIdx);
+                                          const txt = typeof opt === 'string' ? opt : opt?.text || '';
+                                          return (
+                                            <div key={oIdx} className="text-xs text-slate-900 flex items-center gap-1.5">
+                                              <span className="font-bold">({label})</span>
+                                              <span><Latex>{autoFormatMath(txt)}</Latex></span>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
                                     </div>
+                                  ) : remainingLines.trim() ? (
+                                    (() => {
+                                      const hasOptionLines = rawSubItems.some((l) =>
+                                        /(?:\(\s*[ivxIVXa-dA-D0-9]+\s*\)|[☐□])/.test(l)
+                                      );
+                                      if (hasOptionLines) {
+                                        return (
+                                          <div className="mt-1.5 space-y-1.5 pl-1">
+                                            {rawSubItems.map((line, lIdx) => {
+                                              // Check if line contains multiple options like "(i) school □ (ii) house □ (iii) hospital □"
+                                              const optTokens = line
+                                                .split(/(?=\(\s*(?:i{1,3}|iv|v|vi{0,3}|[a-dA-D])\s*\))/)
+                                                .map((s) => s.trim())
+                                                .filter(Boolean);
+                                              if (optTokens.length >= 2) {
+                                                const colsCls =
+                                                  optTokens.length === 2
+                                                    ? 'grid-cols-2'
+                                                    : optTokens.length === 4
+                                                      ? 'grid-cols-2 sm:grid-cols-4'
+                                                      : 'grid-cols-3';
+                                                return (
+                                                  <div
+                                                    key={lIdx}
+                                                    className={`grid ${colsCls} gap-x-4 gap-y-1 pl-4 pb-1.5 text-xs text-slate-800`}
+                                                  >
+                                                    {optTokens.map((tok, tIdx) => (
+                                                      <div key={tIdx} className="flex items-center gap-1.5">
+                                                        <span><Latex>{autoFormatMath(tok)}</Latex></span>
+                                                      </div>
+                                                    ))}
+                                                  </div>
+                                                );
+                                              }
+                                              return (
+                                                <div key={lIdx} className="text-xs sm:text-[13px] font-semibold text-slate-900 leading-snug pt-0.5">
+                                                  <Latex>{autoFormatMath(line)}</Latex>
+                                                </div>
+                                              );
+                                            })}
+                                          </div>
+                                        );
+                                      }
+                                      return (
+                                        <div className={`mt-1 font-normal text-slate-900 whitespace-pre-wrap ${solveInsidePaper ? (fitSinglePage ? 'leading-[1.65rem] text-sm font-medium' : 'leading-[1.95rem] text-sm font-medium') : 'leading-relaxed'}`}>
+                                          <Latex>{autoFormatMath(remainingLines)}</Latex>
+                                        </div>
+                                      );
+                                    })()
                                   ) : solveInsidePaper && !q.question_text?.includes('_______') && !isMathQuestion ? (
                                     <div className="mt-2 ml-2 space-y-1.5">
                                       <div className="h-6 border-b border-dashed border-slate-300 flex items-end">
