@@ -2182,7 +2182,7 @@ _______   _______
                                   const cols = tokens.length <= 5 ? tokens.length : 5;
                                   kidsWorksheetEl = (
                                     <div
-                                      className={`grid gap-x-4 gap-y-3 my-2 max-w-[460px] ${
+                                      className={`grid gap-x-5 gap-y-4 my-2.5 max-w-[480px] ${
                                         cols === 4 ? 'grid-cols-4' : 'grid-cols-5'
                                       }`}
                                     >
@@ -2191,8 +2191,8 @@ _______   _______
                                         return (
                                           <div
                                             key={tIdx}
-                                            className={`h-6 flex items-end justify-center text-sm font-bold ${
-                                              isBlank ? 'border-b-2 border-slate-800' : 'text-slate-950'
+                                            className={`h-8 pb-0.5 flex items-end justify-center text-sm font-bold ${
+                                              isBlank ? 'border-b-2 border-slate-900' : 'border-b-2 border-slate-900 text-slate-950'
                                             }`}
                                           >
                                             {isBlank ? '' : tok}
@@ -2228,19 +2228,19 @@ _______   _______
                                       {items.map((it, idx) => (
                                         <div key={idx} className="flex items-end gap-2 text-sm font-bold text-slate-950">
                                           {it.left === 'BLANK' ? (
-                                            <span className="w-14 h-5 border-b-2 border-slate-800 inline-block shrink-0"></span>
+                                            <span className="w-16 h-6 border-b-2 border-slate-900 inline-block shrink-0"></span>
                                           ) : (
                                             <span className="min-w-[18px] text-center">{it.left}</span>
                                           )}
                                           {it.mid && (
                                             it.mid === 'BLANK' ? (
-                                              <span className="w-14 h-5 border-b-2 border-slate-800 inline-block shrink-0"></span>
+                                              <span className="w-16 h-6 border-b-2 border-slate-900 inline-block shrink-0"></span>
                                             ) : (
-                                              <span className="text-slate-800">{it.mid}</span>
+                                              <span className="text-slate-900">{it.mid}</span>
                                             )
                                           )}
                                           {it.right === 'BLANK' ? (
-                                            <span className="w-14 h-5 border-b-2 border-slate-800 inline-block shrink-0"></span>
+                                            <span className="w-16 h-6 border-b-2 border-slate-900 inline-block shrink-0"></span>
                                           ) : (
                                             <span className="min-w-[18px] text-center">{it.right}</span>
                                           )}
