@@ -101,7 +101,7 @@ export default function IndependentRawPaperPage() {
   const [mathSpaceSize, setMathSpaceSize] = useState<'huge' | 'xlarge' | 'large' | 'medium'>('xlarge');
   const [mathColumns, setMathColumns] = useState<number>(2);
   const [isLoadingSchool, setIsLoadingSchool] = useState(false);
-  const [selectedAiModel, setSelectedAiModel] = useState<string>('gemini-3.5-flash-lite');
+  const [selectedAiModel, setSelectedAiModel] = useState<string>('gemini-3.8-flash');
   const [isManualModel, setIsManualModel] = useState<boolean>(false);
   const [manualModelInput, setManualModelInput] = useState<string>('');
 
@@ -1878,22 +1878,22 @@ _______   _______
               <div className="space-y-2.5 border-b border-slate-200 pb-2.5 mb-3 text-xs font-medium">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                   <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <span className="shrink-0 font-bold text-slate-800">Name of Candidate:</span>
-                    <span className="border-b border-slate-400 border-dotted flex-1 min-w-[120px] inline-block h-3"></span>
+                    <span className="shrink-0 font-bold text-slate-900">Name of Candidate:</span>
+                    <span className="border-b-2 border-slate-900 border-dotted flex-1 min-w-[120px] inline-block h-3"></span>
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
                     <span className="flex items-center gap-1.5">
-                      <span className="font-bold text-slate-800">Roll No:</span>
-                      <span className="border-b border-slate-400 border-dotted w-14 inline-block h-3"></span>
+                      <span className="font-bold text-slate-900">Roll No:</span>
+                      <span className="border-b-2 border-slate-900 border-dotted w-14 inline-block h-3"></span>
                     </span>
                     <span className="flex items-center gap-1.5">
-                      <span className="font-bold text-slate-800">Section:</span>
-                      <span className="border-b border-slate-400 border-dotted w-10 inline-block h-3"></span>
+                      <span className="font-bold text-slate-900">Section:</span>
+                      <span className="border-b-2 border-slate-900 border-dotted w-10 inline-block h-3"></span>
                     </span>
                     {solveInsidePaper && (
                       <div className="flex items-center gap-1 border-2 border-slate-900 rounded-md px-2 py-0.5 font-bold text-[11px] bg-slate-50 text-slate-950 shadow-2xs">
                         <span>Marks:</span>
-                        <span className="border-b border-slate-800 border-dotted w-8 inline-block h-3"></span>
+                        <span className="border-b-2 border-slate-900 border-dotted w-8 inline-block h-3"></span>
                         <span>/ {totalMarks}</span>
                       </div>
                     )}
@@ -1903,12 +1903,12 @@ _______   _______
                 {/* Invigilator & Examiner Signatures */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
                   <div className="flex items-center gap-2 flex-1">
-                    <span className="shrink-0 font-bold text-slate-800">Invigilator&apos;s Signature:</span>
-                    <span className="border-b border-slate-400 border-dotted flex-1 min-w-[120px] max-w-[220px] inline-block h-3.5"></span>
+                    <span className="shrink-0 font-bold text-slate-900">Invigilator&apos;s Signature:</span>
+                    <span className="border-b-2 border-slate-900 border-dotted flex-1 min-w-[120px] max-w-[220px] inline-block h-3.5"></span>
                   </div>
                   <div className="flex items-center gap-2 flex-1 sm:justify-end">
-                    <span className="shrink-0 font-bold text-slate-800">Examiner&apos;s Signature:</span>
-                    <span className="border-b border-slate-400 border-dotted flex-1 min-w-[120px] max-w-[220px] inline-block h-3.5"></span>
+                    <span className="shrink-0 font-bold text-slate-900">Examiner&apos;s Signature:</span>
+                    <span className="border-b-2 border-slate-900 border-dotted flex-1 min-w-[120px] max-w-[220px] inline-block h-3.5"></span>
                   </div>
                 </div>
               </div>
