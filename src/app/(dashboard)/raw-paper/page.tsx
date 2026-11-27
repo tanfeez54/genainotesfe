@@ -2073,31 +2073,48 @@ _______   _______
                                 }
 
                                 if (colA.length === 0 && rawSubItems.length > 0) {
-                                  rawSubItems.forEach((line) => {
-                                    const cleaned = line.replace(/^\s*(?:\(\s*[ivxIVX0-9a-zA-Z]+\s*\)|[0-9]+[\.\)]|[a-zA-Z][\.\)])\s*/, '');
-                                    const parts = cleaned.split(/\s*(?:\||->|=>|\t|\s{2,}|\s-\s)\s*/);
-                                    if (parts.length >= 2) {
-                                      colA.push(parts[0].trim());
-                                      colB.push(parts.slice(1).join(' ').replace(/^\s*(?:\(\s*[a-zA-Z0-9]+\s*\)|[a-zA-Z][\.\)])\s*/, '').trim());
-                                    } else {
-                                      colA.push(cleaned.trim());
-                                      colB.push('');
-                                    }
-                                  });
+                                  const colBHeaderIdx = rawSubItems.findIndex((l) => /^column\s*b\b/i.test(l));
+                                  if (colBHeaderIdx > 0) {
+                                    colA = rawSubItems
+                                      .slice(0, colBHeaderIdx)
+                                      .filter((l) => !/^column\s*a\b/i.test(l))
+                                      .map((l) => l.replace(/^\s*(?:\(\s*[ivxIVX0-9a-zA-Z]+\s*\)|[0-9]+[\.\)]|[a-zA-Z][\.\)])\s*/, '').trim());
+                                    colB = rawSubItems
+                                      .slice(colBHeaderIdx + 1)
+                                      .map((l) => l.replace(/^\s*(?:\(\s*[ivxIVX0-9a-zA-Z]+\s*\)|[0-9]+[\.\)]|[a-zA-Z][\.\)])\s*/, '').trim());
+                                  } else {
+                                    rawSubItems
+                                      .filter((l) => !/^column\s*a\b.*\bcolumn\s*b\b/i.test(l))
+                                      .forEach((line) => {
+                                        const cleaned = line.replace(/^\s*(?:\(\s*[ivxIVX0-9a-zA-Z]+\s*\)|[0-9]+[\.\)]|[a-zA-Z][\.\)])\s*/, '');
+                                        const parts = cleaned.split(/\s*(?:\||->|=>|\t|\s{2,}|\s-\s)\s*/);
+                                        if (parts.length >= 2) {
+                                          colA.push(parts[0].trim());
+                                          colB.push(parts.slice(1).join(' ').replace(/^\s*(?:\(\s*[a-zA-Z0-9]+\s*\)|[a-zA-Z][\.\)])\s*/, '').trim());
+                                        } else {
+                                          colA.push(cleaned.trim());
+                                          colB.push('');
+                                        }
+                                      });
+                                  }
                                 }
+
+                                const stripPrefix = (val: string) =>
+                                  val.replace(/^\s*(?:\(\s*[ivxIVX0-9a-zA-Z]+\s*\)|[0-9]+[\.\)]|[a-zA-Z][\.\)])\s*/, '').trim();
 
                                 const maxMatchRows = Math.max(colA.length, colB.length);
                                 if (maxMatchRows > 0) {
                                   const romanNums = ['i', 'ii', 'iii', 'iv', 'v', 'vi', 'vii', 'viii', 'ix', 'x', 'xi', 'xii'];
                                   matchTableEl = (
-                                    <div className="my-2 overflow-hidden rounded-lg border-2 border-slate-800 bg-white">
+                                    <div className="my-2 max-w-[540px] rounded-lg border border-slate-300 bg-white overflow-hidden">
                                       <table className="w-full border-collapse text-xs">
                                         <thead>
-                                          <tr className="bg-slate-100 border-b-2 border-slate-800">
-                                            <th className="text-left font-extrabold text-slate-900 px-3 py-1.5 border-r-2 border-slate-800 w-1/2">
+                                          <tr className="bg-slate-50 border-b border-slate-300">
+                                            <th className="text-left font-bold text-slate-900 px-3 py-1.5 w-[42%]">
                                               Column A
                                             </th>
-                                            <th className="text-left font-extrabold text-slate-900 px-3 py-1.5 w-1/2">
+                                            <th className="w-[16%]"></th>
+                                            <th className="text-left font-bold text-slate-900 px-3 py-1.5 w-[42%]">
                                               Column B
                                             </th>
                                           </tr>
@@ -2106,15 +2123,26 @@ _______   _______
                                           {Array.from({ length: maxMatchRows }).map((_, rIdx) => {
                                             const labelA = romanNums[rIdx] ? `(${romanNums[rIdx]})` : `${rIdx + 1}.`;
                                             const labelB = `(${String.fromCharCode(65 + rIdx)})`;
+                                            const valA = stripPrefix(colA[rIdx] || '');
+                                            const valB = stripPrefix(colB[rIdx] || '');
                                             return (
-                                              <tr key={rIdx} className="border-b last:border-b-0 border-slate-300">
-                                                <td className="px-3 py-1.5 border-r-2 border-slate-800 font-medium text-slate-900 align-top">
-                                                  <span className="font-bold mr-1.5">{labelA}</span>
-                                                  <Latex>{autoFormatMath(colA[rIdx] || '')}</Latex>
+                                              <tr key={rIdx} className="border-b last:border-b-0 border-slate-200/80">
+                                                <td className="px-3 py-2 font-medium text-slate-900 align-middle">
+                                                  {valA && (
+                                                    <>
+                                                      <span className="font-bold mr-1.5">{labelA}</span>
+                                                      <Latex>{autoFormatMath(valA)}</Latex>
+                                                    </>
+                                                  )}
                                                 </td>
-                                                <td className="px-3 py-1.5 font-medium text-slate-900 align-top">
-                                                  <span className="font-bold mr-1.5">{labelB}</span>
-                                                  <Latex>{autoFormatMath(colB[rIdx] || '')}</Latex>
+                                                <td className="py-2"></td>
+                                                <td className="px-3 py-2 font-medium text-slate-900 align-middle">
+                                                  {valB && (
+                                                    <>
+                                                      <span className="font-bold mr-1.5">{labelB}</span>
+                                                      <Latex>{autoFormatMath(valB)}</Latex>
+                                                    </>
+                                                  )}
                                                 </td>
                                               </tr>
                                             );
