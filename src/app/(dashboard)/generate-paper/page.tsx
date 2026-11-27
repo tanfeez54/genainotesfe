@@ -495,7 +495,7 @@ export default function GeneratePaperPage() {
   const [pdfCustomClass, setPdfCustomClass] = useState<string>('');
   const [pdfCustomSubject, setPdfCustomSubject] = useState<string>('');
   const [isPdfDragOver, setIsPdfDragOver] = useState(false);
-  const [selectedAiModel, setSelectedAiModel] = useState<string>('gemini-3.8-flash');
+  const [selectedAiModel, setSelectedAiModel] = useState<string>('gemini-3.5-flash-lite');
   const [isManualModel, setIsManualModel] = useState<boolean>(false);
   const [manualModelInput, setManualModelInput] = useState<string>('');
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);

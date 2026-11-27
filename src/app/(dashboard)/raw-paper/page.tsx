@@ -101,7 +101,7 @@ export default function IndependentRawPaperPage() {
   const [mathSpaceSize, setMathSpaceSize] = useState<'huge' | 'xlarge' | 'large' | 'medium'>('xlarge');
   const [mathColumns, setMathColumns] = useState<number>(2);
   const [isLoadingSchool, setIsLoadingSchool] = useState(false);
-  const [selectedAiModel, setSelectedAiModel] = useState<string>('gemini-3.8-flash');
+  const [selectedAiModel, setSelectedAiModel] = useState<string>('gemini-3.5-flash-lite');
   const [isManualModel, setIsManualModel] = useState<boolean>(false);
   const [manualModelInput, setManualModelInput] = useState<string>('');
 
@@ -2054,12 +2054,86 @@ _______   _______
                                 highlightClasses = 'font-medium text-slate-900 inline';
                               }
 
+                              // Match the Following 2-Column Table Renderer
+                              const isMatchQuestion =
+                                q.type === 'match_the_following' ||
+                                Boolean(q.options && !Array.isArray(q.options) && (q.options.column_a || q.options.columnA)) ||
+                                /\b(match\s+the\s+following|match\s+column|match\s+with|मिलान|जोड़े)\b/i.test(firstLine);
+
+                              let matchTableEl = null;
+                              if (isMatchQuestion) {
+                                let colA: string[] = [];
+                                let colB: string[] = [];
+
+                                if (q.options && typeof q.options === 'object' && !Array.isArray(q.options)) {
+                                  const rawA = q.options.column_a || q.options.columnA || [];
+                                  const rawB = q.options.column_b || q.options.columnB || [];
+                                  colA = rawA.map((it: any) => (typeof it === 'string' ? it : it?.text || ''));
+                                  colB = rawB.map((it: any) => (typeof it === 'string' ? it : it?.text || ''));
+                                }
+
+                                if (colA.length === 0 && rawSubItems.length > 0) {
+                                  rawSubItems.forEach((line) => {
+                                    const cleaned = line.replace(/^\s*(?:\(\s*[ivxIVX0-9a-zA-Z]+\s*\)|[0-9]+[\.\)]|[a-zA-Z][\.\)])\s*/, '');
+                                    const parts = cleaned.split(/\s*(?:\||->|=>|\t|\s{2,}|\s-\s)\s*/);
+                                    if (parts.length >= 2) {
+                                      colA.push(parts[0].trim());
+                                      colB.push(parts.slice(1).join(' ').replace(/^\s*(?:\(\s*[a-zA-Z0-9]+\s*\)|[a-zA-Z][\.\)])\s*/, '').trim());
+                                    } else {
+                                      colA.push(cleaned.trim());
+                                      colB.push('');
+                                    }
+                                  });
+                                }
+
+                                const maxMatchRows = Math.max(colA.length, colB.length);
+                                if (maxMatchRows > 0) {
+                                  const romanNums = ['i', 'ii', 'iii', 'iv', 'v', 'vi', 'vii', 'viii', 'ix', 'x', 'xi', 'xii'];
+                                  matchTableEl = (
+                                    <div className="my-2 overflow-hidden rounded-lg border-2 border-slate-800 bg-white">
+                                      <table className="w-full border-collapse text-xs">
+                                        <thead>
+                                          <tr className="bg-slate-100 border-b-2 border-slate-800">
+                                            <th className="text-left font-extrabold text-slate-900 px-3 py-1.5 border-r-2 border-slate-800 w-1/2">
+                                              Column A
+                                            </th>
+                                            <th className="text-left font-extrabold text-slate-900 px-3 py-1.5 w-1/2">
+                                              Column B
+                                            </th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {Array.from({ length: maxMatchRows }).map((_, rIdx) => {
+                                            const labelA = romanNums[rIdx] ? `(${romanNums[rIdx]})` : `${rIdx + 1}.`;
+                                            const labelB = `(${String.fromCharCode(65 + rIdx)})`;
+                                            return (
+                                              <tr key={rIdx} className="border-b last:border-b-0 border-slate-300">
+                                                <td className="px-3 py-1.5 border-r-2 border-slate-800 font-medium text-slate-900 align-top">
+                                                  <span className="font-bold mr-1.5">{labelA}</span>
+                                                  <Latex>{autoFormatMath(colA[rIdx] || '')}</Latex>
+                                                </td>
+                                                <td className="px-3 py-1.5 font-medium text-slate-900 align-top">
+                                                  <span className="font-bold mr-1.5">{labelB}</span>
+                                                  <Latex>{autoFormatMath(colB[rIdx] || '')}</Latex>
+                                                </td>
+                                              </tr>
+                                            );
+                                          })}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  );
+                                }
+                              }
+
                               return (
                                 <div className="flex-1 min-w-0">
                                   <span className={highlightClasses}>
                                     <Latex>{autoFormatMath(firstLine)}</Latex>
                                   </span>
-                                  {mathSubGrid ? (
+                                  {matchTableEl ? (
+                                    matchTableEl
+                                  ) : mathSubGrid ? (
                                     mathSubGrid
                                   ) : remainingLines.trim() ? (
                                     <div className={`mt-1 font-normal text-slate-900 whitespace-pre-wrap ${solveInsidePaper ? (fitSinglePage ? 'leading-[1.65rem] text-sm font-medium' : 'leading-[1.95rem] text-sm font-medium') : 'leading-relaxed'}`}>
