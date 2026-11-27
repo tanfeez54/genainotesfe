@@ -1432,8 +1432,7 @@ export function printRawPaperFromDom(elementId: string = 'printable-raw-paper') 
               padding: 0 !important;
               background: #ffffff !important;
               color: #0f172a !important;
-              font-size: 12px !important;
-              line-height: 1.5 !important;
+              font-size: 16px !important;
               -webkit-print-color-adjust: exact !important;
               print-color-adjust: exact !important;
             }
